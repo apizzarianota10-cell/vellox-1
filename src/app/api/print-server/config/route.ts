@@ -15,11 +15,12 @@ export async function GET() {
   if (!empresa) return NextResponse.json({ error: "Empresa nao encontrada" }, { status: 404 });
 
   const config = {
-    supabase_url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    supabase_url:      process.env.NEXT_PUBLIC_SUPABASE_URL,
     supabase_anon_key: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    empresa_id: empresa.id,
-    empresa_nome: empresa.nome,
-    printer_name: "",
+    empresa_id:        empresa.id,
+    empresa_nome:      empresa.nome,
+    printer_name:      "",
+    tamanho_papel:     "80mm",
   };
 
   return new NextResponse(JSON.stringify(config, null, 2), {

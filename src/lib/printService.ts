@@ -2,11 +2,61 @@ import type { Pedido } from "@/types";
 import { buildReceipt } from "@/lib/escpos";
 import { printViaUsb, getSavedPrinterName } from "@/lib/usbPrinter";
 
-const PRINTED_KEY = "vellox-printed-orders";
-const MAX_TRACKED = 300;
+const PRINTED_KEY    = "vellox-printed-orders";
+const MAX_TRACKED    = 300;
+const PAPER_SIZE_KEY = "vellox-paper-size";
+const FONT_SIZE_KEY  = "vellox-font-size";
 
-const PRINT_DIV_ID   = "vellox-receipt-print";
-const PRINT_STYLE_ID = "vellox-receipt-style";
+export type PaperSize  = "58mm" | "80mm";
+export type FontSizeOpt = "p" | "m" | "g" | "xg";
+
+export function getSavedPaperSize(): PaperSize {
+  try {
+    const v = localStorage.getItem(PAPER_SIZE_KEY);
+    if (v === "58mm" || v === "80mm") return v;
+  } catch {}
+  return "80mm";
+}
+
+export function savePaperSize(size: PaperSize): void {
+  try { localStorage.setItem(PAPER_SIZE_KEY, size); } catch {}
+}
+
+export function getSavedFontSize(): FontSizeOpt {
+  try {
+    const v = localStorage.getItem(FONT_SIZE_KEY);
+    if (v === "p" || v === "m" || v === "g" || v === "xg") return v;
+  } catch {}
+  return "m";
+}
+
+export function saveFontSize(size: FontSizeOpt): void {
+  try { localStorage.setItem(FONT_SIZE_KEY, size); } catch {}
+}
+
+const FONT_SCALE: Record<FontSizeOpt, number> = { p: 0.82, m: 1, g: 1.18, xg: 1.35 };
+
+const LAYOUT_KEY = "vellox-receipt-layout";
+const LOGO_KEY   = "vellox-receipt-logo";
+
+export type LayoutOpt = "classico" | "moderno" | "compacto";
+
+export function getSavedLayout(): LayoutOpt {
+  try {
+    const v = localStorage.getItem(LAYOUT_KEY);
+    if (v === "classico" || v === "moderno" || v === "compacto") return v;
+  } catch {}
+  return "classico";
+}
+export function saveLayout(l: LayoutOpt): void {
+  try { localStorage.setItem(LAYOUT_KEY, l); } catch {}
+}
+export function getSavedLogo(): string {
+  try { return localStorage.getItem(LOGO_KEY) ?? ""; } catch { return ""; }
+}
+export function saveLogo(url: string): void {
+  try { localStorage.setItem(LOGO_KEY, url); } catch {}
+}
 
 function getTracked(): Set<string> {
   try {
@@ -31,211 +81,197 @@ const PGTO_LABELS: Record<string, string> = {
   ja_pago:        "Já pago",
 };
 
-// Constrói o HTML do cupom (usado também para preview)
-export function formatReceipt(pedido: Pedido, empresaNome = "PEDIDO"): string {
+function borderStyle(pedido: Pedido): { borderCss: string; headerText: string; headerBg: string } {
+  if (pedido.forma_pagamento === "ja_pago") {
+    return { borderCss: "3px double #000", headerText: "★ JÁ PAGO ★", headerBg: "rgba(34,197,94,0.06)" };
+  }
+  if (pedido.tipo_pedido === "retirada") {
+    return { borderCss: "2px solid #000", headerText: "— RETIRADA —", headerBg: "rgba(96,165,250,0.06)" };
+  }
+  return { borderCss: "2px dashed #000", headerText: "- DELIVERY -", headerBg: "rgba(255,106,0,0.04)" };
+}
+
+export function formatReceipt(
+  pedido: Pedido,
+  empresaNome = "PEDIDO",
+  paperSize: PaperSize = "80mm",
+  fontSizeOpt: FontSizeOpt = "m",
+  layout: LayoutOpt = "classico",
+  logoUrl = "",
+): string {
   const data  = new Date(pedido.created_at).toLocaleString("pt-BR");
   const total = pedido.valor_pedido + pedido.valor_motoboy;
-  const pgto  = pedido.forma_pagamento
-    ? (PGTO_LABELS[pedido.forma_pagamento] ?? pedido.forma_pagamento)
-    : "—";
+  const pgto  = pedido.forma_pagamento ? (PGTO_LABELS[pedido.forma_pagamento] ?? pedido.forma_pagamento) : "—";
+  const { borderCss, headerText } = borderStyle(pedido);
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>${empresaNome} · #${pedido.id.slice(0, 8).toUpperCase()}</title>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{
-  width:100%;
-  font-family:"Courier New",Courier,monospace;
-  font-size:12px;font-weight:700;line-height:1.5;
-  padding:1mm;color:#000;background:#fff;
-  -webkit-print-color-adjust:exact;print-color-adjust:exact
-}
-h1{font-size:15px;font-weight:900;text-align:center;margin-bottom:2px;
-   text-transform:uppercase;letter-spacing:.06em}
-.sub{text-align:center;font-size:11px;font-weight:700;margin-bottom:4px}
-.sep{border:none;border-top:2px solid #000;margin:6px 0}
-.row{display:flex;justify-content:space-between;margin:2px 0;font-weight:700}
-.lbl{font-weight:900;font-size:11px;text-transform:uppercase;
-     letter-spacing:.04em;margin:5px 0 1px}
-.v{font-weight:700}
-.total{font-size:16px;font-weight:900}
-.itens{white-space:pre-wrap;font-size:13px;font-weight:700;line-height:1.6;margin:3px 0}
-.footer{text-align:center;font-size:10px;font-weight:700;margin-top:8px}
-@media print{@page{margin:2mm}html,body{width:100%;padding:0}}
-</style></head><body>
-<h1>${empresaNome}</h1>
-<div class="sub">${data}</div>
-<hr class="sep">
-<div class="lbl">Nº do pedido</div>
-<div style="font-weight:900;font-size:14px">#${pedido.id.slice(0, 8).toUpperCase()}</div>
-<hr class="sep">
-<div class="lbl">Cliente</div>
-<div class="v">${pedido.cliente_nome}</div>
-${pedido.cliente_telefone ? `<div class="v">${pedido.cliente_telefone}</div>` : ""}
-<hr class="sep">
-<div class="lbl">Tipo</div>
-<div style="font-weight:900">${pedido.tipo_pedido === "entrega" ? "★ DELIVERY" : "★ RETIRADA"}</div>
+  const is58  = paperSize === "58mm";
+  const bodyW = is58 ? 195 : 265;
+  const scale = FONT_SCALE[fontSizeOpt] ?? 1;
+  const fs    = Math.round((is58 ? 10 : 12) * scale);
+  const fsBig = Math.round((is58 ? 12 : 14) * scale);
+
+  const W    = `width:100%;display:block;word-break:break-all;overflow-wrap:anywhere;`;
+  const CTR  = `${W}text-align:center;`;
+  const LFT  = `${W}text-align:left;`;
+  const CTRB = `${CTR}font-size:${fsBig}px;font-weight:900;`;
+  const VAL  = `${LFT}font-size:${fs}px;font-weight:700;`;
+  const LBL  = `${LFT}font-size:${fs - 1}px;font-weight:900;text-transform:uppercase;margin:3px 0 1px;`;
+
+  const priceRow = (label: string, valor: string) =>
+    `<div style="${W}display:flex;justify-content:space-between;font-size:${fs}px;font-weight:700;margin:1px 0"><span>${label}</span><span>${valor}</span></div>`;
+
+  const logoImg = logoUrl
+    ? `<div style="${CTR}margin-bottom:4px"><img src="${logoUrl}" style="max-width:${Math.round(bodyW * 0.65)}px;max-height:64px;object-fit:contain;" /></div>`
+    : "";
+
+  const itensClassico = (pedido.descricao_itens ?? "—").split("\n").map(l => `<div style="${VAL}">${l || "&nbsp;"}</div>`).join("");
+  const itensModerno  = (pedido.descricao_itens ?? "—").split("\n").map(l => `<div style="${VAL}">• ${l || "&nbsp;"}</div>`).join("");
+  const itensCompacto = (pedido.descricao_itens ?? "—").split("\n").map(l => `<div style="${LFT}font-size:${Math.max(fs - 1, 8)}px;font-weight:700;">${l}</div>`).join("");
+
+  // ── Layout bodies ─────────────────────────────────────────────────────────
+  let body = "";
+
+  if (layout === "moderno") {
+    const SEP  = `<div style="border-top:2px solid #000;margin:5px 0;"></div>`;
+    const DSEP = `<div style="border-top:1px dashed #000;margin:4px 0;"></div>`;
+    const tipo = pedido.tipo_pedido === "retirada" ? "RETIRADA" : pedido.forma_pagamento === "ja_pago" ? "JA PAGO" : "DELIVERY";
+    body = `
+<div style="border:2px solid #000;padding:6px 4px;margin-bottom:5px;text-align:center;">
+  ${logoImg}
+  <div style="font-size:${fsBig + 2}px;font-weight:900;text-transform:uppercase;">${empresaNome}</div>
+  <div style="font-size:${fs}px;font-weight:700;">${data}</div>
+</div>
+${SEP}
+<div style="${CTRB}letter-spacing:0.05em;">[ ${tipo} ]</div>
+<div style="${CTR}font-size:${fs}px;font-weight:900;">PEDIDO #${pedido.id.slice(0, 8).toUpperCase()}</div>
+${SEP}
+<div style="${LFT}font-size:${fsBig}px;font-weight:900;">> ${pedido.cliente_nome}</div>
+${pedido.cliente_telefone ? `<div style="${VAL}">Tel: ${pedido.cliente_telefone}</div>` : ""}
+${DSEP}
 ${pedido.tipo_pedido === "entrega"
-  ? `<div class="lbl" style="margin-top:4px">Endereço</div><div class="v">${pedido.endereco_entrega}${pedido.bairro ? ` — ${pedido.bairro}` : ""}</div>`
-  : ""}
-<hr class="sep">
-<div class="lbl">Itens</div>
-<div class="itens">${(pedido.descricao_itens ?? "—").replace(/\n/g, "<br>")}</div>
-${pedido.observacoes
-  ? `<hr class="sep"><div class="lbl">Observações</div><div class="v">${pedido.observacoes}</div>`
-  : ""}
-<hr class="sep">
-<div class="row"><span>Subtotal</span><span>R$ ${pedido.valor_pedido.toFixed(2).replace(".", ",")}</span></div>
-${pedido.valor_motoboy > 0
-  ? `<div class="row"><span>Entrega</span><span>R$ ${pedido.valor_motoboy.toFixed(2).replace(".", ",")}</span></div>`
-  : ""}
-<div class="row" style="margin-top:3px"><span class="total">TOTAL</span><span class="total">R$ ${total.toFixed(2).replace(".", ",")}</span></div>
-<hr class="sep">
-<div class="lbl">Pagamento</div>
-<div style="font-weight:900">${pgto}${pedido.troco_para ? ` · Troco p/ R$ ${pedido.troco_para.toFixed(2).replace(".", ",")}` : ""}</div>
-<hr class="sep">
-<div class="footer">Vellox · appvellox.online</div>
+  ? `<div style="${VAL}">End: ${pedido.endereco_entrega}${pedido.bairro ? `, ${pedido.bairro}` : ""}</div>`
+  : `<div style="${CTRB}">*** RETIRADA NO LOCAL ***</div>`}
+${SEP}
+<div style="font-size:${fs - 1}px;font-weight:900;text-transform:uppercase;margin-bottom:2px;">ITENS</div>
+${itensModerno}
+${pedido.observacoes ? `${DSEP}<div style="${LBL}">Obs:</div><div style="${VAL}">${pedido.observacoes}</div>` : ""}
+${SEP}
+${priceRow("Subtotal:", `R$ ${pedido.valor_pedido.toFixed(2).replace(".", ",")}`)}
+${pedido.valor_motoboy > 0 ? priceRow("Entrega:", `R$ ${pedido.valor_motoboy.toFixed(2).replace(".", ",")}`) : ""}
+${SEP}
+<div style="${CTRB}">>> TOTAL: R$ ${total.toFixed(2).replace(".", ",")} &lt;&lt;</div>
+${SEP}
+<div style="${VAL}font-size:${fsBig}px;">Pgto: ${pgto}</div>
+${pedido.troco_para ? `<div style="${VAL}">Troco p/ R$ ${pedido.troco_para.toFixed(2).replace(".", ",")}</div>` : ""}
+${SEP}
+<div style="${CTR}font-size:${fs}px;font-weight:700;">appvellox.online</div>`;
+
+  } else if (layout === "compacto") {
+    const SEP  = `<div style="border-top:1px solid #000;margin:3px 0;"></div>`;
+    const fsC  = Math.max(fs - 1, 8);
+    const dataC = new Date(pedido.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
+    const tipo  = pedido.tipo_pedido === "retirada" ? "[RETIRADA]" : pedido.forma_pagamento === "ja_pago" ? "[JA PAGO]" : "[DELIVERY]";
+    body = `
+${logoImg}
+<div style="${CTR}font-size:${fsBig}px;font-weight:900;text-transform:uppercase;">${empresaNome}</div>
+<div style="${CTR}font-size:${fsC}px;font-weight:700;">${dataC} | #${pedido.id.slice(0, 8).toUpperCase()}</div>
+${SEP}
+<div style="${LFT}font-size:${fsC + 1}px;font-weight:900;">${tipo} ${pedido.cliente_nome}</div>
+${pedido.cliente_telefone ? `<div style="${LFT}font-size:${fsC}px;font-weight:700;">${pedido.cliente_telefone}</div>` : ""}
+${pedido.tipo_pedido === "entrega" ? `<div style="${LFT}font-size:${fsC}px;font-weight:700;">${pedido.endereco_entrega}${pedido.bairro ? `, ${pedido.bairro}` : ""}</div>` : ""}
+${SEP}
+${itensCompacto}
+${pedido.observacoes ? `<div style="${LFT}font-size:${fsC}px;font-weight:700;">Obs: ${pedido.observacoes}</div>` : ""}
+${SEP}
+<div style="${LFT}font-size:${fsC}px;font-weight:700;">Sub: R$ ${pedido.valor_pedido.toFixed(2).replace(".", ",")}${pedido.valor_motoboy > 0 ? ` | Entr: R$ ${pedido.valor_motoboy.toFixed(2).replace(".", ",")}` : ""}</div>
+<div style="${LFT}font-size:${fsBig}px;font-weight:900;">TOTAL: R$ ${total.toFixed(2).replace(".", ",")}</div>
+<div style="${LFT}font-size:${fsC + 1}px;font-weight:700;">Pgto: ${pgto}${pedido.troco_para ? ` | Troco p/ R$ ${pedido.troco_para.toFixed(2).replace(".", ",")}` : ""}</div>
+${SEP}
+<div style="${CTR}font-size:${fsC}px;font-weight:700;">appvellox.online</div>`;
+
+  } else {
+    // Clássico (padrão)
+    const SEP = `<div style="border-top:${borderCss};margin:4px 0;"></div>`;
+    body = `
+${logoImg}
+<div style="${CTRB}text-transform:uppercase;margin-bottom:1px">${empresaNome}</div>
+<div style="${CTR}font-size:${fs}px;font-weight:700">${data}</div>
+${SEP}
+<div style="${CTRB}">${headerText}</div>
+<div style="${CTR}font-size:${fs}px;font-weight:900">PEDIDO #${pedido.id.slice(0, 8).toUpperCase()}</div>
+${SEP}
+<div style="${LBL}">Cliente</div>
+<div style="${LFT}font-size:${fsBig}px;font-weight:900">${pedido.cliente_nome}</div>
+${pedido.cliente_telefone ? `<div style="${VAL}">${pedido.cliente_telefone}</div>` : ""}
+${SEP}
+${pedido.tipo_pedido === "entrega"
+  ? `<div style="${LBL}">Endereço</div><div style="${VAL}">${pedido.endereco_entrega}${pedido.bairro ? `, ${pedido.bairro}` : ""}</div>`
+  : `<div style="${CTRB}">*** RETIRADA NO LOCAL ***</div>`}
+${SEP}
+<div style="${LBL}">Itens</div>
+${itensClassico}
+${pedido.observacoes ? `${SEP}<div style="${LBL}">Obs</div><div style="${VAL}">${pedido.observacoes}</div>` : ""}
+${SEP}
+${priceRow("Subtotal:", `R$ ${pedido.valor_pedido.toFixed(2).replace(".", ",")}`)}
+${pedido.valor_motoboy > 0 ? priceRow("Entrega:", `R$ ${pedido.valor_motoboy.toFixed(2).replace(".", ",")}`) : ""}
+${SEP}
+<div style="${CTRB}">TOTAL: R$ ${total.toFixed(2).replace(".", ",")}</div>
+${SEP}
+<div style="${LBL}">Pagamento</div>
+<div style="${LFT}font-size:${fsBig}px;font-weight:900">${pgto}</div>
+${pedido.troco_para ? `<div style="${VAL}">Troco p/ R$ ${pedido.troco_para.toFixed(2).replace(".", ",")}</div>` : ""}
+${SEP}
+<div style="${CTR}font-size:${fs}px;font-weight:700">appvellox.online</div>`;
+  }
+
+  return `<!DOCTYPE html><html lang="pt-BR"><head>
+<meta charset="utf-8">
+<title>${empresaNome}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;word-break:break-all;overflow-wrap:anywhere}
+html,body{width:${bodyW}px;font-family:"Courier New",Courier,monospace;font-size:${fs}px;font-weight:700;line-height:1.5;color:#000;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+@media print{@page{margin:0;size:${paperSize} auto}html,body{padding-bottom:60px}}
+</style>
+</head><body style="padding-bottom:60px">
+${body}
 </body></html>`;
 }
 
-export function printOrder(pedido: Pedido, empresaNome?: string, empresaCnpj?: string): boolean {
-  const dataObj  = new Date(pedido.created_at);
-  const hora     = dataObj.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-  const data     = dataObj.toLocaleDateString("pt-BR");
-  const total    = pedido.valor_pedido + pedido.valor_motoboy;
-  const pgto     = pedido.forma_pagamento
-    ? (PGTO_LABELS[pedido.forma_pagamento] ?? pedido.forma_pagamento)
-    : "—";
-  const empresa  = (empresaNome ?? "PEDIDO").toUpperCase();
-  const now      = new Date();
-  const printedAt = `${now.toLocaleDateString("pt-BR")} ${now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
-
-  const B = "font-weight:900;color:#000;";
-  const SEP = `<div style="border-top:2px solid #000;margin:6px 0"></div>`;
-
-  function row(left: string, right: string, big = false): string {
-    const s = big ? "font-size:16px;font-weight:900;" : "font-size:14px;font-weight:700;";
-    return `<div style="display:flex;justify-content:space-between;align-items:baseline;${s}color:#000">
-      <span>${left}</span><span style="white-space:nowrap">${right}</span>
-    </div>`;
-  }
-
-  const itensLinhas = (pedido.descricao_itens ?? "—").split("\n");
-  const itensHtml = itensLinhas
-    .map(l => `<div style="font-size:14px;font-weight:700;color:#000;line-height:1.6">${l || "&nbsp;"}</div>`)
-    .join("");
-
-  const receiptHtml = `
-    <div style="font-family:'Courier New',Courier,monospace;font-size:14px;font-weight:700;color:#000;background:#fff;padding:3mm 2mm;-webkit-print-color-adjust:exact;print-color-adjust:exact">
-
-      <div style="text-align:center;${B}font-size:18px;text-transform:uppercase;line-height:1.3">${empresa}</div>
-      ${empresaCnpj ? `<div style="text-align:center;font-size:12px;font-weight:700;color:#000;margin-top:2px">${empresaCnpj}</div>` : ""}
-
-      ${SEP}
-
-      <div style="text-align:center;${B}font-size:17px">PEDIDO #${pedido.id.slice(0, 8).toUpperCase()}</div>
-
-      ${SEP}
-
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="${B}font-size:15px">${pedido.cliente_nome}</span>
-        <span style="font-size:12px;font-weight:700;color:#000">${hora} ${data}</span>
-      </div>
-
-      ${SEP}
-
-      <div style="text-align:center;${B}font-size:18px;margin:4px 0">
-        ${pedido.tipo_pedido === "entrega" ? "ENTREGA" : "RETIRADA"}
-      </div>
-
-      ${SEP}
-
-      <div style="font-size:12px;${B}margin-bottom:2px">CLIENTE/CELULAR</div>
-      <div style="font-size:14px;${B}">${pedido.cliente_nome} - ${pedido.cliente_telefone}</div>
-
-      ${pedido.tipo_pedido === "entrega" ? `
-        <div style="font-size:12px;${B}margin-top:5px;margin-bottom:2px">ENDEREÇO DE ENTREGA:</div>
-        <div style="font-size:14px;font-weight:700;color:#000">${pedido.endereco_entrega}${pedido.bairro ? `, ${pedido.bairro}` : ""}</div>
-      ` : ""}
-
-      ${pedido.observacoes ? `
-        <div style="font-size:12px;${B}margin-top:5px;margin-bottom:2px">OBSERVAÇÕES:</div>
-        <div style="font-size:14px;font-weight:700;color:#000">${pedido.observacoes}</div>
-      ` : ""}
-
-      ${SEP}
-
-      ${itensHtml}
-
-      ${SEP}
-
-      ${row("SUBTOTAL", "R$ " + pedido.valor_pedido.toFixed(2).replace(".", ","))}
-      ${pedido.valor_motoboy > 0 ? row("TAXA DE ENTREGA", "R$ " + pedido.valor_motoboy.toFixed(2).replace(".", ",")) : ""}
-      <div style="margin-top:4px">${row("TOTAL DO PEDIDO", "R$ " + total.toFixed(2).replace(".", ","), true)}</div>
-
-      ${SEP}
-
-      <div style="font-size:12px;${B}margin-bottom:3px">TIPO DE PAGAMENTO</div>
-      <div style="display:flex;justify-content:space-between;font-size:14px;${B}">
-        <span>${pgto}${pedido.troco_para ? ` - Troco p/ R$ ${pedido.troco_para.toFixed(2).replace(".", ",")}` : ""}</span>
-        <span>R$ ${total.toFixed(2).replace(".", ",")}</span>
-      </div>
-
-      ${SEP}
-
-      <div style="font-size:12px;font-weight:700;color:#000">IMPRESSO EM ${printedAt}</div>
-      <div style="text-align:center;${B}font-size:13px;margin-top:6px">appvellox.online</div>
-
-    </div>
-  `;
-
+export function printOrder(pedido: Pedido, empresaNome?: string, _empresaCnpj?: string): boolean {
   try {
-    // Remove instâncias anteriores
-    document.getElementById(PRINT_DIV_ID)?.remove();
-    document.getElementById(PRINT_STYLE_ID)?.remove();
+    const paperSize   = getSavedPaperSize();
+    const fontSizeOpt = getSavedFontSize();
+    const layout      = getSavedLayout();
+    const logoUrl     = getSavedLogo();
+    const html        = formatReceipt(pedido, empresaNome ?? "PEDIDO", paperSize, fontSizeOpt, layout, logoUrl);
 
-    // CSS: esconde cupom na tela, mostra só na impressão
-    const style = document.createElement("style");
-    style.id = PRINT_STYLE_ID;
-    style.textContent = `
-      #${PRINT_DIV_ID}{display:none}
-      @media print{
-        @page{margin:0;size:58mm auto}
-        html,body{background:#fff!important;color:#000!important}
-        body>*{display:none!important}
-        #${PRINT_DIV_ID}{
-          display:block!important;
-          background:#fff!important;
-          color:#000!important;
-          -webkit-print-color-adjust:exact!important;
-          print-color-adjust:exact!important;
-          font-weight:700!important;
-        }
-        #${PRINT_DIV_ID} *{
-          color:#000!important;
-          background:#fff!important;
-          -webkit-print-color-adjust:exact!important;
-          print-color-adjust:exact!important;
-          font-weight:700!important;
-        }
-      }
-    `;
-    document.head.appendChild(style);
+    // Popup com o HTML completo do cupom:
+    // – o documento do popup SÓ tem o recibo → @page{size:auto} mede a altura correta
+    // – com --kiosk-printing: imprime sem dialog
+    // – com --disable-popup-blocking: popup não é bloqueado (instalador configura ambos)
+    const popup = window.open("", "_blank", "width=1,height=1,left=-100,top=-100");
+    if (!popup) return false;
 
-    // Injeta o cupom ANTES de print() — garante que Chrome tem o layout calculado
-    const div = document.createElement("div");
-    div.id = PRINT_DIV_ID;
-    div.innerHTML = receiptHtml;
-    document.body.appendChild(div);
+    popup.document.open();
+    popup.document.write(html);
+    popup.document.close();
 
-    // Limpa após fechar o diálogo
-    window.addEventListener("afterprint", () => {
-      document.getElementById(PRINT_DIV_ID)?.remove();
-      document.getElementById(PRINT_STYLE_ID)?.remove();
-    }, { once: true });
+    const doPrint = () => {
+      try {
+        popup.focus();
+        popup.print();
+        // --kiosk-printing fecha o dialog automaticamente; aguarda 1s antes de fechar popup
+        setTimeout(() => { try { popup.close(); } catch { /* já fechado */ } }, 1_500);
+      } catch { /* popup fechado antes de imprimir */ }
+    };
 
-    // Dois frames para garantir que o DOM foi pintado antes de print()
-    requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
+    if (popup.document.readyState === "complete") {
+      doPrint();
+    } else {
+      popup.onload = doPrint;
+      setTimeout(doPrint, 600); // fallback caso onload não dispare
+    }
+
     return true;
   } catch {
     return false;
@@ -257,8 +293,6 @@ export async function autoPrint(
       trackPrinted(pedido.id);
       return { ok: true, method: "usb" };
     } catch (e) {
-      // "Access denied" = Windows bloqueou o driver USB.
-      // Remove a config salva para não tentar USB de novo.
       const msg = (e instanceof Error ? e.message : String(e)).toLowerCase();
       const isAccessDenied = msg.includes("access denied") || msg.includes("access_denied") ||
         (e instanceof DOMException && (e.name === "SecurityError" || e.name === "NotAllowedError"));
@@ -266,11 +300,10 @@ export async function autoPrint(
         const { removeSavedPrinter } = await import("@/lib/usbPrinter");
         removeSavedPrinter();
       }
-      // Cai no window.print() independente do erro
     }
   }
 
-  // Fallback: window.print() via div injetado na página
+  // Fallback: window.print() via div injetado
   // Com Chrome --kiosk-printing: imprime silenciosamente
   // Sem --kiosk-printing: abre diálogo de impressão
   try {

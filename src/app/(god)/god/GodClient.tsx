@@ -8,6 +8,7 @@ import {
   TrendingUp, Search, Trash2, Clock, Check, ChevronDown,
   ChevronUp, Plus, Loader2, Bike, Phone,
   WifiOff, Wifi, Eye, EyeOff, Copy, KeyRound,
+  Compass, Image, Tag, Star, Zap, Edit2, Save, X as XIcon,
 } from "lucide-react";
 
 type Plano = "basic" | "pro" | "enterprise" | "ktl";
@@ -98,10 +99,448 @@ function PlanoBadge({ plano, onClick }: { plano: Plano; onClick?: () => void }) 
   );
 }
 
+// ─── EXPLORAR GOD PANEL ──────────────────────────────────────────────────────
+
+interface EmpresaExtra {
+  id: string; nome: string; assinatura_ativa: boolean;
+  destaque: boolean; categoria: string | null;
+}
+
+interface BannerRow {
+  id: string; titulo: string; subtitulo: string | null;
+  cor_fundo: string; imagem_url: string | null; link_url: string | null;
+}
+
+interface CatRow { id: string; nome: string; emoji: string; }
+
+interface FlashSaleGod {
+  id: string; empresa_id: string; empresa_nome: string;
+  nome: string; descricao: string | null;
+  preco_original: number | null; preco_flash: number;
+  imagem_url: string | null; ativo: boolean; termina_em: string; created_at: string;
+}
+
+function ExplorarGodPanel() {
+  const [banners,    setBanners]    = useState<BannerRow[]>([]);
+  const [categorias, setCategorias] = useState<CatRow[]>([]);
+  const [empExtras,  setEmpExtras]  = useState<EmpresaExtra[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [savingBanner, setSavingBanner] = useState(false);
+  const [savingCat,    setSavingCat]    = useState(false);
+  const [savingEmp,    setSavingEmp]    = useState<string | null>(null);
+  const [bannerForm, setBannerForm] = useState({ titulo: "", subtitulo: "", imagem_url: "", link_url: "", cor_fundo: "#FF6A00" });
+  const [catForm,    setCatForm]    = useState({ nome: "", emoji: "🍽️" });
+  const [tab, setTab] = useState<"empresas" | "banners" | "categorias" | "flash_sales">("empresas");
+  const [empSearch, setEmpSearch] = useState("");
+
+  // Banner editing
+  const [editingBanner,  setEditingBanner]  = useState<string | null>(null);
+  const [editBannerForm, setEditBannerForm] = useState({ titulo: "", subtitulo: "", imagem_url: "", link_url: "", cor_fundo: "#FF6A00" });
+  const [savingEditBanner, setSavingEditBanner] = useState(false);
+
+  // Category editing
+  const [editingCat,  setEditingCat]  = useState<string | null>(null);
+  const [editCatForm, setEditCatForm] = useState({ nome: "", emoji: "🍽️" });
+  const [savingEditCat, setSavingEditCat] = useState(false);
+
+  // Flash Sales
+  const [flashSales, setFlashSales] = useState<FlashSaleGod[]>([]);
+  const [loadingFs,  setLoadingFs]  = useState(false);
+  const [deletingFs, setDeletingFs] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/god/explorar");
+      if (res.ok) {
+        const d = await res.json();
+        setBanners(d.banners    ?? []);
+        setCategorias(d.categorias ?? []);
+        setEmpExtras(d.empresas   ?? []);
+      }
+    } catch {}
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    if (tab !== "flash_sales") return;
+    setLoadingFs(true);
+    fetch("/api/god/flash-sales")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setFlashSales(d.flash_sales ?? []); })
+      .finally(() => setLoadingFs(false));
+  }, [tab]);
+
+  async function addBanner() {
+    if (!bannerForm.titulo.trim()) return;
+    setSavingBanner(true);
+    try {
+      await fetch("/api/god/explorar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "banner", ...bannerForm }) });
+      setBannerForm({ titulo: "", subtitulo: "", imagem_url: "", link_url: "", cor_fundo: "#FF6A00" });
+      await load();
+    } finally { setSavingBanner(false); }
+  }
+
+  async function deleteBanner(id: string) {
+    await fetch("/api/god/explorar", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "banner", id }) });
+    await load();
+  }
+
+  async function addCategoria() {
+    if (!catForm.nome.trim()) return;
+    setSavingCat(true);
+    try {
+      await fetch("/api/god/explorar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "categoria", ...catForm }) });
+      setCatForm({ nome: "", emoji: "🍽️" });
+      await load();
+    } finally { setSavingCat(false); }
+  }
+
+  async function deleteCategoria(id: string) {
+    await fetch("/api/god/explorar", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "categoria", id }) });
+    await load();
+  }
+
+  async function saveEmpresa(emp: EmpresaExtra) {
+    setSavingEmp(emp.id);
+    try {
+      await fetch("/api/god/explorar", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ empresa_id: emp.id, destaque: emp.destaque, categoria: emp.categoria }),
+      });
+    } finally { setSavingEmp(null); }
+  }
+
+  async function updateBanner(id: string) {
+    setSavingEditBanner(true);
+    try {
+      await fetch("/api/god/explorar", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "banner", id, ...editBannerForm }) });
+      setEditingBanner(null);
+      await load();
+    } finally { setSavingEditBanner(false); }
+  }
+
+  async function updateCategoria(id: string) {
+    setSavingEditCat(true);
+    try {
+      await fetch("/api/god/explorar", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "categoria", id, ...editCatForm }) });
+      setEditingCat(null);
+      await load();
+    } finally { setSavingEditCat(false); }
+  }
+
+  async function deleteFlashSale(id: string) {
+    setDeletingFs(id);
+    try {
+      await fetch("/api/god/flash-sales", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+      setFlashSales(prev => prev.filter(fs => fs.id !== id));
+    } finally { setDeletingFs(null); }
+  }
+
+  function updateEmpExtra(id: string, patch: Partial<EmpresaExtra>) {
+    setEmpExtras(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e));
+  }
+
+  const IS = { background: "#0f0f0f", border: "1px solid #1f2937", color: "#fff", borderRadius: 10, padding: "8px 12px", fontSize: 13, width: "100%", outline: "none" };
+  const empFilt = empExtras.filter(e => e.nome.toLowerCase().includes(empSearch.toLowerCase()));
+  const destCats = ["", ...categorias.map(c => c.nome)];
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,106,0,0.12)" }}>
+          <Compass size={18} style={{ color: "#FF6A00" }} />
+        </div>
+        <div>
+          <h2 className="text-base font-bold text-white">Gerenciar Explorar</h2>
+          <p className="text-xs" style={{ color: "#6b7280" }}>Empresas em destaque, banners e categorias</p>
+        </div>
+        <div className="ml-auto flex gap-2">
+          <a href="/god/explorar-editor" className="px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5" style={{ background: "rgba(129,140,248,0.12)", color: "#818cf8", border: "1px solid rgba(129,140,248,0.25)" }}>
+            <Edit2 size={11} /> Editor visual
+          </a>
+          <a href="/explorar" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-xl text-xs font-semibold" style={{ background: "rgba(255,106,0,0.1)", color: "#FF6A00", border: "1px solid rgba(255,106,0,0.25)" }}>
+            Ver página →
+          </a>
+        </div>
+      </div>
+
+      {/* Sub-tabs */}
+      <div className="flex gap-1 p-1 rounded-xl flex-wrap" style={{ background: "#0f0f0f", border: "1px solid #1a1a1a" }}>
+        {([
+          { key: "empresas",    label: "Empresas",    icon: Building2 },
+          { key: "banners",     label: "Banners",     icon: Image      },
+          { key: "categorias",  label: "Categorias",  icon: Tag        },
+          { key: "flash_sales", label: "Flash Sales", icon: Zap        },
+        ] as const).map(({ key, label, icon: Icon }) => (
+          <button key={key} onClick={() => setTab(key)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+            style={tab === key
+              ? { background: "rgba(255,106,0,0.15)", color: "#FF6A00", border: "1px solid rgba(255,106,0,0.3)" }
+              : { background: "transparent", color: "#4b5563", border: "1px solid transparent" }}>
+            <Icon size={12} /> {label}
+            {key === "empresas" && empExtras.filter(e => e.destaque).length > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 rounded-full text-xs font-black" style={{ background: "rgba(251,191,36,0.2)", color: "#fbbf24", fontSize: 10 }}>
+                {empExtras.filter(e => e.destaque).length}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12"><Loader2 size={24} className="animate-spin" style={{ color: "#FF6A00" }} /></div>
+      ) : tab === "empresas" ? (
+        /* ── ABA EMPRESAS ── */
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs" style={{ color: "#6b7280" }}>
+              {empExtras.filter(e => e.destaque).length} em destaque · {empExtras.filter(e => e.categoria).length} com categoria
+            </p>
+          </div>
+
+          {/* Busca */}
+          <div className="relative">
+            <Search size={13} className="absolute" style={{ left: 10, top: "50%", transform: "translateY(-50%)", color: "#4b5563" }} />
+            <input
+              value={empSearch}
+              onChange={e => setEmpSearch(e.target.value)}
+              placeholder="Buscar empresa..."
+              style={{ ...IS, paddingLeft: 30 }}
+            />
+          </div>
+
+          {/* Lista de empresas */}
+          <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1" style={{ scrollbarWidth: "thin" }}>
+            {empFilt.length === 0 ? (
+              <p className="text-sm text-center py-8" style={{ color: "#4b5563" }}>Nenhuma empresa encontrada</p>
+            ) : empFilt.map(emp => (
+              <div
+                key={emp.id}
+                className="rounded-2xl p-4"
+                style={{
+                  background: emp.destaque ? "rgba(251,191,36,0.04)" : "#0f0f0f",
+                  border: `1px solid ${emp.destaque ? "rgba(251,191,36,0.2)" : "#1f2937"}`,
+                }}
+              >
+                <div className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center font-black text-white flex-shrink-0 text-sm" style={{ background: "#1f2937" }}>
+                      {emp.nome.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-white truncate">{emp.nome}</p>
+                      <p className="text-xs" style={{ color: emp.assinatura_ativa ? "#22c55e" : "#ef4444" }}>
+                        {emp.assinatura_ativa ? "Assinatura ativa" : "Assinatura inativa"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Toggle Destaque */}
+                  <button
+                    onClick={async () => {
+                      const updated = { ...emp, destaque: !emp.destaque };
+                      updateEmpExtra(emp.id, { destaque: updated.destaque });
+                      await saveEmpresa(updated);
+                    }}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold flex-shrink-0 transition-all"
+                    style={{
+                      background: emp.destaque ? "rgba(251,191,36,0.15)" : "rgba(255,255,255,0.05)",
+                      color:      emp.destaque ? "#fbbf24" : "#4b5563",
+                      border:     `1px solid ${emp.destaque ? "rgba(251,191,36,0.35)" : "rgba(255,255,255,0.08)"}`,
+                    }}
+                  >
+                    {savingEmp === emp.id
+                      ? <Loader2 size={11} className="animate-spin" />
+                      : <Star size={11} fill={emp.destaque ? "currentColor" : "none"} />}
+                    {emp.destaque ? "Destaque" : "Destacar"}
+                  </button>
+                </div>
+
+                {/* Selector de categoria */}
+                <div className="flex items-center gap-2">
+                  <Tag size={12} style={{ color: "#4b5563", flexShrink: 0 }} />
+                  <select
+                    value={emp.categoria ?? ""}
+                    onChange={async e => {
+                      const cat = e.target.value || null;
+                      updateEmpExtra(emp.id, { categoria: cat });
+                      await saveEmpresa({ ...emp, categoria: cat });
+                    }}
+                    className="flex-1 rounded-xl text-xs outline-none"
+                    style={{ background: "#161616", border: "1px solid #1f2937", color: emp.categoria ? "#fff" : "#4b5563", padding: "6px 10px" }}
+                  >
+                    <option value="">— Sem categoria —</option>
+                    {destCats.filter(Boolean).map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : tab === "banners" ? (
+        /* ── ABA BANNERS ── */
+        <div className="space-y-4">
+          <div className="rounded-2xl p-5 space-y-3" style={{ background: "#0f0f0f", border: "1px solid #1f2937" }}>
+            <p className="text-sm font-semibold text-white">Novo Banner</p>
+            <input style={IS} placeholder="Título *" value={bannerForm.titulo} onChange={e => setBannerForm(p => ({ ...p, titulo: e.target.value }))} />
+            <input style={IS} placeholder="Subtítulo" value={bannerForm.subtitulo} onChange={e => setBannerForm(p => ({ ...p, subtitulo: e.target.value }))} />
+            <input style={IS} placeholder="URL da imagem (opcional)" value={bannerForm.imagem_url} onChange={e => setBannerForm(p => ({ ...p, imagem_url: e.target.value }))} />
+            <input style={IS} placeholder="Link ao clicar (opcional)" value={bannerForm.link_url} onChange={e => setBannerForm(p => ({ ...p, link_url: e.target.value }))} />
+            <div className="flex items-center gap-3">
+              <input type="color" value={bannerForm.cor_fundo} onChange={e => setBannerForm(p => ({ ...p, cor_fundo: e.target.value }))} className="w-10 h-10 rounded-lg cursor-pointer border-0" style={{ background: "transparent" }} />
+              <span className="text-xs" style={{ color: "#6b7280" }}>Cor de fundo do banner</span>
+            </div>
+            <button onClick={addBanner} disabled={savingBanner || !bannerForm.titulo.trim()} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold" style={{ background: "rgba(255,106,0,0.12)", color: "#FF6A00", border: "1px solid rgba(255,106,0,0.3)", opacity: !bannerForm.titulo.trim() ? 0.4 : 1 }}>
+              {savingBanner ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+              Adicionar Banner
+            </button>
+          </div>
+          {banners.length === 0 ? (
+            <p className="text-sm text-center py-8" style={{ color: "#4b5563" }}>Nenhum banner cadastrado. O carrossel exibe banners padrão.</p>
+          ) : (
+            <div className="space-y-2">
+              {banners.map(b => (
+                <div key={b.id} className="rounded-xl overflow-hidden" style={{ background: "#0f0f0f", border: "1px solid #1f2937" }}>
+                  {editingBanner === b.id ? (
+                    <div className="p-4 space-y-2">
+                      <input style={IS} placeholder="Título" value={editBannerForm.titulo} onChange={e => setEditBannerForm(p => ({ ...p, titulo: e.target.value }))} />
+                      <input style={IS} placeholder="Subtítulo" value={editBannerForm.subtitulo} onChange={e => setEditBannerForm(p => ({ ...p, subtitulo: e.target.value }))} />
+                      <input style={IS} placeholder="URL da imagem" value={editBannerForm.imagem_url} onChange={e => setEditBannerForm(p => ({ ...p, imagem_url: e.target.value }))} />
+                      <input style={IS} placeholder="Link ao clicar" value={editBannerForm.link_url} onChange={e => setEditBannerForm(p => ({ ...p, link_url: e.target.value }))} />
+                      <div className="flex items-center gap-3">
+                        <input type="color" value={editBannerForm.cor_fundo} onChange={e => setEditBannerForm(p => ({ ...p, cor_fundo: e.target.value }))} className="w-8 h-8 rounded cursor-pointer border-0" style={{ background: "transparent" }} />
+                        <span className="text-xs flex-1" style={{ color: "#6b7280" }}>Cor de fundo</span>
+                        <button onClick={() => updateBanner(b.id)} disabled={savingEditBanner} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold" style={{ background: "rgba(34,197,94,0.12)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.3)" }}>
+                          {savingEditBanner ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />} Salvar
+                        </button>
+                        <button onClick={() => setEditingBanner(null)} className="flex items-center justify-center w-7 h-7 rounded-lg" style={{ color: "#6b7280", background: "#151515", border: "1px solid #1f2937" }}>
+                          <XIcon size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <div className="w-8 h-8 rounded-lg flex-shrink-0" style={{ background: b.cor_fundo }} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-white truncate">{b.titulo}</p>
+                        {b.subtitulo && <p className="text-xs truncate" style={{ color: "#6b7280" }}>{b.subtitulo}</p>}
+                      </div>
+                      <button onClick={() => { setEditingBanner(b.id); setEditBannerForm({ titulo: b.titulo, subtitulo: b.subtitulo ?? "", imagem_url: b.imagem_url ?? "", link_url: b.link_url ?? "", cor_fundo: b.cor_fundo }); }} className="w-7 h-7 flex items-center justify-center rounded-lg" style={{ color: "#818cf8", background: "rgba(129,140,248,0.08)", border: "1px solid rgba(129,140,248,0.2)" }}><Edit2 size={12} /></button>
+                      <button onClick={() => deleteBanner(b.id)} className="w-7 h-7 flex items-center justify-center rounded-lg" style={{ color: "#ef4444", background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)" }}><Trash2 size={12} /></button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : tab === "categorias" ? (
+        /* ── ABA CATEGORIAS ── */
+        <div className="space-y-4">
+          <div className="rounded-2xl p-5 space-y-3" style={{ background: "#0f0f0f", border: "1px solid #1f2937" }}>
+            <p className="text-sm font-semibold text-white">Nova Categoria</p>
+            <div className="flex gap-3">
+              <input style={{ ...IS, width: 64, flexShrink: 0, textAlign: "center", fontSize: 20 }} placeholder="🍽️" value={catForm.emoji} onChange={e => setCatForm(p => ({ ...p, emoji: e.target.value }))} />
+              <input style={{ ...IS, flex: 1 }} placeholder="Nome da categoria *" value={catForm.nome} onChange={e => setCatForm(p => ({ ...p, nome: e.target.value }))} />
+            </div>
+            <button onClick={addCategoria} disabled={savingCat || !catForm.nome.trim()} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold" style={{ background: "rgba(255,106,0,0.12)", color: "#FF6A00", border: "1px solid rgba(255,106,0,0.3)", opacity: !catForm.nome.trim() ? 0.4 : 1 }}>
+              {savingCat ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+              Adicionar Categoria
+            </button>
+          </div>
+          {categorias.length === 0 ? (
+            <p className="text-sm text-center py-8" style={{ color: "#4b5563" }}>Nenhuma categoria cadastrada. O Explorar usa as categorias padrão.</p>
+          ) : (
+            <div className="space-y-2">
+              {categorias.map(c => (
+                <div key={c.id} className="rounded-xl overflow-hidden" style={{ background: "#0f0f0f", border: "1px solid #1f2937" }}>
+                  {editingCat === c.id ? (
+                    <div className="flex items-center gap-2 p-3">
+                      <input style={{ ...IS, width: 52, flexShrink: 0, textAlign: "center", fontSize: 20, padding: "6px" }} value={editCatForm.emoji} onChange={e => setEditCatForm(p => ({ ...p, emoji: e.target.value }))} />
+                      <input style={{ ...IS, flex: 1 }} placeholder="Nome" value={editCatForm.nome} onChange={e => setEditCatForm(p => ({ ...p, nome: e.target.value }))} />
+                      <button onClick={() => updateCategoria(c.id)} disabled={savingEditCat} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold flex-shrink-0" style={{ background: "rgba(34,197,94,0.12)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.3)" }}>
+                        {savingEditCat ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
+                      </button>
+                      <button onClick={() => setEditingCat(null)} className="w-7 h-7 flex items-center justify-center rounded-lg flex-shrink-0" style={{ color: "#6b7280", background: "#151515", border: "1px solid #1f2937" }}><XIcon size={13} /></button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 px-3 py-2">
+                      <span style={{ fontSize: 20 }}>{c.emoji}</span>
+                      <p className="text-sm font-semibold text-white flex-1 truncate">{c.nome}</p>
+                      <button onClick={() => { setEditingCat(c.id); setEditCatForm({ nome: c.nome, emoji: c.emoji }); }} className="w-6 h-6 flex items-center justify-center rounded-lg" style={{ color: "#818cf8", background: "rgba(129,140,248,0.08)", border: "1px solid rgba(129,140,248,0.15)" }}><Edit2 size={11} /></button>
+                      <button onClick={() => deleteCategoria(c.id)} className="w-6 h-6 flex items-center justify-center" style={{ color: "#ef4444" }}><Trash2 size={12} /></button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* ── ABA FLASH SALES ── */
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-xs" style={{ color: "#6b7280" }}>Todas as ofertas relâmpago · pode excluir qualquer uma</p>
+            <button onClick={() => { setLoadingFs(true); fetch("/api/god/flash-sales").then(r => r.json()).then(d => setFlashSales(d.flash_sales ?? [])).finally(() => setLoadingFs(false)); }} className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg" style={{ color: "#FF6A00", background: "rgba(255,106,0,0.08)", border: "1px solid rgba(255,106,0,0.2)" }}>
+              <RefreshCw size={11} className={loadingFs ? "animate-spin" : ""} /> Atualizar
+            </button>
+          </div>
+
+          {loadingFs ? (
+            <div className="flex items-center justify-center py-12"><Loader2 size={22} className="animate-spin" style={{ color: "#FF6A00" }} /></div>
+          ) : flashSales.length === 0 ? (
+            <p className="text-sm text-center py-8" style={{ color: "#4b5563" }}>Nenhuma oferta relâmpago cadastrada.</p>
+          ) : (
+            <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1" style={{ scrollbarWidth: "thin" }}>
+              {flashSales.map(fs => {
+                const expired = new Date(fs.termina_em) < new Date();
+                const pct = fs.preco_original && fs.preco_original > fs.preco_flash
+                  ? Math.round((1 - fs.preco_flash / fs.preco_original) * 100) : null;
+                return (
+                  <div key={fs.id} className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: "#0f0f0f", border: `1px solid ${expired ? "#1a1a1a" : "rgba(255,106,0,0.2)"}`, opacity: expired ? 0.6 : 1 }}>
+                    {fs.imagem_url
+                      ? <img src={fs.imagem_url} alt={fs.nome} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                      : <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-xl" style={{ background: "rgba(255,106,0,0.1)" }}>⚡</div>}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-white truncate">{fs.nome}</p>
+                        {pct && <span className="text-xs font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(239,68,68,0.15)", color: "#ef4444" }}>-{pct}%</span>}
+                      </div>
+                      <p className="text-xs truncate" style={{ color: "#6b7280" }}>{fs.empresa_nome}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs font-black" style={{ color: "#FF6A00" }}>R$ {Number(fs.preco_flash).toFixed(2).replace(".", ",")}</span>
+                        <span className="text-xs" style={{ color: expired ? "#ef4444" : "#22c55e" }}>
+                          {expired ? "Expirada" : `até ${new Date(fs.termina_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`}
+                        </span>
+                      </div>
+                    </div>
+                    <button onClick={() => deleteFlashSale(fs.id)} disabled={deletingFs === fs.id} className="w-7 h-7 flex items-center justify-center rounded-lg flex-shrink-0" style={{ color: "#ef4444", background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.2)" }}>
+                      {deletingFs === fs.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function GodClient({ empresas, error }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [view, setView] = useState<"empresas" | "motoboys">("empresas");
+  const [view, setView] = useState<"empresas" | "motoboys" | "explorar">("empresas");
   const [search, setSearch] = useState("");
 
   // Aba motoboys global
@@ -346,6 +785,7 @@ export default function GodClient({ empresas, error }: Props) {
           {([
             { key: "empresas",  label: "Empresas",  icon: Building2 },
             { key: "motoboys",  label: "Motoboys",  icon: Bike },
+            { key: "explorar",  label: "Explorar",  icon: Compass },
           ] as const).map(({ key, label, icon: Icon }) => (
             <button key={key} onClick={() => setView(key)}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all"
@@ -745,6 +1185,9 @@ export default function GodClient({ empresas, error }: Props) {
         </div>
 
         </> /* fim aba empresas */}
+
+        {/* ── ABA EXPLORAR ─────────────────────────────────────────── */}
+        {view === "explorar" && <ExplorarGodPanel />}
 
         <p className="text-center text-xs mt-6" style={{ color: "#1f2937" }}>
           Vellox God Panel · {empresas.length} empresa{empresas.length !== 1 ? "s" : ""} · {allMotoboys.length > 0 ? `${allMotoboys.length} motoboys` : ""}

@@ -87,7 +87,31 @@ export interface Pedido {
   tracking_token: string | null;
   created_at: string;
   updated_at: string;
+  // Campos de impressão (schema_v49)
+  printed_at: string | null;
+  print_count: number;
+  auto_printed: boolean;
   motoboy?: Motoboy;
+}
+
+export interface ConfiguracaoPrintAgent {
+  empresa_id: string;
+  ativo: boolean;
+  impressora_nome: string | null;
+  tamanho_papel: "58mm" | "80mm";
+  agent_last_seen: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PrintAgentStatus {
+  online: boolean;
+  printers: { name: string; isDefault: boolean }[];
+  selectedPrinter: string | null;
+  paperSize: "58mm" | "80mm";
+  lastPrintedAt: string | null;
+  lastError: string | null;
+  version: string;
 }
 
 export interface DeliveryRoute {

@@ -13,6 +13,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useLoja } from "@/contexts/LojaContext";
 import { PLANO_LABEL, PLANO_COLOR, KTL_ROUTES } from "@/contexts/PlanoContext";
+import PrintAgentStatus from "@/components/dashboard/PrintAgentStatus";
 import type { Plano, Loja } from "@/types";
 
 const NAV_BASE = [
@@ -410,6 +411,11 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
             </div>
           )}
         </nav>
+
+        {/* Print Agent status chip */}
+        <div className="px-3 pb-2">
+          <PrintAgentStatus />
+        </div>
 
         {/* Logout */}
         <div className="px-2 pb-5" style={{ borderTop: "1px solid var(--border-1)", paddingTop: "12px" }}>

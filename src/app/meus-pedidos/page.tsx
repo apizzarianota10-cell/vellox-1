@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Phone, Package, ChevronRight, Search, Zap, Clock, CheckCircle, XCircle } from "lucide-react";
+import { Phone, Package, ChevronRight, Search, Zap, Clock, CheckCircle, XCircle, ArrowLeft } from "lucide-react";
 
 type Status = "em_fila" | "em_preparo" | "finalizado" | "em_coleta" | "em_rota_de_entrega" | "aguardando_confirmacao" | "entregue" | "cancelado";
 
@@ -78,6 +78,12 @@ export default function MeusPedidosPage() {
       <div style={{ background: "linear-gradient(135deg,#FF8C1A,#cc5500)", padding: "24px 20px 40px" }}>
         <div style={{ maxWidth: 480, margin: "0 auto" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+            <Link
+              href="/explorar"
+              style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+            >
+              <ArrowLeft size={17} color="#fff" />
+            </Link>
             <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Zap size={17} color="#fff" />
             </div>
