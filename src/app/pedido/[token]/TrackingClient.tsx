@@ -1,13 +1,47 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { CheckCircle, Clock, ChevronRight, Package, Bike, Home, MapPin, Phone, RefreshCw, Zap } from "lucide-react";
+import { CheckCircle, Clock, ChevronRight, Package, Bike, Home, MapPin, Phone, RefreshCw, Zap, Bell, BellRing, X } from "lucide-react";
 
 type Status =
   | "em_fila" | "em_preparo" | "finalizado"
   | "em_coleta" | "em_rota_de_entrega" | "aguardando_confirmacao"
   | "entregue" | "cancelado";
+
+const STATUS_LABELS: Record<Status, string> = {
+  em_fila: "Pedido recebido",
+  em_preparo: "Seu pedido entrou em preparo",
+  finalizado: "Seu pedido está pronto",
+  em_coleta: "Seu pedido está pronto para entrega",
+  em_rota_de_entrega: "Seu pedido saiu para entrega",
+  aguardando_confirmacao: "O motoboy chegou",
+  entregue: "Pedido entregue!",
+  cancelado: "Pedido cancelado",
+};
+
+// Toca um bipe curto de duas notas via Web Audio — sem depender de arquivo de áudio
+function playChime() {
+  try {
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new Ctx();
+    [880, 1175].forEach((freq, i) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      const start = ctx.currentTime + i * 0.13;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.18, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.22);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + 0.24);
+    });
+    setTimeout(() => ctx.close(), 600);
+  } catch { /* Web Audio indisponível */ }
+}
 
 interface Pedido {
   id: string;
@@ -68,12 +102,43 @@ export default function TrackingClient({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState("");
   const [lastUp,  setLastUp]  = useState<Date>(new Date());
+  const [toast,   setToast]   = useState<string | null>(null);
+  const [notifPerm, setNotifPerm] = useState<NotificationPermission | "unsupported">("default");
+
+  const prevStatusRef = useRef<Status | null>(null);
+  const toastTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setNotifPerm(typeof Notification === "undefined" ? "unsupported" : Notification.permission);
+  }, []);
+
+  function avisarMudancaStatus(status: Status) {
+    const label = STATUS_LABELS[status] ?? "Seu pedido foi atualizado";
+    playChime();
+    if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
+    setToast(label);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 7000);
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+      try { new Notification(label, { body: "Toque para ver os detalhes do seu pedido.", icon: "/icon" }); } catch {}
+    }
+  }
+
+  async function pedirPermissaoNotificacao() {
+    if (typeof Notification === "undefined") return;
+    const res = await Notification.requestPermission();
+    setNotifPerm(res);
+  }
 
   const fetch_ = useCallback(async () => {
     try {
       const res = await fetch(`/api/pedido/${token}`, { cache: "no-store" });
       if (!res.ok) { setError("Pedido não encontrado."); return; }
       const { pedido: p } = await res.json();
+      if (prevStatusRef.current !== null && p.status !== prevStatusRef.current) {
+        avisarMudancaStatus(p.status as Status);
+      }
+      prevStatusRef.current = p.status as Status;
       setPedido(p);
       setLastUp(new Date());
     } catch {
@@ -126,7 +191,26 @@ export default function TrackingClient({ token }: { token: string }) {
         @keyframes spin{to{transform:rotate(360deg)}}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
         @keyframes slideUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes slideDown{from{opacity:0;transform:translate(-50%,-12px)}to{opacity:1;transform:translate(-50%,0)}}
       `}</style>
+
+      {/* Toast de atualização de status */}
+      {toast && (
+        <div style={{ position: "fixed", top: 14, left: "50%", zIndex: 1000, width: "calc(100% - 32px)", maxWidth: 420, animation: "slideDown 0.3s ease" }}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10,
+            background: "#0f172a", color: "#fff", borderRadius: 14,
+            padding: "12px 14px", boxShadow: "0 12px 32px rgba(0,0,0,0.25)",
+          }}>
+            <BellRing size={17} style={{ color: "#FF6A00", flexShrink: 0 }} />
+            <p style={{ flex: 1, fontSize: 13, fontWeight: 700, margin: 0 }}>{toast}</p>
+            <button onClick={() => setToast(null)}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 2, flexShrink: 0 }}>
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div style={{ background: cor, padding: "20px 20px 32px", position: "relative", overflow: "hidden" }}>
@@ -307,12 +391,34 @@ export default function TrackingClient({ token }: { token: string }) {
         </div>
 
         {/* Atualização automática */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 10 }}>
           <RefreshCw size={12} style={{ color: "#94a3b8", animation: "spin 3s linear infinite" }} />
           <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>
             Atualiza automaticamente · Último: {lastUp.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
           </p>
         </div>
+
+        {/* Ativar notificações */}
+        {notifPerm !== "unsupported" && !isEntregue && !isCancelado && (
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
+            {notifPerm === "granted" ? (
+              <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: "#22c55e" }}>
+                <BellRing size={13} /> Notificações ativadas
+              </span>
+            ) : (
+              <button onClick={pedirPermissaoNotificacao}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "8px 16px", borderRadius: 999,
+                  background: "#fff", border: "1.5px solid #e2e8f0",
+                  fontSize: 12, fontWeight: 700, color: "#0f172a", cursor: "pointer",
+                }}>
+                <Bell size={13} style={{ color: cor }} />
+                Avisar quando o pedido mudar de status
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Link meus pedidos */}
         <Link href="/meus-pedidos"
