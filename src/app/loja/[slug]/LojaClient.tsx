@@ -1385,7 +1385,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                 <div>
                   {multiSaborStage === "collecting" && (
                     <div style={{ margin: "0 0 12px", padding: "8px 12px", borderRadius: 10, background: `${cor}12`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: 12, fontWeight: 800, color: cor }}>🍕 Pizza {unidadeAtual} de {detailQty}</span>
+                      <span style={{ fontSize: 12, fontWeight: 800, color: cor }}>Unidade {unidadeAtual} de {detailQty}</span>
                       <span style={{ fontSize: 11, fontWeight: 700, color: "#64748b" }}>Escolha o sabor desta unidade</span>
                     </div>
                   )}
@@ -1536,7 +1536,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                           display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                         }}>
                         {multiSaborStage === "collecting"
-                          ? (unidadeAtual < detailQty ? `Próxima pizza (${unidadeAtual}/${detailQty}) →` : `Adicionar · R$${multiPrecoTotal.toFixed(2)}`)
+                          ? (unidadeAtual < detailQty ? `Próxima unidade (${unidadeAtual}/${detailQty}) →` : `Adicionar · R$${multiPrecoTotal.toFixed(2)}`)
                           : detailIsLastStep
                             ? `Adicionar · R$${detailPrecoTotal.toFixed(2)}`
                             : `Próximo → R$${detailPrecoBase.toFixed(2)}`}
@@ -1637,7 +1637,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                   }}>
                   {multiSaborStage === "collecting"
-                    ? (unidadeAtual < detailQty ? `Próxima pizza (${unidadeAtual}/${detailQty}) →` : `Adicionar · R$${multiPrecoTotal.toFixed(2)}`)
+                    ? (unidadeAtual < detailQty ? `Próxima unidade (${unidadeAtual}/${detailQty}) →` : `Adicionar · R$${multiPrecoTotal.toFixed(2)}`)
                     : detailIsLastStep
                       ? `Adicionar · R$${detailPrecoTotal.toFixed(2)}`
                       : "Próximo →"}
