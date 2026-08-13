@@ -4,14 +4,20 @@ if (-not (Test-Path $cfgPath)) { Write-Host "ERRO: config.json nao encontrado." 
 $cfg = Get-Content $cfgPath | ConvertFrom-Json
 $supabaseUrl = $cfg.supabase_url
 $supabaseKey = $cfg.supabase_anon_key
-$empresaId   = $cfg.empresa_id
-$empresaNome = $cfg.empresa_nome
+$empresaId   = if ($cfg.empresa_id)   { $cfg.empresa_id.ToString().Trim() }   else { $null }
+$empresaNome = if ($cfg.empresa_nome) { $cfg.empresa_nome.ToString().Trim() } else { "" }
 $printerName = $cfg.printer_name
-$agentToken  = $cfg.agent_token
+$agentToken  = if ($cfg.agent_token)  { $cfg.agent_token.ToString().Trim() }  else { $null }
 
-if (-not $agentToken) {
-    Write-Host "ERRO: config.json antigo, sem agent_token." -ForegroundColor Red
-    Write-Host "Baixe um config.json novo em https://www.appvellox.online/api/print-server/config" -ForegroundColor Yellow
+if (-not $empresaId -or $empresaId -notmatch '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$') {
+    Write-Host "ERRO: empresa_id ausente ou invalido no config.json." -ForegroundColor Red
+    Write-Host "Reinstale em https://www.appvellox.online/print-server/instalar.bat" -ForegroundColor Yellow
+    Read-Host
+    exit 1
+}
+if (-not $agentToken -or $agentToken.Length -lt 20) {
+    Write-Host "ERRO: agent_token ausente ou incompleto no config.json." -ForegroundColor Red
+    Write-Host "Reinstale em https://www.appvellox.online/print-server/instalar.bat" -ForegroundColor Yellow
     Read-Host
     exit 1
 }
@@ -71,7 +77,7 @@ function Build-EscPos($p) {
 
     Init
     Align 1; Big $true; Bold $true
-    xT $empresaNome.ToUpper(); xN
+    xT $(if ($empresaNome) { $empresaNome.ToUpper() } else { "PEDIDO" }); xN
     Big $false
     xT "PEDIDO #$($p.id.Substring(0,8).ToUpper())"; xN
     Bold $false; Align 0

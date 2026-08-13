@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import {
   Printer, Download, Play, CheckCircle, AlertCircle,
-  ChevronLeft, Loader2, Zap, X,
+  ChevronLeft, Loader2, Zap, X, Copy, Eye, EyeOff, RefreshCw, KeyRound,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -42,6 +42,41 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
   const [layoutSaved,   setLayoutSaved]   = useState(false);
   const [testing,       setTesting]       = useState(false);
   const [testResult,    setTestResult]    = useState<{ ok: boolean; msg: string } | null>(null);
+  const [creds,         setCreds]         = useState<{ empresa_id: string; agent_token: string } | null>(null);
+  const [loadingCreds,  setLoadingCreds]  = useState(false);
+  const [credsError,    setCredsError]    = useState("");
+  const [copiedField,   setCopiedField]   = useState<"id" | "token" | null>(null);
+  const [showToken,     setShowToken]     = useState(false);
+
+  async function carregarCredenciais() {
+    setLoadingCreds(true);
+    setCredsError("");
+    try {
+      const res = await fetch("/api/print-server/credentials");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao carregar credenciais");
+      setCreds({ empresa_id: data.empresa_id, agent_token: data.agent_token });
+    } catch (e) {
+      setCredsError(e instanceof Error ? e.message : "Erro ao carregar credenciais");
+    } finally {
+      setLoadingCreds(false);
+    }
+  }
+
+  function copiarCampo(texto: string, campo: "id" | "token") {
+    navigator.clipboard.writeText(texto);
+    setCopiedField(campo);
+    setTimeout(() => setCopiedField(null), 2000);
+  }
+
+  function maskToken(token: string) {
+    if (token.length <= 12) return "•".repeat(token.length);
+    return `${token.slice(0, 6)}${"•".repeat(10)}${token.slice(-4)}`;
+  }
+
+  useEffect(() => {
+    carregarCredenciais();
+  }, []);
 
   useEffect(() => {
     setPaperSize(getSavedPaperSize());
@@ -159,6 +194,81 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
           <h1 className="text-xl font-bold" style={{ color: "var(--text-1)" }}>Impressão</h1>
           <p className="text-xs" style={{ color: "#64748b" }}>Configurações da impressora térmica</p>
         </div>
+      </div>
+
+      {/* Credenciais do servidor de impressão (PowerShell, sem instalar programa) */}
+      <div className="rounded-2xl p-4" style={{ background: "var(--bg-2)", border: "1px solid var(--border-1)" }}>
+        <div className="flex items-center gap-2 mb-1">
+          <KeyRound size={15} style={{ color: "#FF6A00" }} />
+          <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>Credenciais do servidor de impressão</p>
+        </div>
+        <p className="text-xs mb-3" style={{ color: "#64748b" }}>
+          Use estes valores no instalador (<span style={{ fontFamily: "monospace" }}>instalar.bat</span>) rodando no computador da impressora.
+        </p>
+
+        {/* ID da empresa */}
+        <label className="text-xs font-semibold block mb-1.5" style={{ color: "#64748b" }}>ID da empresa</label>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="flex-1 flex items-center px-3 py-2.5 rounded-xl overflow-hidden" style={{ background: "var(--bg-input)", border: "1px solid var(--border-1)" }}>
+            <span className="text-xs truncate" style={{ fontFamily: "monospace", color: "var(--text-1)" }}>{empresa.id}</span>
+          </div>
+          <button
+            onClick={() => copiarCampo(empresa.id, "id")}
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold shrink-0"
+            style={{ background: "rgba(255,106,0,0.1)", color: copiedField === "id" ? "#22c55e" : "#FF6A00", border: "1px solid rgba(255,106,0,0.2)" }}
+          >
+            {copiedField === "id" ? <CheckCircle size={13} /> : <Copy size={13} />}
+            Copiar
+          </button>
+        </div>
+
+        {/* Token do agente */}
+        <label className="text-xs font-semibold block mb-1.5" style={{ color: "#64748b" }}>Token do agente</label>
+        {loadingCreds && !creds ? (
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ background: "var(--bg-input)", border: "1px solid var(--border-1)" }}>
+            <Loader2 size={13} className="animate-spin" style={{ color: "#64748b" }} />
+            <span className="text-xs" style={{ color: "#64748b" }}>Carregando…</span>
+          </div>
+        ) : credsError ? (
+          <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
+            <span className="text-xs" style={{ color: "#f87171" }}>{credsError}</span>
+            <button onClick={carregarCredenciais} className="flex items-center gap-1 text-xs font-bold shrink-0" style={{ color: "#f87171" }}>
+              <RefreshCw size={12} /> Tentar de novo
+            </button>
+          </div>
+        ) : creds ? (
+          <div className="flex items-center gap-2">
+            <div className="flex-1 flex items-center gap-2 px-3 py-2.5 rounded-xl overflow-hidden" style={{ background: "var(--bg-input)", border: "1px solid var(--border-1)" }}>
+              <span className="text-xs truncate flex-1" style={{ fontFamily: "monospace", color: "var(--text-1)" }}>
+                {showToken ? creds.agent_token : maskToken(creds.agent_token)}
+              </span>
+              <button onClick={() => setShowToken(v => !v)} className="shrink-0" style={{ color: "#64748b" }}>
+                {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </div>
+            <button
+              onClick={() => copiarCampo(creds.agent_token, "token")}
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold shrink-0"
+              style={{ background: "rgba(255,106,0,0.1)", color: copiedField === "token" ? "#22c55e" : "#FF6A00", border: "1px solid rgba(255,106,0,0.2)" }}
+            >
+              {copiedField === "token" ? <CheckCircle size={13} /> : <Copy size={13} />}
+              Copiar
+            </button>
+          </div>
+        ) : null}
+        <p className="text-xs mt-1.5" style={{ color: "#374151" }}>
+          Não compartilhe o token — quem tiver acesso a ele consegue ler os pedidos pendentes da sua loja.
+        </p>
+
+        <a
+          href="/print-server/instalar.bat"
+          download
+          className="flex items-center justify-center gap-2 w-full mt-3 py-2.5 rounded-xl text-xs font-bold"
+          style={{ background: "var(--overlay-sm)", border: "1px solid var(--border-1)", color: "var(--text-1)" }}
+        >
+          <Download size={13} />
+          Baixar instalador (instalar.bat)
+        </a>
       </div>
 
       {/* Toggle impressão automática */}
