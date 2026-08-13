@@ -22,6 +22,7 @@ create table if not exists public.configuracoes_print_agent (
 
 alter table public.configuracoes_print_agent enable row level security;
 
+drop policy if exists "print_agent_empresa_crud" on public.configuracoes_print_agent;
 create policy "print_agent_empresa_crud" on public.configuracoes_print_agent
   for all using (empresa_id = auth.uid());
 
