@@ -838,6 +838,16 @@ export default function CatalogoClient({
     setAddSaborSaving(false);
   }
 
+  async function handleToggleMesclarSabores(produtoId: string, atual: boolean) {
+    const novo = !atual;
+    setProdutos(prev => prev.map(p => p.id === produtoId ? { ...p, mesclar_sabores: novo } : p));
+    const { error } = await supabase.from("produtos").update({ mesclar_sabores: novo }).eq("id", produtoId);
+    if (error) {
+      alert("Erro ao atualizar: " + error.message);
+      setProdutos(prev => prev.map(p => p.id === produtoId ? { ...p, mesclar_sabores: atual } : p));
+    }
+  }
+
   async function handleUploadSaborImg(file: File, saborId: string) {
     setEditingSaborForm(f => ({ ...f, uploadingSaborImg: true }));
     try {
@@ -1198,6 +1208,30 @@ export default function CatalogoClient({
                   <p style={{ fontSize: 15, fontWeight: 800, color: "var(--text-1)", margin: "0 0 4px" }}>Todos os sabores</p>
                   <p style={{ fontSize: 12, color: "var(--text-4)", margin: 0 }}>Sabores de todos os produtos agrupados por origem</p>
                 </div>
+
+                {/* Seleção de quais produtos mesclam sabores entre si */}
+                <div style={{ background: "#f5f3ff", border: "1.5px solid #ddd6fe", borderRadius: 16, padding: 16 }}>
+                  <p style={{ fontSize: 13, fontWeight: 800, color: "#6d28d9", margin: "0 0 3px" }}>Mesclar sabores entre produtos</p>
+                  <p style={{ fontSize: 12, color: "#7c3aed", margin: "0 0 14px" }}>
+                    Marque os produtos que devem compartilhar a mesma lista de sabores na hora do pedido (ex: pizzas de tamanhos diferentes com os mesmos sabores). Desmarcado, cada produto mostra só os próprios sabores.
+                  </p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {saboresPorProduto.map(({ produto: p, sabores }) => (
+                      <label key={p.id} style={{
+                        display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+                        padding: "8px 10px", borderRadius: 10,
+                        background: p.mesclar_sabores ? "#fff" : "transparent",
+                      }}>
+                        <input type="checkbox" checked={Boolean(p.mesclar_sabores)}
+                          onChange={() => handleToggleMesclarSabores(p.id, Boolean(p.mesclar_sabores))}
+                          style={{ width: 17, height: 17, accentColor: "#7c3aed", flexShrink: 0 }} />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)", flex: 1 }}>{p.nome}</span>
+                        <span style={{ fontSize: 11, color: "var(--text-4)" }}>{sabores.length} sabor{sabores.length !== 1 ? "es" : ""}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
                 {saboresPorProduto.map(({ produto: p, sabores }) => (
                   <div key={p.id} style={{ background: "var(--bg-1)", borderRadius: 16, border: "1px solid var(--border-1)", overflow: "hidden" }}>
                     {/* Cabeçalho do grupo */}
@@ -3008,24 +3042,6 @@ export default function CatalogoClient({
                     </button>
                   </div>
                 </div>
-
-                {/* Mesclar sabores com outros produtos */}
-                <label style={{
-                  display: "flex", alignItems: "center", gap: 12, cursor: "pointer",
-                  padding: "12px 14px", borderRadius: 12,
-                  background: form.mesclar_sabores ? `${cor}0d` : "var(--bg-input)",
-                  border: `1.5px solid ${form.mesclar_sabores ? cor : "var(--border-1)"}`,
-                }}>
-                  <input type="checkbox" checked={form.mesclar_sabores}
-                    onChange={e => setForm(f => ({ ...f, mesclar_sabores: e.target.checked }))}
-                    style={{ width: 18, height: 18, accentColor: cor, flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
-                    <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-1)", margin: "0 0 2px" }}>Mesclar sabores com outros produtos</p>
-                    <p style={{ fontSize: 11, color: "var(--text-3)", margin: 0 }}>
-                      Ao pedir, o cliente pode combinar sabores deste produto com os de qualquer outro produto que também tenha essa opção ligada (ex: pizzas de tamanhos diferentes com os mesmos sabores). Desligado, cada produto mostra só os próprios sabores.
-                    </p>
-                  </div>
-                </label>
 
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
                   <p style={{ fontSize: 12, color: "var(--text-3)", margin: 0 }}>
