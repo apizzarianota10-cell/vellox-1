@@ -32,16 +32,22 @@ echo  =========================================
 echo.
 pause
 
-set "DOWNLOADS=%USERPROFILE%\Downloads\config.json"
-if not exist "%DOWNLOADS%" (
+:: Pega o config*.json MAIS RECENTE do Downloads — o navegador nao
+:: sobrescreve arquivo com nome repetido (baixa como "config (1).json"
+:: etc.), entao nao da pra assumir o nome exato "config.json".
+set "FOUND="
+for /f "delims=" %%F in ('powershell -NoProfile -Command "Get-ChildItem -Path \"$env:USERPROFILE\Downloads\" -Filter 'config*.json' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName"') do set "FOUND=%%F"
+
+if not defined FOUND (
   echo.
-  echo  ERRO: config.json nao encontrado em "%DOWNLOADS%"
+  echo  ERRO: nenhum config*.json encontrado em "%USERPROFILE%\Downloads"
   echo  Baixe manualmente em:
   echo    https://www.appvellox.online/api/print-server/config
   echo  e coloque o arquivo em %DIR%\config.json
   pause & exit /b 1
 )
-copy /y "%DOWNLOADS%" "%DIR%\config.json" >nul
+echo  Usando: %FOUND%
+copy /y "%FOUND%" "%DIR%\config.json" >nul
 echo  Configuracao encontrada!
 echo.
 

@@ -26,9 +26,14 @@ export async function GET() {
 
   const agentToken = existing?.agent_token ?? crypto.randomBytes(24).toString("hex");
 
-  await supabase
+  const { error: upsertErr } = await supabase
     .from("configuracoes_print_agent")
     .upsert({ empresa_id: empresa.id, agent_token: agentToken }, { onConflict: "empresa_id" });
+
+  if (upsertErr) {
+    console.error("Erro ao salvar agent_token:", upsertErr);
+    return NextResponse.json({ error: "Erro ao preparar configuração: " + upsertErr.message }, { status: 500 });
+  }
 
   const config = {
     supabase_url:      process.env.NEXT_PUBLIC_SUPABASE_URL,
