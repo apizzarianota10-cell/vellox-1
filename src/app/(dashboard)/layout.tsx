@@ -5,6 +5,7 @@ import Sidebar from "@/components/dashboard/Sidebar";
 import LocationProvider from "@/components/dashboard/LocationProvider";
 import PrintListener from "@/components/dashboard/PrintListener";
 import NewOrderPopup from "@/components/dashboard/NewOrderPopup";
+import PrintAgentBanner from "@/components/dashboard/PrintAgentBanner";
 import { PlanoProvider } from "@/contexts/PlanoContext";
 import { LojaProvider } from "@/contexts/LojaContext";
 import type { Plano, Loja } from "@/types";
@@ -51,19 +52,22 @@ export default async function DashboardLayout({ children }: { children: React.Re
         <LojaProvider initialLojas={lojas} empresaId={user.id}>
           <PrintListener empresaId={empresa.id} empresaNome={empresa.nome} empresaCnpj={empresa.cnpj} />
           <NewOrderPopup empresaId={empresa.id} empresaNome={empresa.nome} empresaCnpj={empresa.cnpj} />
-          <div className="flex h-full" style={{ background: "var(--bg-base)" }}>
-            <Sidebar
-              empresaNome={empresa?.nome ?? null}
-              empresaCodigo={empresa?.codigo ?? null}
-              empresaId={empresa?.id ?? null}
-              plano={plano}
-              lojas={lojas}
-            />
-            <main className="flex-1 overflow-y-auto pt-[52px] md:pt-0 pb-[78px] md:pb-0">
-              <LocationProvider lat={empresa?.lat ?? null} lng={empresa?.lng ?? null}>
-                {children}
-              </LocationProvider>
-            </main>
+          <div className="flex flex-col h-full">
+            <PrintAgentBanner />
+            <div className="flex flex-1 min-h-0" style={{ background: "var(--bg-base)" }}>
+              <Sidebar
+                empresaNome={empresa?.nome ?? null}
+                empresaCodigo={empresa?.codigo ?? null}
+                empresaId={empresa?.id ?? null}
+                plano={plano}
+                lojas={lojas}
+              />
+              <main className="flex-1 overflow-y-auto pt-[52px] md:pt-0 pb-[78px] md:pb-0">
+                <LocationProvider lat={empresa?.lat ?? null} lng={empresa?.lng ?? null}>
+                  {children}
+                </LocationProvider>
+              </main>
+            </div>
           </div>
         </LojaProvider>
       </PlanoProvider>
