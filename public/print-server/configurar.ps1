@@ -1,10 +1,12 @@
 # Vellox Print Server - Configuracao (copiar/colar, sem depender de download de arquivo)
+$Versao = "v1"
 $ErrorActionPreference = "Stop"
 $dir = "C:\VelloxPrint"
 if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir | Out-Null }
 
 Write-Host "=====================================" -ForegroundColor Cyan
 Write-Host "  Vellox - Configuracao do servidor" -ForegroundColor Cyan
+Write-Host "  Versao $Versao" -ForegroundColor Cyan
 Write-Host "=====================================" -ForegroundColor Cyan
 Write-Host ""
 

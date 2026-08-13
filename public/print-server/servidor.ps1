@@ -1,4 +1,5 @@
 # Vellox Print Server - PowerShell (sem Node.js)
+$Versao = "v1"
 $cfgPath = Join-Path $PSScriptRoot "config.json"
 if (-not (Test-Path $cfgPath)) { Write-Host "ERRO: config.json nao encontrado." -ForegroundColor Red; Read-Host; exit 1 }
 $cfg = Get-Content $cfgPath | ConvertFrom-Json
@@ -24,6 +25,7 @@ if (-not $agentToken -or $agentToken.Length -lt 20) {
 
 Write-Host "=====================================" -ForegroundColor Cyan
 Write-Host "  Vellox - Servidor de Impressao" -ForegroundColor Cyan
+Write-Host "  Versao $Versao" -ForegroundColor Cyan
 Write-Host "=====================================" -ForegroundColor Cyan
 Write-Host "Empresa  : $empresaNome"
 Write-Host "Impressora: $(if ($printerName) { $printerName } else { 'padrao do sistema' })"

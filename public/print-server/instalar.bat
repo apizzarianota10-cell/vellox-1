@@ -1,10 +1,12 @@
 @echo off
-title Vellox - Instalador de Impressao
+set "INSTALADOR_VERSAO=v1"
+title Vellox - Instalador de Impressao %INSTALADOR_VERSAO%
 color 0A
 echo.
 echo  =========================================
 echo   Vellox - Servidor de Impressao Local
 echo   (Nao precisa de Node.js!)
+echo   Instalador %INSTALADOR_VERSAO%
 echo  =========================================
 echo.
 
