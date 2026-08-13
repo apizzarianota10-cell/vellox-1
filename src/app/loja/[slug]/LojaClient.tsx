@@ -91,6 +91,10 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
   const [detailAdicionaisSel, setDetailAdicionaisSel] = useState<ProdutoAdicional[]>([]);
   const [detailQty, setDetailQty]             = useState(1);
   const [detailStep, setDetailStep]           = useState<"variacao" | "sabores" | "adicionais">("variacao");
+  // Múltiplas unidades com sabores diferentes: null = ainda não perguntou,
+  // "ask" = mostrando a pergunta, "collecting" = coletando sabor unidade a unidade
+  const [multiSaborStage, setMultiSaborStage] = useState<"ask" | "collecting" | null>(null);
+  const [unidadesColetadas, setUnidadesColetadas] = useState<ProdutoSabor[][]>([]);
 
   useEffect(() => {
     const onScroll = () => {
@@ -238,14 +242,18 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
       : Math.max(...precos);
   }
 
-  function addWithConfig(p: Produto, variacao: ProdutoVariacao | null, sabores: ProdutoSabor[], adicionais: ProdutoAdicional[], qty: number) {
-    const key = buildCartKey(p.id, variacao?.id, sabores.map(s => s.id), adicionais.map(a => a.id));
+  function precoUnidadeComSabores(p: Produto, variacao: ProdutoVariacao | null, sabores: ProdutoSabor[], adicionais: ProdutoAdicional[]): number {
     const produtoPrecoBase = variacao ? precoVariacao(p, variacao) : p.preco;
     const tamanhoNome = variacao?.nome;
     const precoBase = sabores.length > 0
       ? calcularPrecoSabores(sabores.map(s => precoDeSabor(s, produtoPrecoBase, tamanhoNome)))
       : produtoPrecoBase;
-    const precoUnit = precoBase + adicionais.reduce((s, a) => s + a.preco, 0);
+    return precoBase + adicionais.reduce((s, a) => s + a.preco, 0);
+  }
+
+  function addWithConfig(p: Produto, variacao: ProdutoVariacao | null, sabores: ProdutoSabor[], adicionais: ProdutoAdicional[], qty: number) {
+    const key = buildCartKey(p.id, variacao?.id, sabores.map(s => s.id), adicionais.map(a => a.id));
+    const precoUnit = precoUnidadeComSabores(p, variacao, sabores, adicionais);
     setCart(prev => {
       const ex = prev.find(i => i.cartKey === key);
       if (ex) return prev.map(i => i.cartKey === key ? { ...i, qty: i.qty + qty } : i);
@@ -267,6 +275,8 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
     setDetailSaboresSel([]);
     setDetailAdicionaisSel([]);
     setDetailQty(1);
+    setMultiSaborStage(null);
+    setUnidadesColetadas([]);
     const hasSaborStep = sabores.length > 0 || (p.mesclar_sabores && mesclavelCount > 0);
     if (variacoes.length > 0)    setDetailStep("variacao");
     else if (hasSaborStep)       setDetailStep("sabores");
@@ -276,6 +286,49 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
   function confirmDetail() {
     if (!detailProduto) return;
     addWithConfig(detailProduto, detailVariacao, detailSaboresSel, detailAdicionaisSel, detailQty);
+    setDetailProduto(null);
+  }
+
+  // Unidade atual sendo configurada durante a coleta de sabores diferentes (1-based)
+  const unidadeAtual = unidadesColetadas.length + 1;
+
+  function escolherMesmoSabor() {
+    setMultiSaborStage(null);
+    confirmDetail();
+  }
+
+  function escolherSaborDiferente() {
+    // A seleção já feita conta como a 1ª unidade; segue coletando as demais
+    setUnidadesColetadas([detailSaboresSel]);
+    setDetailSaboresSel([]);
+    setMultiSaborStage("collecting");
+    setDetailStep("sabores");
+  }
+
+  function avancarProximaUnidade() {
+    if (detailSaboresSel.length === 0) return;
+    setUnidadesColetadas(prev => [...prev, detailSaboresSel]);
+    setDetailSaboresSel([]);
+  }
+
+  function voltarUnidadeAnterior() {
+    if (unidadesColetadas.length === 0) return;
+    const anteriores = unidadesColetadas.slice(0, -1);
+    const ultima = unidadesColetadas[unidadesColetadas.length - 1];
+    if (anteriores.length === 0) {
+      setMultiSaborStage(null);
+      setDetailSaboresSel(ultima);
+      setUnidadesColetadas([]);
+    } else {
+      setUnidadesColetadas(anteriores);
+      setDetailSaboresSel(ultima);
+    }
+  }
+
+  function confirmMultiSabores() {
+    if (!detailProduto || detailSaboresSel.length === 0) return;
+    const todasUnidades = [...unidadesColetadas, detailSaboresSel];
+    todasUnidades.forEach(sab => addWithConfig(detailProduto, detailVariacao, sab, detailAdicionaisSel, 1));
     setDetailProduto(null);
   }
 
@@ -451,6 +504,14 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
     (detailPrecoBase + detailAdicionaisSel.reduce((s, a) => s + a.preco, 0)) * detailQty,
     [detailPrecoBase, detailAdicionaisSel, detailQty],
   );
+
+  // Total ao coletar sabores diferentes por unidade — cada unidade pode ter
+  // um preço distinto (sabores diferentes custam diferente)
+  const multiPrecoTotal = useMemo(() => {
+    if (!detailProduto) return 0;
+    const todas = [...unidadesColetadas, detailSaboresSel];
+    return todas.reduce((sum, sab) => sum + precoUnidadeComSabores(detailProduto, detailVariacao, sab, detailAdicionaisSel), 0);
+  }, [detailProduto, detailVariacao, unidadesColetadas, detailSaboresSel, detailAdicionaisSel]);
 
   const anyPoolSaborHasPrice = useMemo(() =>
     saboresPorProduto.some(g => g.sabores.some(s => (s.preco_adicional ?? 0) > 0)),
@@ -1322,6 +1383,12 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
               {/* PASSO: Sabores — sabores do próprio produto, ou pool mesclável se ligado */}
               {detailStep === "sabores" && detailTemSaborStep && (
                 <div>
+                  {multiSaborStage === "collecting" && (
+                    <div style={{ margin: "0 0 12px", padding: "8px 12px", borderRadius: 10, background: `${cor}12`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: 12, fontWeight: 800, color: cor }}>🍕 Pizza {unidadeAtual} de {detailQty}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#64748b" }}>Escolha o sabor desta unidade</span>
+                    </div>
+                  )}
                   <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
                     <p style={{ fontSize: 12, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", margin: 0 }}>
                       {maxSabores > 1 ? `Sabores (até ${maxSabores})` : "Sabor *"}
@@ -1452,8 +1519,14 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                     <div style={{ position: "sticky", bottom: 0, left: 0, right: 0, paddingTop: 12, background: "linear-gradient(transparent, #fff 30%)" }}>
                       <button
                         onClick={() => {
-                          if (!detailIsLastStep) setDetailStep(detailSteps[detailStepIdx + 1]);
-                          else confirmDetail();
+                          if (multiSaborStage === "collecting") {
+                            if (unidadeAtual < detailQty) avancarProximaUnidade();
+                            else confirmMultiSabores();
+                            return;
+                          }
+                          if (!detailIsLastStep) { setDetailStep(detailSteps[detailStepIdx + 1]); return; }
+                          if (detailQty > 1 && detailTemSaborStep) { setMultiSaborStage("ask"); return; }
+                          confirmDetail();
                         }}
                         style={{
                           width: "100%", padding: "15px", borderRadius: 14,
@@ -1462,9 +1535,11 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                           boxShadow: `0 6px 20px ${cor}50`,
                           display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                         }}>
-                        {detailIsLastStep
-                          ? `Adicionar · R$${detailPrecoTotal.toFixed(2)}`
-                          : `Próximo → R$${detailPrecoBase.toFixed(2)}`}
+                        {multiSaborStage === "collecting"
+                          ? (unidadeAtual < detailQty ? `Próxima pizza (${unidadeAtual}/${detailQty}) →` : `Adicionar · R$${multiPrecoTotal.toFixed(2)}`)
+                          : detailIsLastStep
+                            ? `Adicionar · R$${detailPrecoTotal.toFixed(2)}`
+                            : `Próximo → R$${detailPrecoBase.toFixed(2)}`}
                       </button>
                     </div>
                   )}
@@ -1512,9 +1587,12 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
 
               {/* Rodapé: Voltar / Qty / Próximo ou Adicionar */}
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                {detailStepIdx > 0 && (
+                {(detailStepIdx > 0 || multiSaborStage === "collecting") && (
                   <button
-                    onClick={() => setDetailStep(detailSteps[detailStepIdx - 1])}
+                    onClick={() => {
+                      if (multiSaborStage === "collecting") voltarUnidadeAnterior();
+                      else setDetailStep(detailSteps[detailStepIdx - 1]);
+                    }}
                     style={{
                       padding: "14px 18px", borderRadius: 14,
                       background: "#f1f5f9", border: "none",
@@ -1523,7 +1601,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                     ← Voltar
                   </button>
                 )}
-                {detailIsLastStep && (
+                {detailIsLastStep && multiSaborStage === null && (
                   <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#f8fafc", borderRadius: 12, padding: "8px 14px", border: "1px solid #e2e8f0", flexShrink: 0 }}>
                     <button onClick={() => setDetailQty(q => Math.max(1, q - 1))}
                       style={{ width: 30, height: 30, borderRadius: 8, background: "#fff", border: "1px solid #e2e8f0", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1538,11 +1616,14 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                 )}
                 <button
                   onClick={() => {
-                    if (!detailIsLastStep) {
-                      setDetailStep(detailSteps[detailStepIdx + 1]);
-                    } else {
-                      confirmDetail();
+                    if (multiSaborStage === "collecting") {
+                      if (unidadeAtual < detailQty) avancarProximaUnidade();
+                      else confirmMultiSabores();
+                      return;
                     }
+                    if (!detailIsLastStep) { setDetailStep(detailSteps[detailStepIdx + 1]); return; }
+                    if (detailQty > 1 && detailTemSaborStep) { setMultiSaborStage("ask"); return; }
+                    confirmDetail();
                   }}
                   disabled={!detailCanNext}
                   style={{
@@ -1555,11 +1636,41 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                     transition: "all 0.2s",
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                   }}>
-                  {detailIsLastStep ? `Adicionar · R$${detailPrecoTotal.toFixed(2)}` : "Próximo →"}
+                  {multiSaborStage === "collecting"
+                    ? (unidadeAtual < detailQty ? `Próxima pizza (${unidadeAtual}/${detailQty}) →` : `Adicionar · R$${multiPrecoTotal.toFixed(2)}`)
+                    : detailIsLastStep
+                      ? `Adicionar · R$${detailPrecoTotal.toFixed(2)}`
+                      : "Próximo →"}
                 </button>
               </div>
             </div>
           </div>
+
+          {/* Overlay: mesmo sabor ou sabor diferente por unidade */}
+          {multiSaborStage === "ask" && detailProduto && (
+            <div
+              style={{ position: "fixed", inset: 0, zIndex: 320, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.55)", padding: 20 }}
+              onClick={e => { if (e.target === e.currentTarget) setMultiSaborStage(null); }}>
+              <div style={{ width: "100%", maxWidth: 380, background: "#fff", borderRadius: 20, padding: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+                <p style={{ fontSize: 17, fontWeight: 900, color: "#0f172a", margin: "0 0 6px" }}>
+                  {detailQty}x {detailProduto.nome}
+                </p>
+                <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 20px", lineHeight: 1.5 }}>
+                  Todas com o mesmo sabor, ou você quer escolher um sabor diferente pra cada unidade?
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <button onClick={escolherMesmoSabor}
+                    style={{ padding: "14px", borderRadius: 14, background: cor, color: "#fff", border: "none", fontSize: 14, fontWeight: 900, cursor: "pointer" }}>
+                    Mesmo sabor pra todas
+                  </button>
+                  <button onClick={escolherSaborDiferente}
+                    style={{ padding: "14px", borderRadius: 14, background: "#f8fafc", color: "#0f172a", border: "1.5px solid #e2e8f0", fontSize: 14, fontWeight: 900, cursor: "pointer" }}>
+                    Sabor diferente em cada uma
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
