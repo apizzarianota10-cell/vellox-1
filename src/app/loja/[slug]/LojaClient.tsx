@@ -121,6 +121,18 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
     return map;
   }, [saboresPorProduto]);
 
+  // Pool de sabores mesclável: só produtos com "mesclar_sabores" ligado entram
+  // juntos numa lista compartilhada (ex: pizzas de tamanhos diferentes com
+  // sabores em comum). Produtos sem a flag mostram só os próprios sabores.
+  const saboresPoolMesclavel = useMemo(() =>
+    saboresPorProduto.filter(g => g.produto.mesclar_sabores),
+    [saboresPorProduto],
+  );
+  const mesclavelCount = useMemo(() =>
+    saboresPoolMesclavel.reduce((n, g) => n + g.sabores.length, 0),
+    [saboresPoolMesclavel],
+  );
+
   // Busca o preço de um produto para um tamanho pelo nome (ex: "G", "M", "P")
   function precoByTamanhoNome(produto: Produto, nome: string): number {
     const cpTamanhos = produto.categoria_preco?.tamanhos;
@@ -255,7 +267,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
     setDetailSaboresSel([]);
     setDetailAdicionaisSel([]);
     setDetailQty(1);
-    const hasSaborStep = sabores.length > 0 || (p.tipo === "pizza" && allSaborCount > 0);
+    const hasSaborStep = sabores.length > 0 || (p.mesclar_sabores && mesclavelCount > 0);
     if (variacoes.length > 0)    setDetailStep("variacao");
     else if (hasSaborStep)       setDetailStep("sabores");
     else                         setDetailStep("adicionais");
@@ -445,12 +457,25 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
     [saboresPorProduto],
   );
 
+  // "sabores" aparece se o produto tem sabores próprios, ou se ele participa
+  // do pool mesclável (mesclar_sabores) e há sabores disponíveis nesse pool
+  const detailTemSaborStep = detailSabs.length > 0
+    || (Boolean(detailProduto?.mesclar_sabores) && mesclavelCount > 0);
+
+  // Grupos exibidos no passo de sabores: pool mesclável (vários produtos) se
+  // detailProduto tiver mesclar_sabores ligado, senão só os sabores dele mesmo
+  const detailGruposSabor = useMemo(() =>
+    detailProduto?.mesclar_sabores
+      ? saboresPoolMesclavel
+      : (detailProduto ? [{ produto: detailProduto, sabores: detailSabs }] : []),
+    [detailProduto, detailSabs, saboresPoolMesclavel],
+  );
+
   const detailSteps = useMemo((): ("variacao" | "sabores" | "adicionais")[] => [
     ...(detailVars.length > 0 ? ["variacao"   as const] : []),
-    // "sabores" aparece se o produto tem sabores OU se há sabores em qualquer produto (mixing)
-    ...((detailSabs.length > 0 || (detailProduto?.tipo === "pizza" && allSaborCount > 0)) ? ["sabores" as const] : []),
+    ...(detailTemSaborStep ? ["sabores" as const] : []),
     ...(detailAdds.length > 0 ? ["adicionais" as const] : []),
-  ], [detailVars, detailSabs, detailAdds, detailProduto, allSaborCount]);
+  ], [detailVars, detailTemSaborStep, detailAdds]);
 
   const detailStepIdx    = Math.max(0, detailSteps.indexOf(detailStep));
   const detailIsLastStep = detailStepIdx >= detailSteps.length - 1;
@@ -708,7 +733,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
         <main style={{ maxWidth: 720, margin: "0 auto", padding: "16px 20px calc(120px + env(safe-area-inset-bottom, 0px))" }}>
           <div style={{ marginBottom: 20 }}>
             <p style={{ fontSize: 22, fontWeight: 900, color: "#0f172a", margin: "0 0 4px", letterSpacing: "-0.02em" }}>🍕 Sabores disponíveis</p>
-            <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>Você pode combinar sabores de diferentes categorias ao montar seu pedido</p>
+            <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>Toque num sabor pra ver o produto e montar seu pedido</p>
           </div>
           {saboresPorProduto.map(({ produto: p, sabores }) => (
             <div key={p.id} style={{ marginBottom: 28 }}>
@@ -1294,8 +1319,8 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                 </div>
               )}
 
-              {/* PASSO: Sabores — mostra pool global agrupado por produto */}
-              {detailStep === "sabores" && allSaborCount > 0 && (
+              {/* PASSO: Sabores — sabores do próprio produto, ou pool mesclável se ligado */}
+              {detailStep === "sabores" && detailTemSaborStep && (
                 <div>
                   <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
                     <p style={{ fontSize: 12, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", margin: 0 }}>
@@ -1364,16 +1389,18 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                       </div>
                     );
                   })()}
-                  {/* Lista de sabores agrupados */}
+                  {/* Lista de sabores — agrupada por produto só quando mesclando */}
                   <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                    {saboresPorProduto.map(({ produto: p, sabores }) => (
+                    {detailGruposSabor.map(({ produto: p, sabores }) => (
                       <div key={p.id}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
-                          <span style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 999, padding: "2px 9px" }}>
-                            {p.nome}
-                          </span>
-                          <div style={{ flex: 1, height: 1, background: "#f1f5f9" }} />
-                        </div>
+                        {detailGruposSabor.length > 1 && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
+                            <span style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 999, padding: "2px 9px" }}>
+                              {p.nome}
+                            </span>
+                            <div style={{ flex: 1, height: 1, background: "#f1f5f9" }} />
+                          </div>
+                        )}
                         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                           {sabores.map(s => {
                             const sel = detailSaboresSel.some(x => x.id === s.id);

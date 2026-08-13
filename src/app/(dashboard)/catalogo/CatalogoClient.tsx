@@ -48,6 +48,7 @@ type ProdutoForm = {
   imagem_url: string; ativo: boolean;
   tipo: "simples" | "pizza";
   variantes_label: string;
+  mesclar_sabores: boolean;
   categoria_preco_id: string;
 };
 
@@ -58,6 +59,7 @@ const EMPTY_FORM: ProdutoForm = {
   categoria: "Lanches", categoriaCustom: "",
   imagem_url: "", ativo: true, tipo: "simples",
   variantes_label: "",
+  mesclar_sabores: false,
   categoria_preco_id: "",
 };
 
@@ -313,6 +315,7 @@ export default function CatalogoClient({
       imagem_url: p.imagem_url ?? "", ativo: p.ativo,
       tipo: (p.tipo ?? "simples") as "simples" | "pizza",
       variantes_label: p.variantes_label ?? "",
+      mesclar_sabores: p.mesclar_sabores ?? false,
       categoria_preco_id: p.categoria_preco_id ?? "",
     });
     setImgPreview(p.imagem_url ?? "");
@@ -533,6 +536,7 @@ export default function CatalogoClient({
         ativo: form.ativo,
         tipo: form.tipo,
         variantes_label: form.tipo === "pizza" && form.variantes_label.trim() ? form.variantes_label.trim() : null,
+        mesclar_sabores: form.tipo === "pizza" && form.mesclar_sabores,
         categoria_preco_id: form.categoria_preco_id || null,
       };
       if (editId) {
@@ -3004,6 +3008,27 @@ export default function CatalogoClient({
                     </button>
                   </div>
                 </div>
+
+                {/* Mesclar sabores com outros produtos */}
+                {form.tipo === "pizza" && (
+                  <label style={{
+                    display: "flex", alignItems: "center", gap: 12, cursor: "pointer",
+                    padding: "12px 14px", borderRadius: 12,
+                    background: form.mesclar_sabores ? `${cor}0d` : "var(--bg-input)",
+                    border: `1.5px solid ${form.mesclar_sabores ? cor : "var(--border-1)"}`,
+                  }}>
+                    <input type="checkbox" checked={form.mesclar_sabores}
+                      onChange={e => setForm(f => ({ ...f, mesclar_sabores: e.target.checked }))}
+                      style={{ width: 18, height: 18, accentColor: cor, flexShrink: 0 }} />
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-1)", margin: "0 0 2px" }}>Mesclar sabores com outros produtos</p>
+                      <p style={{ fontSize: 11, color: "var(--text-3)", margin: 0 }}>
+                        Ao pedir, o cliente pode combinar sabores deste produto com os de qualquer outro produto que também tenha essa opção ligada (ex: pizzas de tamanhos diferentes com os mesmos sabores). Desligado, cada produto mostra só os próprios sabores.
+                      </p>
+                    </div>
+                  </label>
+                )}
+
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
                   <p style={{ fontSize: 12, color: "var(--text-3)", margin: 0 }}>
                     Deixe o preço em branco para usar o valor padrão acima, ou defina um preço específico por sabor.
