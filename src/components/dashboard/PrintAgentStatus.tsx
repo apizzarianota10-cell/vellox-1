@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Printer, WifiOff } from "lucide-react";
 import Link from "next/link";
+import { checkAgentOnlineViaDb } from "@/lib/printAgentOnline";
 
 const AGENT_URL = "http://localhost:7532";
 
@@ -13,7 +14,11 @@ interface AgentInfo {
   lastError: string | null;
 }
 
-export default function PrintAgentStatus() {
+interface Props {
+  empresaId?: string | null;
+}
+
+export default function PrintAgentStatus({ empresaId }: Props) {
   const [info,    setInfo]    = useState<AgentInfo | null>(null);
   const [visible, setVisible] = useState(false);
 
@@ -31,8 +36,14 @@ export default function PrintAgentStatus() {
         return;
       }
     } catch {}
-    setInfo((prev) => (prev ? { ...prev, online: false } : null));
-  }, []);
+
+    // Sem HTTP local — tenta o heartbeat do servidor.ps1 (via banco)
+    if (empresaId && await checkAgentOnlineViaDb(empresaId)) {
+      setInfo({ online: true, selectedPrinter: null, realtimeStatus: "unknown", lastError: null });
+      return;
+    }
+    setInfo((prev) => (prev ? { ...prev, online: false } : { online: false, selectedPrinter: null, realtimeStatus: "unknown", lastError: null }));
+  }, [empresaId]);
 
   useEffect(() => {
     check();

@@ -5,6 +5,7 @@ import { AlertTriangle, X } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { autoPrint } from "@/lib/printService";
+import { checkAgentOnlineViaDb } from "@/lib/printAgentOnline";
 import type { Pedido } from "@/types";
 
 const AGENT_URL = "http://localhost:7532";
@@ -48,14 +49,61 @@ export default function PrintListener({ empresaId, empresaNome, empresaCnpj }: P
         return;
       }
 
-      // Agente não respondeu (app desktop fechado) — avisa quem está no navegador
+      // 2. Sem HTTP local — mas o servidor.ps1 (heartbeat via banco) pode estar
+      // vivo e vai imprimir este pedido sozinho em poucos segundos. Se for o
+      // caso, não faz nada aqui (evita imprimir duas vezes).
+      if (await checkAgentOnlineViaDb(empresaId)) {
+        jaAvisou.current = false;
+        setAvisoAgenteOffline(false);
+        return;
+      }
+
+      // Reconfere o estado mais recente do pedido no banco: o payload do
+      // realtime reflete o momento do INSERT (auto_printed sempre false), mas
+      // o servidor.ps1 pode ter processado e impresso este mesmo pedido no
+      // instante entre o INSERT e agora (heartbeat com até ~5s de atraso não
+      // é garantia de que ele não imprimiu "por baixo dos panos"). Se já foi
+      // marcado como impresso, não imprime de novo pelo navegador.
+      try {
+        const { data: fresh } = await supabase
+          .from("pedidos")
+          .select("auto_printed")
+          .eq("id", pedido.id)
+          .maybeSingle();
+        if (fresh?.auto_printed) {
+          jaAvisou.current = false;
+          setAvisoAgenteOffline(false);
+          return;
+        }
+      } catch {
+        // Se a checagem falhar, segue para o fallback — melhor arriscar uma
+        // impressão duplicada rara do que não imprimir o pedido.
+      }
+
+      // Nenhum agente/servidor respondeu — avisa quem está no navegador
       if (!jaAvisou.current) {
         jaAvisou.current = true;
         setAvisoAgenteOffline(true);
       }
 
-      // 2. WebUSB se configurado → silencioso; senão window.print()
-      autoPrint(pedido, empresaNome);
+      // 3. WebUSB se configurado → silencioso; senão window.print()
+      const resultado = await autoPrint(pedido, empresaNome);
+
+      // Marca no banco que este pedido já foi impresso (pelo navegador), para
+      // que o servidor.ps1 — cujo heartbeat pode ainda não refletir o ciclo
+      // de polling em andamento — pule este pedido no próximo ciclo em vez de
+      // imprimi-lo de novo "pouco depois".
+      if (resultado.ok) {
+        try {
+          await supabase.rpc("mark_pedido_printed", {
+            p_pedido_id:  pedido.id,
+            p_empresa_id: empresaId,
+            p_auto:       true,
+          });
+        } catch {
+          // Best-effort: não bloqueia o fluxo de impressão se a marcação falhar.
+        }
+      }
     }
 
     const ch = supabase

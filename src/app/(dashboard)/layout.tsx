@@ -53,7 +53,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <PrintListener empresaId={empresa.id} empresaNome={empresa.nome} empresaCnpj={empresa.cnpj} />
           <NewOrderPopup empresaId={empresa.id} empresaNome={empresa.nome} empresaCnpj={empresa.cnpj} />
           <div className="flex flex-col h-full">
-            <PrintAgentBanner />
+            <PrintAgentBanner empresaId={empresa.id} />
             <div className="flex flex-1 min-h-0" style={{ background: "var(--bg-base)" }}>
               <Sidebar
                 empresaNome={empresa?.nome ?? null}

@@ -414,7 +414,7 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
 
         {/* Print Agent status chip */}
         <div className="px-3 pb-2">
-          <PrintAgentStatus />
+          <PrintAgentStatus empresaId={empresaId} />
         </div>
 
         {/* Logout */}

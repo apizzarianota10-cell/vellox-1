@@ -7,6 +7,14 @@ $supabaseKey = $cfg.supabase_anon_key
 $empresaId   = $cfg.empresa_id
 $empresaNome = $cfg.empresa_nome
 $printerName = $cfg.printer_name
+$agentToken  = $cfg.agent_token
+
+if (-not $agentToken) {
+    Write-Host "ERRO: config.json antigo, sem agent_token." -ForegroundColor Red
+    Write-Host "Baixe um config.json novo em https://www.appvellox.online/api/print-server/config" -ForegroundColor Yellow
+    Read-Host
+    exit 1
+}
 
 Write-Host "=====================================" -ForegroundColor Cyan
 Write-Host "  Vellox - Servidor de Impressao" -ForegroundColor Cyan
@@ -137,7 +145,10 @@ function Print-Raw { param([byte[]]$bytes)
 }
 
 # Polling loop (sem WebSocket, usa REST a cada 5s)
-$headers = @{ "apikey" = $supabaseKey; "Authorization" = "Bearer $supabaseKey" }
+# Le os pedidos via RPC (get_pedidos_pendentes_agent) em vez de consultar a
+# tabela "pedidos" direto — a RPC valida o agent_token no servidor antes de
+# devolver qualquer coisa, sem precisar deixar a tabela de pedidos aberta.
+$headers = @{ "apikey" = $supabaseKey; "Authorization" = "Bearer $supabaseKey"; "Content-Type" = "application/json" }
 $printed = @{}
 $lastCheck = (Get-Date).AddSeconds(-30).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 
@@ -146,9 +157,19 @@ Write-Host ""
 
 while ($true) {
     $now = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+
+    # Heartbeat: avisa o painel web que este servidor está online (aparece
+    # no lugar do aviso amarelo "voce esta sem o app de impressao")
     try {
-        $uri = "$supabaseUrl/rest/v1/pedidos?empresa_id=eq.$empresaId&status=eq.em_fila&created_at=gt.$lastCheck&select=*"
-        $orders = Invoke-RestMethod -Uri $uri -Headers $headers -Method GET -ErrorAction Stop
+        $pingUri  = "$supabaseUrl/rest/v1/rpc/ping_print_agent"
+        $pingBody = @{ p_empresa_id = $empresaId; p_impressora = $printerName; p_tamanho_papel = "80mm" } | ConvertTo-Json
+        Invoke-RestMethod -Uri $pingUri -Headers $headers -Method POST -Body $pingBody -ErrorAction SilentlyContinue | Out-Null
+    } catch {}
+
+    try {
+        $rpcUri = "$supabaseUrl/rest/v1/rpc/get_pedidos_pendentes_agent"
+        $body = @{ p_empresa_id = $empresaId; p_agent_token = $agentToken; p_desde = $lastCheck } | ConvertTo-Json
+        $orders = Invoke-RestMethod -Uri $rpcUri -Headers $headers -Method POST -Body $body -ErrorAction Stop
         foreach ($pedido in $orders) {
             if (-not $printed.ContainsKey($pedido.id)) {
                 $printed[$pedido.id] = $true
@@ -157,6 +178,15 @@ while ($true) {
                 try {
                     $bytes = Build-EscPos $pedido
                     Print-Raw $bytes
+                    # Marca no banco que este pedido ja foi impresso (auto_printed=true).
+                    # Isso faz o painel web (PrintListener) pular o fallback via
+                    # navegador para este pedido caso ele ainda nao tenha rodado,
+                    # evitando imprimir o mesmo pedido duas vezes.
+                    try {
+                        $markUri  = "$supabaseUrl/rest/v1/rpc/mark_pedido_printed"
+                        $markBody = @{ p_pedido_id = $pedido.id; p_empresa_id = $empresaId; p_auto = $true } | ConvertTo-Json
+                        Invoke-RestMethod -Uri $markUri -Headers $headers -Method POST -Body $markBody -ErrorAction SilentlyContinue | Out-Null
+                    } catch {}
                 } catch {
                     Write-Host "  [ERRO impressao] $_" -ForegroundColor Red
                 }

@@ -3,21 +3,25 @@
 import { useState, useEffect, useCallback } from "react";
 import { AlertTriangle, X } from "lucide-react";
 import Link from "next/link";
+import { checkAgentOnlineViaDb } from "@/lib/printAgentOnline";
 
 const AGENT_URL = "http://localhost:7532";
 
-export default function PrintAgentBanner() {
+interface Props {
+  empresaId: string;
+}
+
+export default function PrintAgentBanner({ empresaId }: Props) {
   const [online,     setOnline]     = useState<boolean | null>(null);
   const [dismissed,  setDismissed]  = useState(false);
 
   const check = useCallback(async () => {
     try {
       const res = await fetch(`${AGENT_URL}/`, { signal: AbortSignal.timeout(2000) });
-      setOnline(res.ok);
-    } catch {
-      setOnline(false);
-    }
-  }, []);
+      if (res.ok) { setOnline(true); return; }
+    } catch {}
+    setOnline(await checkAgentOnlineViaDb(empresaId));
+  }, [empresaId]);
 
   useEffect(() => {
     check();
