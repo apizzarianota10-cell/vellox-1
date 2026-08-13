@@ -72,6 +72,9 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
   const [submitting, setSubmitting] = useState(false);
   const [pedidoId, setPedidoId]         = useState<string>("");
   const [trackingToken, setTrackingToken] = useState<string>("");
+  // Mesma chave em reenvios do mesmo checkout (ex: falha de rede + tentar de
+  // novo) — o servidor usa ela pra não criar o pedido duplicado.
+  const idempotencyKeyRef = useRef<string | null>(null);
   const [submitError, setSubmitError]   = useState<string>("");
   const [stickyNav, setStickyNav] = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
@@ -339,6 +342,9 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
     if (cart.length === 0) return;
     setSubmitting(true);
     setSubmitError("");
+    if (!idempotencyKeyRef.current) {
+      idempotencyKeyRef.current = crypto.randomUUID();
+    }
     try {
       const itens = cart.map(i => {
         const desc = describeItem(i);
@@ -350,6 +356,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           empresa_id: empresa.id,
+          idempotency_key: idempotencyKeyRef.current,
           cliente_nome: form.nome.trim(),
           cliente_telefone: form.telefone.replace(/\D/g, ""),
           endereco_entrega: form.tipo === "entrega"
@@ -370,6 +377,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
       });
       const json = await res.json();
       if (json.id) {
+        idempotencyKeyRef.current = null; // próximo pedido usa uma chave nova
         setPedidoId(json.id);
         setTrackingToken(json.tracking_token ?? "");
         setStep("success");
