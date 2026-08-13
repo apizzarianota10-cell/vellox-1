@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const supabase = await createClient();
 
   const { data: empresa } = await supabase
-    .from("empresas")
+    .from("empresas_publica")
     .select("id, nome")
     .eq("slug", slug.toLowerCase())
     .single();
@@ -53,7 +53,7 @@ export default async function LojaPage({ params }: Props) {
   const supabase = await createClient();
 
   const { data: empresa } = await supabase
-    .from("empresas")
+    .from("empresas_publica")
     .select("id, nome, codigo, slug, verificado")
     .eq("slug", slug.toLowerCase())
     .single();

@@ -13,7 +13,7 @@ export async function GET(req: Request) {
 
   // ── 1. Empresas ativas com assinatura válida ──────────────────
   let empQuery = supabase
-    .from("empresas")
+    .from("empresas_publica")
     .select("id, nome, slug, verificado, lat, lng")
     .eq("ativo", true)
     .eq("assinatura_ativa", true);
@@ -28,7 +28,7 @@ export async function GET(req: Request) {
 
   // ── 2. Configurações das lojas (aberto, taxas, logo, banner) ──
   const { data: configs } = await supabase
-    .from("configuracoes_loja")
+    .from("configuracao_loja")
     .select("empresa_id, cor_principal, logo_url, banner_url, aberto, taxa_entrega, tempo_entrega, descricao")
     .in("empresa_id", empresaIds);
 

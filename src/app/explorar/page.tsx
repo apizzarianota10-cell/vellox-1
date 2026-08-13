@@ -27,7 +27,7 @@ export default async function ExplorarPage() {
 
   // Empresas ativas com assinatura válida
   const { data: empresas } = await supabase
-    .from("empresas")
+    .from("empresas_publica")
     .select("id, nome, slug, verificado, lat, lng, created_at")
     .eq("ativo", true)
     .eq("assinatura_ativa", true);
@@ -37,7 +37,7 @@ export default async function ExplorarPage() {
   // Configurações (logo, banner, aberto, taxas)
   const { data: configs } = empresaIds.length
     ? await supabase
-        .from("configuracoes_loja")
+        .from("configuracao_loja")
         .select("empresa_id, cor_principal, logo_url, banner_url, aberto, taxa_entrega, tempo_entrega, descricao")
         .in("empresa_id", empresaIds)
     : { data: [] };

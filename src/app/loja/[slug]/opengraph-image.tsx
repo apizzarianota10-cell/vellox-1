@@ -18,7 +18,7 @@ export default async function OGImage({
   const { slug } = await params;
 
   const { data: empresa } = await supabase
-    .from("empresas")
+    .from("empresas_publica")
     .select("id, nome")
     .eq("slug", slug.toLowerCase())
     .single();

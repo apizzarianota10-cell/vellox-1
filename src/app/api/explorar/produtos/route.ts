@@ -9,7 +9,7 @@ export async function GET() {
 
   // Empresas ativas
   const { data: empresas } = await supabase
-    .from("empresas")
+    .from("empresas_publica")
     .select("id, nome, slug")
     .eq("ativo", true)
     .eq("assinatura_ativa", true);
