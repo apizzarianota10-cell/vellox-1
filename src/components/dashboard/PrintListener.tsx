@@ -125,6 +125,20 @@ export default function PrintListener({ empresaId, empresaNome, empresaCnpj }: P
       }, (payload) => {
         handleNewOrder(payload.new as Pedido);
       })
+      .on("postgres_changes", {
+        event:  "UPDATE",
+        schema: "public",
+        table:  "pedidos",
+        filter: `empresa_id=eq.${empresaId}`,
+      }, (payload) => {
+        // Assim que um pedido é marcado como impresso (por qualquer via —
+        // servidor.ps1, agente, ou o fallback do navegador), some do aviso
+        // de "atrasado" na hora, sem esperar a próxima checagem (até 60s).
+        const atualizado = payload.new as Pedido;
+        if (atualizado.printed_at) {
+          setPedidosAtrasados(prev => prev.filter(p => p.id !== atualizado.id));
+        }
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(ch); };
