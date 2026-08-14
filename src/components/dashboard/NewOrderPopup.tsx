@@ -48,6 +48,17 @@ export default function NewOrderPopup({ empresaId, empresaNome, empresaCnpj }: P
         const p = payload.new as Pedido;
         if (p.status === "em_fila") push(p);
       })
+      .on("postgres_changes", {
+        event: "UPDATE", schema: "public", table: "pedidos",
+        filter: `empresa_id=eq.${empresaId}`,
+      }, (payload) => {
+        // Já foi impresso por outra via (agente/servidor) — tira do popup,
+        // não precisa mais chamar atenção pra esse pedido.
+        const atualizado = payload.new as Pedido;
+        if (atualizado.printed_at) {
+          setOrders(prev => prev.filter(o => o.id !== atualizado.id));
+        }
+      })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [empresaId, push]);
