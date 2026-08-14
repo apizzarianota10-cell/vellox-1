@@ -1,5 +1,5 @@
 # Vellox Print Server - PowerShell (sem Node.js)
-$Versao = "v3"
+$Versao = "v4"
 $cfgPath = Join-Path $PSScriptRoot "config.json"
 if (-not (Test-Path $cfgPath)) { Write-Host "ERRO: config.json nao encontrado." -ForegroundColor Red; Read-Host; exit 1 }
 $cfg = Get-Content $cfgPath | ConvertFrom-Json
@@ -168,14 +168,41 @@ function Print-Raw { param([byte[]]$bytes)
 # acessar um endereco local/privado (Private Network Access). Sem esse
 # header o navegador bloqueia a requisicao mesmo com o listener funcionando
 # perfeitamente — por isso ele e enviado em toda resposta abaixo.
-$listenerJob = $null
+#
+# IMPORTANTE (processo unico, nao Start-Job): o listener roda numa runspace
+# DENTRO deste mesmo processo powershell.exe, e nao via Start-Job. Start-Job
+# cria um processo powershell.exe SEPARADO — se este script for encerrado de
+# forma abrupta (fechar a janela no X, Gerenciador de Tarefas, um crash),
+# o bloco "finally" que derruba o job pode nao chegar a rodar, e esse
+# processo separado fica "orfao", escutando a porta 7532 pra sempre. Na
+# proxima vez que o servidor.ps1 for iniciado, essa instancia fantasma
+# responde no lugar da nova, MAS continua rodando o proprio loop de polling
+# dela — se ela pegar um pedido primeiro e chamar mark_pedido_printed, a
+# instancia visivel nunca mais ve esse pedido (RPC filtra auto_printed=true),
+# e a janela fica em silencio total, sem nenhum erro. Usando uma runspace no
+# mesmo processo em vez de Start-Job, matar este processo (de qualquer jeito)
+# sempre derruba o listener junto — nunca fica zumbi.
+$httpListener  = $null
+$listenerRs    = $null
+$listenerPs    = $null
 try {
-    $listenerJob = Start-Job -ScriptBlock {
-        $listener = New-Object System.Net.HttpListener
-        $listener.Prefixes.Add("http://localhost:7532/")
-        $listener.Start()
+    $httpListener = New-Object System.Net.HttpListener
+    $httpListener.Prefixes.Add("http://localhost:7532/")
+    $httpListener.Start()
+
+    $listenerRs = [runspacefactory]::CreateRunspace()
+    $listenerRs.Open()
+    $listenerPs = [powershell]::Create()
+    $listenerPs.Runspace = $listenerRs
+    [void]$listenerPs.AddScript({
+        param($listener)
         while ($listener.IsListening) {
-            $context  = $listener.GetContext()
+            try {
+                $context = $listener.GetContext()
+            } catch {
+                # Listener foi parado (Stop()/Close()) — sai do loop de boa.
+                break
+            }
             $request  = $context.Request
             $response = $context.Response
             $response.Headers.Add("Access-Control-Allow-Origin", "*")
@@ -205,43 +232,43 @@ try {
             $response.OutputStream.Write($buffer, 0, $buffer.Length)
             $response.OutputStream.Close()
         }
-    }
+    }).AddArgument($httpListener)
+    [void]$listenerPs.BeginInvoke()
 
-    # Confirmacao ativa de que a porta realmente esta respondendo, em vez de
-    # confiar so em $listenerJob.State: Start-Job roda em um processo
-    # powershell.exe totalmente separado, entao uma falha dentro do job (ex:
-    # "Access is denied" do HttpListener, ou porta 7532 ja em uso por outro
-    # processo) pode levar mais do que 500ms para o State propagar como
-    # "Failed" — especialmente em maquinas mais lentas. Por isso tentamos
-    # conectar de verdade na porta, com varias tentativas curtas, em vez de
-    # so olhar o State uma unica vez.
+    # Confirmacao ativa de que a porta realmente esta respondendo. Como o
+    # listener agora roda na mesma maquina/processo, $httpListener.Start()
+    # ja teria lancado excecao se a porta estivesse ocupada ou sem permissao
+    # (capturado no catch abaixo) — mas ainda testamos com Invoke-WebRequest
+    # de verdade, com varias tentativas curtas, pra ter certeza de que o
+    # loop da runspace realmente comecou a aceitar conexoes.
     $portaAtiva = $false
     for ($i = 0; $i -lt 15; $i++) {
         Start-Sleep -Milliseconds 200
-        if ($listenerJob.State -eq "Failed") { break }
         try {
             $probe = Invoke-WebRequest -Uri "http://localhost:7532/" -TimeoutSec 1 -UseBasicParsing -ErrorAction Stop
             if ($probe.StatusCode -eq 200) { $portaAtiva = $true; break }
         } catch {
-            # Ainda nao subiu (ou o job ja falhou) — tenta de novo ate o limite.
+            # Ainda nao subiu — tenta de novo ate o limite.
         }
     }
 
     if ($portaAtiva) {
         Write-Host "Reconhecimento instantaneo ativo (porta 7532)." -ForegroundColor Green
     } else {
-        $detalhe = ""
-        try {
-            $erroJob = Receive-Job -Job $listenerJob -ErrorAction SilentlyContinue 2>&1
-            if ($erroJob) { $detalhe = " Detalhe: $(($erroJob | Out-String).Trim())" }
-        } catch {}
-        Write-Host "AVISO: nao foi possivel abrir a porta 7532 (talvez ja esteja em uso, ou sem permissao).$detalhe O reconhecimento vai usar o heartbeat via banco (mais lento, ate 30s)." -ForegroundColor Yellow
-        if ($listenerJob) { Stop-Job $listenerJob -ErrorAction SilentlyContinue; Remove-Job $listenerJob -ErrorAction SilentlyContinue }
-        $listenerJob = $null
+        Write-Host "AVISO: a porta 7532 abriu mas nao respondeu a tempo. O reconhecimento vai usar o heartbeat via banco (mais lento, ate 30s)." -ForegroundColor Yellow
+        try { $httpListener.Stop(); $httpListener.Close() } catch {}
+        try { $listenerPs.Stop(); $listenerPs.Dispose() } catch {}
+        try { $listenerRs.Close(); $listenerRs.Dispose() } catch {}
+        $httpListener = $null; $listenerPs = $null; $listenerRs = $null
     }
 } catch {
-    Write-Host "AVISO: nao foi possivel abrir a porta 7532. O reconhecimento vai usar o heartbeat via banco (mais lento, ate 30s)." -ForegroundColor Yellow
-    $listenerJob = $null
+    # Mais provavel: porta 7532 ja em uso — inclusive por uma instancia
+    # anterior deste mesmo servidor.ps1 que ficou rodando em segundo plano
+    # (ex: a janela foi fechada no X em vez de deixar o script terminar
+    # sozinho). Veja o comentario grande acima sobre processo unico.
+    Write-Host "AVISO: nao foi possivel abrir a porta 7532 (provavelmente ja esta em uso - pode ser uma instancia anterior deste servidor ainda rodando em segundo plano; feche processos powershell.exe antigos no Gerenciador de Tarefas se for o caso). Detalhe: $($_.Exception.Message) O reconhecimento vai usar o heartbeat via banco (mais lento, ate 30s)." -ForegroundColor Yellow
+    if ($httpListener) { try { $httpListener.Close() } catch {} }
+    $httpListener = $null; $listenerPs = $null; $listenerRs = $null
 }
 Write-Host ""
 
@@ -301,5 +328,7 @@ while ($true) {
     Start-Sleep -Seconds 5
 }
 } finally {
-    if ($listenerJob) { Stop-Job $listenerJob -ErrorAction SilentlyContinue; Remove-Job $listenerJob -ErrorAction SilentlyContinue }
+    if ($httpListener) { try { $httpListener.Stop(); $httpListener.Close() } catch {} }
+    if ($listenerPs)   { try { $listenerPs.Stop(); $listenerPs.Dispose() } catch {} }
+    if ($listenerRs)   { try { $listenerRs.Close(); $listenerRs.Dispose() } catch {} }
 }
