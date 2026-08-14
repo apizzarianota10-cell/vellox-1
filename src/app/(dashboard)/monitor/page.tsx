@@ -1,19 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
-import MonitorClient from "./MonitorClient";
+import MonitorShell from "./MonitorShell";
 import UpgradeWall from "@/components/UpgradeWall";
 import DbError from "@/components/DbError";
 import type { Plano } from "@/types";
 
 export const dynamic = "force-dynamic";
 
-interface Props {
-  searchParams: Promise<{ modo?: string }>;
-}
-
-export default async function MonitorPage({ searchParams }: Props) {
-  const { modo: modoParam } = await searchParams;
-  const modo = (modoParam === "cozinha" || modoParam === "salao") ? modoParam : "ambos";
-
+export default async function MonitorPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
@@ -44,7 +37,7 @@ export default async function MonitorPage({ searchParams }: Props) {
 
   const { data: pedidos, error } = await supabase
     .from("pedidos")
-    .select("id, empresa_id, cliente_nome, tipo_pedido, status, created_at, updated_at")
+    .select("id, empresa_id, cliente_nome, cliente_telefone, tipo_pedido, descricao_itens, observacoes, endereco_entrega, bairro, forma_pagamento, valor_pedido, valor_motoboy, troco_para, status, created_at, updated_at")
     .eq("empresa_id", user.id)
     .gte("created_at", inicioDia.toISOString())
     .order("created_at", { ascending: true });
@@ -52,11 +45,10 @@ export default async function MonitorPage({ searchParams }: Props) {
   if (error) return <DbError message="Erro ao carregar o monitor. Tente novamente." />;
 
   return (
-    <MonitorClient
+    <MonitorShell
       initialPedidos={pedidos ?? []}
       empresaId={user.id}
       empresaNome={empresaData?.nome ?? ""}
-      modo={modo}
     />
   );
 }
