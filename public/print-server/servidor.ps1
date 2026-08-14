@@ -1,5 +1,5 @@
 # Vellox Print Server - PowerShell (sem Node.js)
-$Versao = "v2"
+$Versao = "v3"
 $cfgPath = Join-Path $PSScriptRoot "config.json"
 if (-not (Test-Path $cfgPath)) { Write-Host "ERRO: config.json nao encontrado." -ForegroundColor Red; Read-Host; exit 1 }
 $cfg = Get-Content $cfgPath | ConvertFrom-Json
@@ -75,6 +75,7 @@ function Build-EscPos($p) {
     $total = [double]$p.valor_pedido + [double]$p.valor_motoboy
     $pgtoMap = @{dinheiro="Dinheiro";cartao_credito="Cartao Credito";cartao_debito="Cartao Debito";pix="PIX";ja_pago="Ja pago"}
     $pgto = if ($pgtoMap.ContainsKey($p.forma_pagamento)) { $pgtoMap[$p.forma_pagamento] } else { "$($p.forma_pagamento)" }
+    $trocoTxt = if ($p.troco_para) { " Troco p/ R$ $([double]$p.troco_para.ToString("F2").Replace(".", ","))" } else { "" }
     $now = (Get-Date).ToString("dd/MM/yy HH:mm")
 
     Init
@@ -120,7 +121,7 @@ function Build-EscPos($p) {
     Sep
 
     Bold $true; xT "PAGAMENTO"; xN; Bold $false
-    xT "$pgto$(if($p.troco_para){" Troco p/ R$ $([double]$p.troco_para.ToString("F2").Replace(".",","))"}else{""})"; xN
+    xT "$pgto$trocoTxt"; xN
     Sep
 
     Align 1
@@ -157,6 +158,16 @@ function Print-Raw { param([byte[]]$bytes)
 # de cair no heartbeat via banco (que tem atraso de detecção). Abrindo essa
 # porta aqui, o reconhecimento fica instantâneo, igual ao app de verdade.
 # So responde "ok" — quem realmente imprime e o loop de polling abaixo.
+#
+# IMPORTANTE (Private Network Access): o painel roda em HTTPS publico
+# (appvellox.online) e faz fetch para http://localhost:7532 — isso NAO e
+# bloqueado como "mixed content" (Chrome/Edge tratam localhost como origem
+# confiavel desde 2021), MAS o Chrome/Edge tambem exigem, alem do CORS
+# normal, que a resposta inclua o header
+# "Access-Control-Allow-Private-Network: true" quando um site publico tenta
+# acessar um endereco local/privado (Private Network Access). Sem esse
+# header o navegador bloqueia a requisicao mesmo com o listener funcionando
+# perfeitamente — por isso ele e enviado em toda resposta abaixo.
 $listenerJob = $null
 try {
     $listenerJob = Start-Job -ScriptBlock {
@@ -170,6 +181,9 @@ try {
             $response.Headers.Add("Access-Control-Allow-Origin", "*")
             $response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
             $response.Headers.Add("Access-Control-Allow-Headers", "Content-Type")
+            # Necessario para o Chrome/Edge nao bloquear via Private Network
+            # Access (ver comentario acima).
+            $response.Headers.Add("Access-Control-Allow-Private-Network", "true")
             $response.ContentType = "application/json"
 
             $body = '{}'
@@ -192,15 +206,42 @@ try {
             $response.OutputStream.Close()
         }
     }
-    Start-Sleep -Milliseconds 500
-    if ($listenerJob.State -eq "Failed") {
-        Write-Host "AVISO: nao foi possivel abrir a porta 7532 (talvez ja esteja em uso). O reconhecimento vai usar o heartbeat via banco (mais lento, ate 30s)." -ForegroundColor Yellow
-        $listenerJob = $null
-    } else {
+
+    # Confirmacao ativa de que a porta realmente esta respondendo, em vez de
+    # confiar so em $listenerJob.State: Start-Job roda em um processo
+    # powershell.exe totalmente separado, entao uma falha dentro do job (ex:
+    # "Access is denied" do HttpListener, ou porta 7532 ja em uso por outro
+    # processo) pode levar mais do que 500ms para o State propagar como
+    # "Failed" — especialmente em maquinas mais lentas. Por isso tentamos
+    # conectar de verdade na porta, com varias tentativas curtas, em vez de
+    # so olhar o State uma unica vez.
+    $portaAtiva = $false
+    for ($i = 0; $i -lt 15; $i++) {
+        Start-Sleep -Milliseconds 200
+        if ($listenerJob.State -eq "Failed") { break }
+        try {
+            $probe = Invoke-WebRequest -Uri "http://localhost:7532/" -TimeoutSec 1 -UseBasicParsing -ErrorAction Stop
+            if ($probe.StatusCode -eq 200) { $portaAtiva = $true; break }
+        } catch {
+            # Ainda nao subiu (ou o job ja falhou) — tenta de novo ate o limite.
+        }
+    }
+
+    if ($portaAtiva) {
         Write-Host "Reconhecimento instantaneo ativo (porta 7532)." -ForegroundColor Green
+    } else {
+        $detalhe = ""
+        try {
+            $erroJob = Receive-Job -Job $listenerJob -ErrorAction SilentlyContinue 2>&1
+            if ($erroJob) { $detalhe = " Detalhe: $(($erroJob | Out-String).Trim())" }
+        } catch {}
+        Write-Host "AVISO: nao foi possivel abrir a porta 7532 (talvez ja esteja em uso, ou sem permissao).$detalhe O reconhecimento vai usar o heartbeat via banco (mais lento, ate 30s)." -ForegroundColor Yellow
+        if ($listenerJob) { Stop-Job $listenerJob -ErrorAction SilentlyContinue; Remove-Job $listenerJob -ErrorAction SilentlyContinue }
+        $listenerJob = $null
     }
 } catch {
     Write-Host "AVISO: nao foi possivel abrir a porta 7532. O reconhecimento vai usar o heartbeat via banco (mais lento, ate 30s)." -ForegroundColor Yellow
+    $listenerJob = $null
 }
 Write-Host ""
 
