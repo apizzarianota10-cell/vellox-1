@@ -1,5 +1,5 @@
 # Vellox Print Server - PowerShell (sem Node.js)
-$Versao = "v1"
+$Versao = "v2"
 $cfgPath = Join-Path $PSScriptRoot "config.json"
 if (-not (Test-Path $cfgPath)) { Write-Host "ERRO: config.json nao encontrado." -ForegroundColor Red; Read-Host; exit 1 }
 $cfg = Get-Content $cfgPath | ConvertFrom-Json
@@ -152,6 +152,58 @@ function Print-Raw { param([byte[]]$bytes)
     Write-Host "  [OK] $w bytes enviados a impressora!" -ForegroundColor Green
 }
 
+# Mini servidor HTTP na porta 7532 — o mesmo endereco que o app Electron
+# (Print Agent) usa. O painel web ja verifica esse endereco PRIMEIRO, antes
+# de cair no heartbeat via banco (que tem atraso de detecção). Abrindo essa
+# porta aqui, o reconhecimento fica instantâneo, igual ao app de verdade.
+# So responde "ok" — quem realmente imprime e o loop de polling abaixo.
+$listenerJob = $null
+try {
+    $listenerJob = Start-Job -ScriptBlock {
+        $listener = New-Object System.Net.HttpListener
+        $listener.Prefixes.Add("http://localhost:7532/")
+        $listener.Start()
+        while ($listener.IsListening) {
+            $context  = $listener.GetContext()
+            $request  = $context.Request
+            $response = $context.Response
+            $response.Headers.Add("Access-Control-Allow-Origin", "*")
+            $response.Headers.Add("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            $response.Headers.Add("Access-Control-Allow-Headers", "Content-Type")
+            $response.ContentType = "application/json"
+
+            $body = '{}'
+            if ($request.HttpMethod -eq "OPTIONS") {
+                $response.StatusCode = 204
+            } elseif ($request.HttpMethod -eq "GET" -and $request.Url.AbsolutePath -eq "/") {
+                $body = '{"online":true,"selectedPrinter":null,"realtimeStatus":"SUBSCRIBED","lastError":null}'
+            } elseif ($request.HttpMethod -eq "POST" -and $request.Url.AbsolutePath -eq "/print") {
+                # O pedido chega e sera impresso pelo loop de polling em ate
+                # 5s — so confirma recebido pra o navegador nao tentar imprimir
+                # ele mesmo (evita duplicar).
+                $body = '{"ok":true}'
+            } else {
+                $response.StatusCode = 404
+            }
+
+            $buffer = [System.Text.Encoding]::UTF8.GetBytes($body)
+            $response.ContentLength64 = $buffer.Length
+            $response.OutputStream.Write($buffer, 0, $buffer.Length)
+            $response.OutputStream.Close()
+        }
+    }
+    Start-Sleep -Milliseconds 500
+    if ($listenerJob.State -eq "Failed") {
+        Write-Host "AVISO: nao foi possivel abrir a porta 7532 (talvez ja esteja em uso). O reconhecimento vai usar o heartbeat via banco (mais lento, ate 30s)." -ForegroundColor Yellow
+        $listenerJob = $null
+    } else {
+        Write-Host "Reconhecimento instantaneo ativo (porta 7532)." -ForegroundColor Green
+    }
+} catch {
+    Write-Host "AVISO: nao foi possivel abrir a porta 7532. O reconhecimento vai usar o heartbeat via banco (mais lento, ate 30s)." -ForegroundColor Yellow
+}
+Write-Host ""
+
 # Polling loop (sem WebSocket, usa REST a cada 5s)
 # Le os pedidos via RPC (get_pedidos_pendentes_agent) em vez de consultar a
 # tabela "pedidos" direto — a RPC valida o agent_token no servidor antes de
@@ -163,6 +215,7 @@ $lastCheck = (Get-Date).AddSeconds(-30).ToUniversalTime().ToString("yyyy-MM-ddTH
 Write-Host "Aguardando pedidos (verificando a cada 5s)..." -ForegroundColor Green
 Write-Host ""
 
+try {
 while ($true) {
     $now = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 
@@ -205,4 +258,7 @@ while ($true) {
     }
     $lastCheck = $now
     Start-Sleep -Seconds 5
+}
+} finally {
+    if ($listenerJob) { Stop-Job $listenerJob -ErrorAction SilentlyContinue; Remove-Job $listenerJob -ErrorAction SilentlyContinue }
 }

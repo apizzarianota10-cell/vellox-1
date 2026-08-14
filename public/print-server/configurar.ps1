@@ -1,5 +1,5 @@
 # Vellox Print Server - Configuracao (copiar/colar, sem depender de download de arquivo)
-$Versao = "v1"
+$Versao = "v2"
 $ErrorActionPreference = "Stop"
 $dir = "C:\VelloxPrint"
 if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir | Out-Null }

@@ -1,5 +1,5 @@
 @echo off
-set "INSTALADOR_VERSAO=v1"
+set "INSTALADOR_VERSAO=v2"
 title Vellox - Instalador de Impressao %INSTALADOR_VERSAO%
 color 0A
 echo.

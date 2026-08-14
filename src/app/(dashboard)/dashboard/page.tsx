@@ -9,62 +9,51 @@ import CodigoCopy from "@/components/dashboard/CodigoCopy";
 import DbError from "@/components/DbError";
 import type { Pedido, Motoboy } from "@/types";
 
+interface DashboardStats {
+  total: number; emRota: number; entregues: number; pendentes: number; emPreparo: number;
+  faturamento: number; lucroMotoboys: number; totalHoje: number; entreguesHoje: number;
+  canceladosHoje: number; faturamentoHoje: number; tempoMedioMin: number | null;
+  rankingHoje: { nome: string; count: number; ganho: number }[];
+}
+
 async function getStats(empresaId: string) {
   const supabase = await createClient();
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
   const hojeISO = hoje.toISOString();
 
-  const [pedidosRes, motoboysRes] = await Promise.all([
-    supabase.from("pedidos").select("*").eq("empresa_id", empresaId),
+  // Contagens/somas de todos os pedidos são calculadas no banco (get_dashboard_stats)
+  // — só os últimos 8 pedidos e a lista de motoboys precisam vir inteiros pra cá.
+  const [statsRes, motoboysRes, recentesRes] = await Promise.all([
+    supabase.rpc("get_dashboard_stats", { p_empresa_id: empresaId }),
     supabase.from("motoboys").select("*").eq("empresa_id", empresaId),
+    supabase.from("pedidos").select("*").eq("empresa_id", empresaId).order("created_at", { ascending: false }).limit(8),
   ]);
 
-  if (pedidosRes.error || motoboysRes.error) return null;
+  if (statsRes.error || motoboysRes.error || recentesRes.error) return null;
 
-  const p = (pedidosRes.data ?? []) as Pedido[];
+  const s = statsRes.data as DashboardStats;
   const m = (motoboysRes.data ?? []) as Motoboy[];
 
-  const pHoje = p.filter((x) => new Date(x.created_at) >= hoje);
-  const entreguesHoje = pHoje.filter((x) => x.status === "entregue");
-
-  const tempos = entreguesHoje
-    .map((x) => (new Date(x.updated_at).getTime() - new Date(x.created_at).getTime()) / 60000)
-    .filter((t) => t > 0);
-  const tempoMedioMin = tempos.length > 0 ? Math.round(tempos.reduce((a, b) => a + b, 0) / tempos.length) : null;
-
-  const mbMap = new Map(m.map((mb) => [mb.id, mb.nome]));
-  const rankRaw = new Map<string, { nome: string; count: number; ganho: number }>();
-  for (const x of entreguesHoje) {
-    if (!x.motoboy_id) continue;
-    const entry = rankRaw.get(x.motoboy_id) ?? { nome: mbMap.get(x.motoboy_id) ?? "—", count: 0, ganho: 0 };
-    entry.count++;
-    entry.ganho += x.valor_motoboy ?? 0;
-    rankRaw.set(x.motoboy_id, entry);
-  }
-  const rankingHoje = [...rankRaw.values()].sort((a, b) => b.count - a.count).slice(0, 5);
-
-  const pOrdenados = [...p].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
   return {
-    total:                p.length,
-    emRota:               p.filter((x) => x.status === "em_rota_de_entrega").length,
-    entregues:            p.filter((x) => x.status === "entregue").length,
-    pendentes:            p.filter((x) => x.status === "em_fila").length,
-    emPreparo:            p.filter((x) => x.status === "em_preparo").length,
+    total:                s.total,
+    emRota:               s.emRota,
+    entregues:            s.entregues,
+    pendentes:            s.pendentes,
+    emPreparo:            s.emPreparo,
     motoboyDisponiveis:   m.filter((x) => x.status === "disponivel").length,
     motoboyEmEntrega:     m.filter((x) => x.status === "em_entrega").length,
     motoboyTotal:         m.length,
-    pedidosRecentes:      pOrdenados.slice(0, 8),
+    pedidosRecentes:      (recentesRes.data ?? []) as Pedido[],
     motoboys:             m,
-    faturamento:          p.reduce((s, x) => s + (x.valor_pedido ?? 0), 0),
-    lucroMotoboys:        p.reduce((s, x) => s + (x.valor_motoboy ?? 0), 0),
-    totalHoje:            pHoje.length,
-    entreguesHoje:        entreguesHoje.length,
-    canceladosHoje:       pHoje.filter((x) => x.status === "cancelado").length,
-    faturamentoHoje:      entreguesHoje.reduce((s, x) => s + (x.valor_pedido ?? 0), 0),
-    tempoMedioMin,
-    rankingHoje,
+    faturamento:          s.faturamento,
+    lucroMotoboys:        s.lucroMotoboys,
+    totalHoje:            s.totalHoje,
+    entreguesHoje:        s.entreguesHoje,
+    canceladosHoje:       s.canceladosHoje,
+    faturamentoHoje:      s.faturamentoHoje,
+    tempoMedioMin:        s.tempoMedioMin,
+    rankingHoje:          s.rankingHoje ?? [],
     hojeISO,
   };
 }
