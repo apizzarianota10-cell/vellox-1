@@ -1,5 +1,5 @@
 @echo off
-set "INSTALADOR_VERSAO=v2"
+set "INSTALADOR_VERSAO=v3"
 title Vellox - Instalador de Impressao %INSTALADOR_VERSAO%
 color 0A
 echo.
@@ -34,9 +34,11 @@ if not exist "%DIR%\config.json" (
   pause & exit /b 1
 )
 
-:: Cria script de inicializacao
+:: Cria script de inicializacao — roda TOTALMENTE oculto (sem janela pra
+:: fechar sem querer). Tudo que o servidor imprimiria na tela vai pro
+:: log.txt (servidor.ps1 grava lá com Start-Transcript).
 echo @echo off > "%DIR%\iniciar.bat"
-echo powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Minimized -File "C:\VelloxPrint\servidor.ps1" >> "%DIR%\iniciar.bat"
+echo powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\VelloxPrint\servidor.ps1" >> "%DIR%\iniciar.bat"
 
 :: Atalho no startup do Windows
 powershell -NoProfile -Command ^
@@ -51,12 +53,15 @@ powershell -NoProfile -Command ^
 echo.
 echo  =========================================
 echo   Instalacao concluida!
-echo   Iniciando servidor...
+echo   Iniciando servidor (oculto, sem janela)...
 echo  =========================================
 echo.
-start /min cmd /k "powershell -NoProfile -ExecutionPolicy Bypass -File C:\VelloxPrint\servidor.ps1"
+start "" "%DIR%\iniciar.bat"
 echo.
-echo  Servidor rodando em segundo plano!
+echo  Servidor rodando escondido em segundo plano — nao tem janela pra
+echo  fechar sem querer. Pra ver o que ele esta fazendo (ou algum erro),
+echo  abra o arquivo: %DIR%\log.txt
+echo.
 echo  Faca um pedido de teste no Vellox.
 echo.
 pause

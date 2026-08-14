@@ -1,7 +1,15 @@
 # Vellox Print Server - PowerShell (sem Node.js)
-$Versao = "v4"
+$Versao = "v5"
+
+# Roda oculto (-WindowStyle Hidden) — sem janela pra ver a tela ou pausar
+# num Read-Host, entao tudo vai pro log.txt em vez do console. Reinicia o
+# log a cada partida pra nao crescer sem limite (o interessante e sempre o
+# mais recente).
+$logPath = Join-Path $PSScriptRoot "log.txt"
+try { Start-Transcript -Path $logPath -Force | Out-Null } catch {}
+
 $cfgPath = Join-Path $PSScriptRoot "config.json"
-if (-not (Test-Path $cfgPath)) { Write-Host "ERRO: config.json nao encontrado." -ForegroundColor Red; Read-Host; exit 1 }
+if (-not (Test-Path $cfgPath)) { Write-Host "ERRO: config.json nao encontrado." -ForegroundColor Red; exit 1 }
 $cfg = Get-Content $cfgPath | ConvertFrom-Json
 $supabaseUrl = $cfg.supabase_url
 $supabaseKey = $cfg.supabase_anon_key
@@ -13,13 +21,11 @@ $agentToken  = if ($cfg.agent_token)  { $cfg.agent_token.ToString().Trim() }  el
 if (-not $empresaId -or $empresaId -notmatch '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$') {
     Write-Host "ERRO: empresa_id ausente ou invalido no config.json." -ForegroundColor Red
     Write-Host "Reinstale em https://www.appvellox.online/print-server/instalar.bat" -ForegroundColor Yellow
-    Read-Host
     exit 1
 }
 if (-not $agentToken -or $agentToken.Length -lt 20) {
     Write-Host "ERRO: agent_token ausente ou incompleto no config.json." -ForegroundColor Red
     Write-Host "Reinstale em https://www.appvellox.online/print-server/instalar.bat" -ForegroundColor Yellow
-    Read-Host
     exit 1
 }
 
@@ -331,4 +337,5 @@ while ($true) {
     if ($httpListener) { try { $httpListener.Stop(); $httpListener.Close() } catch {} }
     if ($listenerPs)   { try { $listenerPs.Stop(); $listenerPs.Dispose() } catch {} }
     if ($listenerRs)   { try { $listenerRs.Close(); $listenerRs.Dispose() } catch {} }
+    try { Stop-Transcript | Out-Null } catch {}
 }
