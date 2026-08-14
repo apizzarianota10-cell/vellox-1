@@ -47,6 +47,29 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
   const [credsError,    setCredsError]    = useState("");
   const [copiedField,   setCopiedField]   = useState<"id" | "token" | null>(null);
   const [showToken,     setShowToken]     = useState(false);
+  const [baixandoInstalador, setBaixandoInstalador] = useState(false);
+
+  // Baixa o instalador com o número da versão já no nome do arquivo (lido do
+  // próprio conteúdo, ex: "INSTALADOR_VERSAO=v3"), pra dar pra saber qual
+  // versão você tem só de olhar a pasta de Downloads, sem precisar abrir.
+  async function baixarInstalador() {
+    setBaixandoInstalador(true);
+    try {
+      const res = await fetch("/print-server/instalar.bat", { cache: "no-store" });
+      const texto = await res.text();
+      const m = texto.match(/INSTALADOR_VERSAO=([^\r\n]+)/);
+      const versao = m ? m[1].trim() : "";
+      const nomeArquivo = `vellox-instalador${versao ? `-${versao}` : ""}.bat`;
+
+      const blob = new Blob([texto], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = nomeArquivo; a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setBaixandoInstalador(false);
+    }
+  }
 
   async function carregarCredenciais() {
     setLoadingCreds(true);
@@ -260,15 +283,15 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
           Não compartilhe o token — quem tiver acesso a ele consegue ler os pedidos pendentes da sua loja.
         </p>
 
-        <a
-          href="/print-server/instalar.bat"
-          download
+        <button
+          onClick={baixarInstalador}
+          disabled={baixandoInstalador}
           className="flex items-center justify-center gap-2 w-full mt-3 py-2.5 rounded-xl text-xs font-bold"
-          style={{ background: "var(--overlay-sm)", border: "1px solid var(--border-1)", color: "var(--text-1)" }}
+          style={{ background: "var(--overlay-sm)", border: "1px solid var(--border-1)", color: "var(--text-1)", opacity: baixandoInstalador ? 0.6 : 1 }}
         >
-          <Download size={13} />
-          Baixar instalador (instalar.bat)
-        </a>
+          {baixandoInstalador ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+          {baixandoInstalador ? "Baixando…" : "Baixar instalador"}
+        </button>
       </div>
 
       {/* Toggle impressão automática */}
