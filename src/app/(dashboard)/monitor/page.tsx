@@ -6,7 +6,14 @@ import type { Plano } from "@/types";
 
 export const dynamic = "force-dynamic";
 
-export default async function MonitorPage() {
+interface Props {
+  searchParams: Promise<{ modo?: string }>;
+}
+
+export default async function MonitorPage({ searchParams }: Props) {
+  const { modo: modoParam } = await searchParams;
+  const modo = (modoParam === "cozinha" || modoParam === "salao") ? modoParam : "ambos";
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
@@ -49,6 +56,7 @@ export default async function MonitorPage() {
       initialPedidos={pedidos ?? []}
       empresaId={user.id}
       empresaNome={empresaData?.nome ?? ""}
+      modo={modo}
     />
   );
 }

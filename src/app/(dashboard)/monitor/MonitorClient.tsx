@@ -1,9 +1,12 @@
 ﻿"use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { Maximize2, Minimize2, Tv } from "lucide-react";
+import { Maximize2, Minimize2, Tv, ChefHat, Bell } from "lucide-react";
 import type { PedidoStatus } from "@/types";
+
+type Modo = "ambos" | "cozinha" | "salao";
 
 interface PedidoMonitor {
   id: string;
@@ -54,10 +57,12 @@ export default function MonitorClient({
   initialPedidos,
   empresaId,
   empresaNome,
+  modo,
 }: {
   initialPedidos: PedidoMonitor[];
   empresaId: string;
   empresaNome: string;
+  modo: Modo;
 }) {
   const supabase     = createClient();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -223,6 +228,32 @@ export default function MonitorClient({
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: tv ? 24 : 12 }}>
+          {!tv && (
+            <div style={{ display: "flex", alignItems: "center", gap: 4, padding: 3, borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              {([
+                { key: "ambos" as Modo,   label: "Ambos",   icon: null },
+                { key: "cozinha" as Modo, label: "Cozinha", icon: ChefHat },
+                { key: "salao" as Modo,   label: "Salão",   icon: Bell },
+              ]).map(({ key, label, icon: Icon }) => (
+                <Link
+                  key={key}
+                  href={key === "ambos" ? "/monitor" : `/monitor?modo=${key}`}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 5,
+                    padding: "6px 12px", borderRadius: 8,
+                    background: modo === key ? "rgba(255,106,0,0.15)" : "transparent",
+                    color: modo === key ? "#FF6A00" : "#64748b",
+                    fontSize: 11, fontWeight: 700,
+                    textDecoration: "none",
+                    fontFamily: "system-ui, sans-serif",
+                  }}
+                >
+                  {Icon && <Icon size={11} />}
+                  {label}
+                </Link>
+              ))}
+            </div>
+          )}
           <span style={{
             fontSize:      sz.clock,
             fontWeight:    900,
@@ -257,12 +288,12 @@ export default function MonitorClient({
       {/* ── Colunas ──────────────────────────────────────────── */}
       <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
 
-        {/* ESQUERDA: PREPARANDO */}
-        <div style={{
+        {/* ESQUERDA: PREPARANDO — some no modo "salao" */}
+        {modo !== "salao" && <div style={{
           flex:           1,
           display:        "flex",
           flexDirection:  "column",
-          borderRight:    "1px solid #111",
+          borderRight:    modo === "ambos" ? "1px solid #111" : "none",
           overflow:       "hidden",
         }}>
           <div style={{
@@ -404,10 +435,10 @@ export default function MonitorClient({
               );
             })}
           </div>
-        </div>
+        </div>}
 
-        {/* DIREITA: PRONTO */}
-        <div style={{
+        {/* DIREITA: PRONTO — some no modo "cozinha" */}
+        {modo !== "cozinha" && <div style={{
           flex:          1,
           display:       "flex",
           flexDirection: "column",
@@ -536,7 +567,7 @@ export default function MonitorClient({
               );
             })}
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   );
