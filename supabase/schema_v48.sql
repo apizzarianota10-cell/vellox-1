@@ -25,6 +25,10 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
+-- ── Índice de performance ────────────────────────────────────────────────────
+CREATE INDEX IF NOT EXISTS produto_categorias_sabor_produto_id_idx
+  ON public.produto_categorias_sabor (produto_id);
+
 -- ── RLS ────────────────────────────────────────────────────────────────────────
 ALTER TABLE public.produto_categorias_sabor ENABLE ROW LEVEL SECURITY;
 

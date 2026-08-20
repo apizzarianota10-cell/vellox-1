@@ -139,6 +139,7 @@ export default function CatalogoClient({
   const [editingVariacaoPreco, setEditingVariacaoPreco] = useState<{ id: string; preco: string } | null>(null);
   const [novoSabor, setNovoSabor] = useState({ nome: "", descricao: "", preco: "" });
   const [novoAdicional, setNovoAdicional] = useState({ nome: "", preco: "", obrigatorio: false });
+  const [novoAdicionalOutrosProdutos, setNovoAdicionalOutrosProdutos] = useState<string[]>([]);
   const [savingTab, setSavingTab] = useState(false);
   const [wizardStep, setWizardStep] = useState(0);
   const [editingSaborId, setEditingSaborId] = useState<string | null>(null);
@@ -171,6 +172,7 @@ export default function CatalogoClient({
   const [quickProdutoId, setQuickProdutoId] = useState("");
   const [quickSabor, setQuickSabor] = useState({ nome: "", descricao: "", preco: "" });
   const [quickAdicional, setQuickAdicional] = useState({ nome: "", preco: "", obrigatorio: false });
+  const [quickAdicionalOutrosProdutos, setQuickAdicionalOutrosProdutos] = useState<string[]>([]);
   const [savingQuick, setSavingQuick] = useState(false);
 
   // Quick import sabores from image (inside quick-add modal)
@@ -246,6 +248,7 @@ export default function CatalogoClient({
     setImgPreview("");
     setModalTab("basico");
     setVariacoes([]); setSabores([]); setAdicionais([]);
+    setNovoAdicionalOutrosProdutos([]);
     setWizardStep(1);
     setModalOpen(true);
   }
@@ -256,7 +259,24 @@ export default function CatalogoClient({
     setQuickProdutoId(produtos.length > 0 ? produtos[0].id : "");
     setQuickSabor({ nome: "", descricao: "", preco: "" });
     setQuickAdicional({ nome: "", preco: "", obrigatorio: false });
+    setQuickAdicionalOutrosProdutos([]);
     setQuickOpen(true);
+  }
+
+  async function copiarAdicionalParaProdutos(nome: string, preco: number, obrigatorio: boolean, produtoIds: string[]) {
+    if (produtoIds.length === 0) return;
+    const inserts = produtoIds.map(pid => {
+      const prod = produtos.find(p => p.id === pid);
+      return { produto_id: pid, nome, preco, obrigatorio, ordem: prod?.produto_adicionais?.length ?? 0, ativo: true };
+    });
+    const { data } = await supabase.from("produto_adicionais").insert(inserts).select();
+    if (data) {
+      const novos = data as ProdutoAdicional[];
+      setProdutos(prev => prev.map(p => {
+        const doProduto = novos.filter(a => a.produto_id === p.id);
+        return doProduto.length > 0 ? { ...p, produto_adicionais: [...(p.produto_adicionais ?? []), ...doProduto] } : p;
+      }));
+    }
   }
 
   async function handleSaveQuick() {
@@ -297,6 +317,10 @@ export default function CatalogoClient({
           setProdutos(prev => prev.map(prod => prod.id === quickProdutoId
             ? { ...prod, produto_adicionais: [...(prod.produto_adicionais ?? []), novoAdicionalData as ProdutoAdicional] }
             : prod));
+          await copiarAdicionalParaProdutos(
+            quickAdicional.nome.trim(), parseFloat(quickAdicional.preco) || 0, quickAdicional.obrigatorio,
+            quickAdicionalOutrosProdutos.filter(id => id !== quickProdutoId),
+          );
         }
       }
       setQuickOpen(false);
@@ -321,6 +345,7 @@ export default function CatalogoClient({
     setImgPreview(p.imagem_url ?? "");
     setModalTab(tab);
     setVariacoes([]); setSabores([]); setAdicionais([]);
+    setNovoAdicionalOutrosProdutos([]);
     setWizardStep(0);
     setModalOpen(true);
     setLoadingTabs(true);
@@ -1009,8 +1034,15 @@ export default function CatalogoClient({
       obrigatorio: novoAdicional.obrigatorio,
       ordem: adicionais.length, ativo: true,
     }).select().single();
-    if (data) setAdicionais(prev => [...prev, data as ProdutoAdicional]);
+    if (data) {
+      setAdicionais(prev => [...prev, data as ProdutoAdicional]);
+      await copiarAdicionalParaProdutos(
+        novoAdicional.nome.trim(), parseFloat(novoAdicional.preco) || 0, novoAdicional.obrigatorio,
+        novoAdicionalOutrosProdutos.filter(id => id !== editId),
+      );
+    }
     setNovoAdicional({ nome: "", preco: "", obrigatorio: false });
+    setNovoAdicionalOutrosProdutos([]);
     setSavingTab(false);
   }
   async function handleDeleteAdicional(id: string) {
@@ -2531,6 +2563,21 @@ export default function CatalogoClient({
                     <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Adicional obrigatório</span>
                   </label>
                 </div>
+                {produtos.filter(p => p.id !== quickProdutoId).length > 0 && (
+                  <div style={{ marginBottom: 20 }}>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", display: "block", marginBottom: 6 }}>Incluir também em outros produtos (opcional)</label>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 140, overflowY: "auto", padding: 8, borderRadius: 10, border: "1.5px solid var(--border-1)" }}>
+                      {produtos.filter(p => p.id !== quickProdutoId).map(p => (
+                        <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-2)", cursor: "pointer" }}>
+                          <input type="checkbox" checked={quickAdicionalOutrosProdutos.includes(p.id)}
+                            onChange={e => setQuickAdicionalOutrosProdutos(prev => e.target.checked ? [...prev, p.id] : prev.filter(id => id !== p.id))}
+                            style={{ width: 14, height: 14 }} />
+                          {p.nome}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
@@ -3465,6 +3512,21 @@ export default function CatalogoClient({
                           Obrigatório
                         </label>
                       </div>
+                      {produtos.filter(p => p.id !== editId).length > 0 && (
+                        <div>
+                          <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text-3)", margin: "0 0 6px" }}>Incluir também em outros produtos (opcional)</p>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 140, overflowY: "auto", padding: 8, borderRadius: 10, border: "1px solid var(--border-1)", background: "var(--bg-1)" }}>
+                            {produtos.filter(p => p.id !== editId).map(p => (
+                              <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-2)", cursor: "pointer" }}>
+                                <input type="checkbox" checked={novoAdicionalOutrosProdutos.includes(p.id)}
+                                  onChange={e => setNovoAdicionalOutrosProdutos(prev => e.target.checked ? [...prev, p.id] : prev.filter(id => id !== p.id))}
+                                  style={{ width: 14, height: 14 }} />
+                                {p.nome}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <button onClick={handleAddAdicional} disabled={savingTab || !novoAdicional.nome.trim()}
                         style={{ padding: "10px", borderRadius: 10, background: cor, color: "#fff", border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: !novoAdicional.nome.trim() ? 0.5 : 1 }}>
                         {savingTab ? "Adicionando…" : <><Plus size={13} style={{ display: "inline", marginRight: 5 }} />Adicionar</>}

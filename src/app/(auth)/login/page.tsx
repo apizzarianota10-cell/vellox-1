@@ -21,16 +21,21 @@ export default function LoginPage() {
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
+    const timer = setTimeout(() => setCheckingSession(false), 3_000); // fallback: 3s
     async function checkSession() {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const tipo = (user.user_metadata?.tipo as string | undefined) ?? "empresa";
-        setSessaoAtiva({ email: user.email ?? "", tipo });
-      }
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const tipo = (user.user_metadata?.tipo as string | undefined) ?? "empresa";
+          setSessaoAtiva({ email: user.email ?? "", tipo });
+        }
+      } catch { /* sem conectividade — mostra login normalmente */ }
+      clearTimeout(timer);
       setCheckingSession(false);
     }
     checkSession();
+    return () => clearTimeout(timer);
   }, []);
   const [email, setEmail]             = useState("");
   const [password, setPassword]       = useState("");
@@ -58,7 +63,7 @@ export default function LoginPage() {
     setError("");
     const supabase = createClient();
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) { setError("Email ou senha inválidos."); setLoading(false); return; }
+    if (error) { setError(error.message || "Email ou senha inválidos."); setLoading(false); return; }
     const tipo = data.user?.user_metadata?.tipo as string | undefined;
     window.location.href = tipo === "motoboy" ? "/motoboy" : tipo === "god" ? "/god" : "/dashboard";
   }

@@ -26,7 +26,8 @@ alter table public.pedidos
   add column if not exists valor_motoboy numeric(10,2) default 0;
 
 -- 4. Policy: motoboy vê e atualiza seus próprios dados
-create policy if not exists "motoboy_see_own"
+drop policy if exists "motoboy_see_own" on public.motoboys;
+create policy "motoboy_see_own"
   on public.motoboys for select
   using (auth.uid() = auth_id OR empresa_id = auth.uid());
 
@@ -36,7 +37,8 @@ create policy "motoboys_empresa_crud"
   using (empresa_id = auth.uid() OR auth_id = auth.uid());
 
 -- 5. Policy: motoboy vê seus próprios pedidos
-create policy if not exists "pedidos_motoboy_select"
+drop policy if exists "pedidos_motoboy_select" on public.pedidos;
+create policy "pedidos_motoboy_select"
   on public.pedidos for select
   using (
     empresa_id = auth.uid()

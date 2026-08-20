@@ -181,30 +181,81 @@ console.log(`Empresa  : ${empresa_nome || empresa_id}`);
 console.log(`Impressora: ${printer_name || 'padrao do sistema'}`);
 console.log('Aguardando pedidos...\n');
 
+function handlePedido(pedido) {
+  if (pedido.status !== 'em_fila') return;
+  if (printed.has(pedido.id)) return;
+  printed.add(pedido.id);
+
+  const t = new Date().toLocaleTimeString('pt-BR');
+  console.log(`[${t}] #${pedido.id.slice(0,8).toUpperCase()} - ${pedido.cliente_nome}`);
+
+  try {
+    const bytes = escPos(pedido);
+    printRaw(bytes, printer_name);
+  } catch (e) {
+    console.error('[ERRO]', e.message);
+  }
+}
+
+// ── Realtime (entrega instantânea) ────────────────────────────────────────
+let realtimeOk = false;
+
 supabase
   .channel('vellox-print-server')
   .on('postgres_changes', {
     event: 'INSERT', schema: 'public', table: 'pedidos',
     filter: `empresa_id=eq.${empresa_id}`,
   }, (payload) => {
-    const pedido = payload.new;
-    if (pedido.status !== 'em_fila') return;
-    if (printed.has(pedido.id)) return;
-    printed.add(pedido.id);
-
-    const t = new Date().toLocaleTimeString('pt-BR');
-    console.log(`[${t}] #${pedido.id.slice(0,8).toUpperCase()} - ${pedido.cliente_nome}`);
-
-    try {
-      const bytes = escPos(pedido);
-      printRaw(bytes, printer_name);
-    } catch (e) {
-      console.error('[ERRO]', e.message);
-    }
+    realtimeOk = true;
+    handlePedido(payload.new);
   })
   .subscribe(s => {
-    if (s === 'SUBSCRIBED')    console.log('Conectado! Pronto para imprimir.\n');
-    if (s === 'CHANNEL_ERROR') console.error('Erro de conexao com Supabase.');
+    if (s === 'SUBSCRIBED') {
+      realtimeOk = true;
+      console.log('Realtime conectado! Pronto para imprimir.\n');
+    }
+    if (s === 'CHANNEL_ERROR' || s === 'TIMED_OUT' || s === 'CLOSED') {
+      realtimeOk = false;
+      console.error(`[AVISO] Realtime ${s} — polling de backup ativo.`);
+    }
   });
 
-setInterval(() => {}, 60000);
+// ── Polling de backup (garante impressão mesmo se Realtime cair) ──────────
+// Roda a cada 60 s e busca pedidos dos últimos 90 minutos ainda não impressos.
+// Se o Realtime já entregou o pedido, o Set `printed` evita re-impressão.
+async function pollPedidos() {
+  try {
+    const desde = new Date(Date.now() - 90 * 60 * 1000).toISOString();
+    const { data, error } = await supabase
+      .from('pedidos')
+      .select('*')
+      .eq('empresa_id', empresa_id)
+      .eq('status', 'em_fila')
+      .gte('created_at', desde)
+      .order('created_at', { ascending: true });
+
+    if (error) { console.error('[POLL] Erro:', error.message); return; }
+
+    let novos = 0;
+    for (const p of (data || [])) {
+      if (!printed.has(p.id)) {
+        novos++;
+        handlePedido(p);
+      }
+    }
+    if (novos > 0) {
+      console.log(`[POLL] ${novos} pedido(s) recuperado(s) pelo backup.`);
+    }
+  } catch (e) {
+    console.error('[POLL] Excecao:', e.message);
+  }
+}
+
+// Aguarda 10 s para o Realtime conectar antes de iniciar o polling
+setTimeout(() => {
+  pollPedidos();
+  setInterval(pollPedidos, 60_000);
+}, 10_000);
+
+// Mantém o processo vivo
+setInterval(() => {}, 60_000);

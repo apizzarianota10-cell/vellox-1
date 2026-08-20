@@ -11,5 +11,4 @@ CREATE INDEX IF NOT EXISTS configuracao_loja_empresa_id_idx
 CREATE INDEX IF NOT EXISTS bairros_taxa_empresa_ativo_idx
   ON public.bairros_taxa (empresa_id, ativo);
 
-CREATE INDEX IF NOT EXISTS produto_categorias_sabor_produto_id_idx
-  ON public.produto_categorias_sabor (produto_id);
+-- índice de produto_categorias_sabor criado no schema_v48 (tabela só existe lá)

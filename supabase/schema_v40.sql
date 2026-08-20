@@ -74,6 +74,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.get_motoboy_empresas() TO authenticated;
 
 -- 5. Atualizar get_fila_pedidos_motoboy: usa junction + retorna empresa_nome e logo
+DROP FUNCTION IF EXISTS public.get_fila_pedidos_motoboy();
 CREATE OR REPLACE FUNCTION public.get_fila_pedidos_motoboy()
 RETURNS TABLE (
   id                uuid,
