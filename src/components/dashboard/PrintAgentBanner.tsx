@@ -33,12 +33,18 @@ export default function PrintAgentBanner({ empresaId }: Props) {
   if (online !== false || dismissed) return null;
 
   return (
-    <div className="hidden md:flex" style={{
-      alignItems: "center", gap: 10,
-      padding: "9px 16px", width: "100%",
-      background: "#fef3c7", borderBottom: "1px solid #fde68a",
-    }}>
-      <AlertTriangle size={15} style={{ color: "#92400e", flexShrink: 0 }} />
+    <div
+      className="hidden md:flex fixed z-[9999] rounded-2xl"
+      style={{
+        top: 16, right: 16,
+        alignItems: "flex-start", gap: 10,
+        width: "min(380px, calc(100vw - 32px))",
+        padding: "14px 16px",
+        background: "#fef3c7", border: "1px solid #fde68a",
+        boxShadow: "0 24px 64px rgba(0,0,0,0.25), 0 0 0 1px rgba(146,64,14,0.05)",
+      }}
+    >
+      <AlertTriangle size={17} style={{ color: "#92400e", flexShrink: 0, marginTop: 1 }} />
       <p style={{ flex: 1, fontSize: 12.5, fontWeight: 700, color: "#92400e", margin: 0, lineHeight: 1.4 }}>
         Você está usando pelo navegador — novos pedidos correm risco de não imprimir sozinhos. Use o app/servidor de impressão no computador da impressora.
         {" "}
