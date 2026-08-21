@@ -356,7 +356,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
       const itens = cart.map(i => {
         const desc = describeItem(i);
         const nome = desc ? `${i.produto.nome} (${desc})` : i.produto.nome;
-        return `${i.qty}x ${nome} — R$${(i.precoUnit * i.qty).toFixed(2)}`;
+        return `${i.qty}x ${nome} — R$${(i.precoUnit * i.qty).toFixed(2).replace(".", ",")}`;
       }).join("\n");
       const res = await fetch("/api/loja/pedido", {
         method: "POST",

@@ -926,7 +926,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
       endereco_lng:     isRetirada || isManual ? null : enderecoCoords?.lng ?? null,
       distancia_km:     isRetirada || isManual ? null : distanciaKm,
       route_address:    navAddress,
-      descricao_itens:  (() => { const a = cartItems.map(i => { const desc = cartDescItem(i); const nome = desc ? `${i.produto.nome} (${desc})` : i.produto.nome; return `${i.qty}x ${nome} — R$${(i.precoUnit * i.qty).toFixed(2)}`; }).join("\n"); const b = form.descricao_itens.trim(); return [a, b].filter(Boolean).join("\n") || null; })(),
+      descricao_itens:  (() => { const a = cartItems.map(i => { const desc = cartDescItem(i); const nome = desc ? `${i.produto.nome} (${desc})` : i.produto.nome; return `${i.qty}x ${nome} — R$${(i.precoUnit * i.qty).toFixed(2).replace(".", ",")}`; }).join("\n"); const b = form.descricao_itens.trim(); return [a, b].filter(Boolean).join("\n") || null; })(),
       valor_pedido:     parseFloat(form.valor_pedido) || 0,
       valor_motoboy:    isRetirada ? 0 : parseFloat(form.valor_motoboy) || 0,
       forma_pagamento:  form.forma_pagamento || null,
