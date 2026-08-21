@@ -25,59 +25,6 @@ interface CartItem {
   cartKey: string;
 }
 
-interface GeoFeature {
-  place_name: string;
-  center: [number, number];
-  place_id?: string;
-  context?: { id: string; text: string }[];
-  distanceKm?: number;
-  foraRegiao?: boolean;
-}
-
-// Alias para retrocompatibilidade com o restante do código
-type MapboxFeature = GeoFeature;
-
-function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2
-    + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.asin(Math.sqrt(a));
-}
-
-function parsePlace(feat: GeoFeature) {
-  const parts = feat.place_name.split(",").map(s => s.trim());
-  const nome   = parts[0] ?? feat.place_name;
-  const resto  = parts.slice(1).join(", ");
-  return { nome, bairro: "", cidade: "", estado: "", resto };
-}
-
-function formatDist(km: number): string {
-  return km < 1 ? `${Math.round(km * 1000)}m` : `${km.toFixed(1)}km`;
-}
-
-async function buscarSugestoes(
-  q: string,
-  empLng?: number | null,
-  empLat?: number | null,
-): Promise<GeoFeature[]> {
-  if (!q.trim() || q.length < 3) return [];
-  const hasEmp = empLat != null && empLng != null;
-  const loc = hasEmp ? `&lat=${empLat}&lng=${empLng}&radius=50000` : "";
-  try {
-    const res = await fetch(`/api/geocode?type=autocomplete&q=${encodeURIComponent(q)}${loc}`);
-    const data = await res.json();
-    const feats: GeoFeature[] = (data.predictions ?? []).map((p: { place_id: string; description: string; distance_meters?: number }) => ({
-      place_id: p.place_id,
-      place_name: p.description,
-      center: [0, 0] as [number, number],
-      distanceKm: p.distance_meters != null ? p.distance_meters / 1000 : undefined,
-    }));
-    return feats.slice(0, 10);
-  } catch { return []; }
-}
-
 // ── Status config ─────────────────────────────────────────────────
 const STEPS: PedidoStatus[] = ["em_fila", "em_preparo", "finalizado", "em_coleta", "em_rota_de_entrega", "aguardando_confirmacao", "entregue"];
 
@@ -411,19 +358,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
     troco_para:       "",
     observacoes:      "",
   });
-  // autocomplete
-  const [sugestoes,      setSugestoes]      = useState<MapboxFeature[]>([]);
-  const [sugestoesOpen,  setSugestoesOpen]  = useState(false);
-  const [sugestoesLoad,  setSugestoesLoad]  = useState(false);
-  const [enderecoCoords, setEnderecoCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [distanciaKm,    setDistanciaKm]    = useState<number | null>(null);
-  const [endDropPos,     setEndDropPos]     = useState<{ top: number; left: number; width: number } | null>(null);
-  const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dropdownRef  = useRef<HTMLDivElement>(null);
-  const enderecoRef  = useRef<HTMLInputElement>(null);
-
   // ── Endereço manual ─────────────────────────────────────────────
-  const [modoEndereco,  setModoEndereco]  = useState<"buscar" | "manual">("buscar");
   const [cidadeOrigem,  setCidadeOrigem]  = useState<"empresa" | "manual">("empresa");
   const [endManual, setEndManual] = useState({
     rua: "", numero: "", bairro: "", complemento: "", referencia: "",
@@ -543,9 +478,6 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
   // Fecha dropdowns ao clicar fora
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setSugestoesOpen(false);
-      }
       // Fecha dropdowns de motoboys se clicar fora de qualquer .mb-dropdown
       const target = e.target as HTMLElement;
       if (!target.closest(".mb-dropdown")) { setDropdownPedido(null); setTrocaMbDropdown(null); }
@@ -567,50 +499,6 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
     }
     load();
   }, [empresaId]); // eslint-disable-line
-
-  // Busca sugestões com debounce de 300ms
-  const onEnderecoChange = useCallback((val: string) => {
-    setForm((f) => ({ ...f, endereco_entrega: val }));
-    setEnderecoCoords(null);
-    setDistanciaKm(null);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
-      if (val.length < 3) { setSugestoes([]); setSugestoesOpen(false); return; }
-      setSugestoesLoad(true);
-      const feats = await buscarSugestoes(val, empresaLng, empresaLat);
-      setSugestoes(feats);
-      if (feats.length > 0) {
-        const rect = enderecoRef.current?.getBoundingClientRect();
-        if (rect) setEndDropPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
-        setSugestoesOpen(true);
-      } else {
-        setSugestoesOpen(false);
-      }
-      setSugestoesLoad(false);
-    }, 300);
-  }, []);
-
-  // Seleciona uma sugestão do dropdown
-  async function selecionarSugestao(feat: MapboxFeature) {
-    setForm((f) => ({ ...f, endereco_entrega: feat.place_name }));
-    setSugestoes([]);
-    setSugestoesOpen(false);
-
-    if (!feat.place_id) return;
-    try {
-      const res = await fetch(`/api/geocode?type=details&place_id=${feat.place_id}`);
-      const data = await res.json();
-      const loc = data.result?.geometry?.location as { lat: number; lng: number } | undefined;
-      if (!loc) return;
-      setEnderecoCoords({ lat: loc.lat, lng: loc.lng });
-      const empLat = empresaLat ?? parseFloat(localStorage.getItem("empresa_lat") ?? "");
-      const empLng = empresaLng ?? parseFloat(localStorage.getItem("empresa_lng") ?? "");
-      if (!isNaN(empLat as number) && !isNaN(empLng as number)) {
-        const km = haversine(empLat as number, empLng as number, loc.lat, loc.lng);
-        setDistanciaKm(km);
-      }
-    } catch { /* sem coordenadas */ }
-  }
 
   // Realtime: UPDATE → estado direto (instantâneo); INSERT/DELETE → router.refresh()
   useEffect(() => {
@@ -713,9 +601,6 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
     setColarTexto("");
     setCartItems([]);
     setForm({ tipo_pedido: "entrega", cliente_nome: "", cliente_telefone: "", endereco_entrega: "", descricao_itens: "", valor_pedido: "", valor_motoboy: "", forma_pagamento: "", troco_para: "", observacoes: "" });
-    setEnderecoCoords(null);
-    setDistanciaKm(null);
-    setModoEndereco("buscar");
     setCidadeOrigem("empresa");
     setEndManual({ rua: "", numero: "", bairro: "", complemento: "", referencia: "", cidade: empresaCidade ?? "", estado: empresaEstado ?? "", routeAddress: "" });
   }
@@ -737,7 +622,6 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
         const rua      = m[1].trim();
         const numero   = m[2].trim();
         const bairroV  = parsed.bairro ?? "";
-        setModoEndereco("manual");
         setEndManual(e => {
           const next = { ...e, rua, numero, bairro: bairroV };
           const streetWithBairro = [rua, numero].join(", ") + (bairroV ? ` - ${bairroV}` : "");
@@ -745,7 +629,11 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
           return next;
         });
       } else {
-        setForm(f => ({ ...f, endereco_entrega: parsed.endereco! }));
+        setEndManual(e => {
+          const next = { ...e, rua: parsed.endereco! };
+          next.routeAddress = [parsed.endereco, e.cidade, e.estado].filter(Boolean).join(", ");
+          return next;
+        });
       }
     }
   }
@@ -911,9 +799,8 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
     e.preventDefault();
     setSaving(true);
     const isRetirada = form.tipo_pedido === "retirada";
-    const isManual   = !isRetirada && modoEndereco === "manual";
     // navAddress = endereço limpo para GPS (sem bairro/complemento/referencia que confundem o parser)
-    const navAddress = isManual
+    const navAddress = !isRetirada
       ? [endManual.rua, endManual.numero, endManual.cidade, endManual.estado].filter(Boolean).join(", ")
       : null;
     const { error: insertErr } = await supabase.from("pedidos").insert({
@@ -921,10 +808,10 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
       tipo_pedido:      form.tipo_pedido,
       cliente_nome:     form.cliente_nome,
       cliente_telefone: form.cliente_telefone,
-      endereco_entrega: isRetirada ? "Retirada no local" : isManual ? endManual.routeAddress : form.endereco_entrega,
-      endereco_lat:     isRetirada || isManual ? null : enderecoCoords?.lat ?? null,
-      endereco_lng:     isRetirada || isManual ? null : enderecoCoords?.lng ?? null,
-      distancia_km:     isRetirada || isManual ? null : distanciaKm,
+      endereco_entrega: isRetirada ? "Retirada no local" : endManual.routeAddress,
+      endereco_lat:     null,
+      endereco_lng:     null,
+      distancia_km:     null,
       route_address:    navAddress,
       descricao_itens:  (() => { const a = cartItems.map(i => { const desc = cartDescItem(i); const nome = desc ? `${i.produto.nome} (${desc})` : i.produto.nome; return `${i.qty}x ${nome} — R$${(i.precoUnit * i.qty).toFixed(2).replace(".", ",")}`; }).join("\n"); const b = form.descricao_itens.trim(); return [a, b].filter(Boolean).join("\n") || null; })(),
       valor_pedido:     parseFloat(form.valor_pedido) || 0,
@@ -2389,95 +2276,8 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                       <MapPin size={12} style={{ color: "var(--text-4)" }} />
                       <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-4)" }}>Endereço</span>
                     </div>
-                    <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid var(--border-1)" }}>
-                      <button type="button" onClick={() => setModoEndereco("buscar")}
-                        className="px-2.5 py-1 text-xs font-medium transition-colors"
-                        style={{ background: modoEndereco === "buscar" ? "rgba(255,106,0,0.15)" : "transparent", color: modoEndereco === "buscar" ? "#FF6A00" : "var(--text-4)" }}>
-                        Buscar
-                      </button>
-                      <button type="button" onClick={() => setModoEndereco("manual")}
-                        className="px-2.5 py-1 text-xs font-medium transition-colors"
-                        style={{ background: modoEndereco === "manual" ? "rgba(96,165,250,0.15)" : "transparent", color: modoEndereco === "manual" ? "#60a5fa" : "var(--text-4)" }}>
-                        Manual
-                      </button>
-                    </div>
                   </div>
                   <div className="p-3">
-                  {modoEndereco === "buscar" && (
-                    <div className="relative" ref={dropdownRef}>
-                      <div className="relative">
-                        <input
-                          ref={enderecoRef}
-                          value={form.endereco_entrega}
-                          onChange={(e) => onEnderecoChange(e.target.value)}
-                          required
-                          placeholder="Rua das Flores, 123"
-                          autoComplete="off"
-                          className="w-full px-4 py-3 pr-10 rounded-xl text-sm placeholder-slate-600 outline-none"
-                          style={{ ...IS, borderColor: enderecoCoords ? "rgba(34,197,94,0.4)" : "var(--border-1)" }}
-                          onFocus={(e) => {
-                            e.target.style.borderColor = "#FF6A00";
-                            if (sugestoes.length > 0) {
-                              const rect = enderecoRef.current?.getBoundingClientRect();
-                              if (rect) setEndDropPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
-                              setSugestoesOpen(true);
-                            }
-                          }}
-                        />
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          {sugestoesLoad
-                            ? <Loader2 size={14} className="animate-spin" style={{ color: "var(--text-4)" }} />
-                            : enderecoCoords
-                            ? <CheckCircle size={14} style={{ color: "#22c55e" }} />
-                            : <MapPin size={14} style={{ color: "var(--text-4)" }} />}
-                        </div>
-                      </div>
-                      {sugestoesOpen && sugestoes.length > 0 && endDropPos && (
-                        <div className="rounded-xl overflow-hidden"
-                          style={{ position: "fixed", top: endDropPos.top, left: endDropPos.left, width: endDropPos.width, zIndex: 9999, background: "var(--bg-1)", border: "1px solid var(--border-2)", boxShadow: "0 12px 32px rgba(0,0,0,0.5)" }}>
-                          {sugestoes.map((feat, i) => {
-                            const { nome, resto } = parsePlace(feat);
-                            const dist = feat.distanceKm;
-                            const fora = feat.foraRegiao;
-                            const distColor = fora ? "#f97316" : dist == null ? "var(--text-4)" : dist < 2 ? "#22c55e" : dist < 10 ? "#fbbf24" : "var(--text-4)";
-                            const sub = resto;
-                            return (
-                              <button key={i} type="button" onMouseDown={() => selecionarSugestao(feat)}
-                                className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors"
-                                style={{ borderBottom: i < sugestoes.length - 1 ? "1px solid var(--border-1)" : "none" }}
-                                onMouseEnter={(e) => (e.currentTarget.style.background = fora ? "rgba(249,115,22,0.06)" : "rgba(255,106,0,0.07)")}
-                                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
-                                <MapPin size={13} className="shrink-0 mt-0.5" style={{ color: fora ? "#f97316" : "#FF6A00" }} />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm truncate" style={{ color: "var(--text-1)" }}>{nome}</p>
-                                  <div className="flex items-center gap-2 mt-0.5">
-                                    {sub && <p className="text-xs truncate" style={{ color: "var(--text-4)" }}>{sub}</p>}
-                                    {fora && (
-                                      <span className="shrink-0 text-xs font-semibold px-1.5 py-0.5 rounded"
-                                        style={{ background: "rgba(249,115,22,0.12)", color: "#f97316" }}>
-                                        Fora da região
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                {dist != null && (
-                                  <span className="shrink-0 text-xs font-bold ml-2" style={{ color: distColor }}>{formatDist(dist)}</span>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                      {distanciaKm !== null && (
-                        <p className="flex items-center gap-1.5 mt-2 text-xs" style={{ color: "#22c55e" }}>
-                          <Navigation size={11} />
-                          {distanciaKm.toFixed(1)} km da empresa
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {modoEndereco === "manual" && (
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-xs" style={{ color: "var(--text-3)" }}>Cidade / Estado</span>
@@ -2578,7 +2378,6 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                         </div>
                       )}
                     </div>
-                  )}
                   </div>
                 </div>
               )}
