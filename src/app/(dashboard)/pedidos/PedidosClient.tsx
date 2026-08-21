@@ -2183,7 +2183,6 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                   <button key={tipo} type="button"
                     onClick={() => {
                       setForm((f) => ({ ...f, tipo_pedido: tipo, valor_motoboy: tipo === "retirada" ? "0" : f.valor_motoboy }));
-                      if (tipo === "retirada") { setEnderecoCoords(null); setDistanciaKm(null); }
                     }}
                     className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-bold transition-all"
                     style={ativo
