@@ -17,6 +17,7 @@ $empresaId   = if ($cfg.empresa_id)   { $cfg.empresa_id.ToString().Trim() }   el
 $empresaNome = if ($cfg.empresa_nome) { $cfg.empresa_nome.ToString().Trim() } else { "" }
 $printerName = $cfg.printer_name
 $agentToken  = if ($cfg.agent_token)  { $cfg.agent_token.ToString().Trim() }  else { $null }
+$tamanhoPapel = if ($cfg.tamanho_papel) { $cfg.tamanho_papel.ToString().Trim() } else { "80mm" }
 
 if (-not $empresaId -or $empresaId -notmatch '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$') {
     Write-Host "ERRO: empresa_id ausente ou invalido no config.json." -ForegroundColor Red
@@ -63,7 +64,7 @@ public class WinPrint {
 
 function Build-EscPos($p) {
     $b = New-Object System.Collections.Generic.List[byte]
-    $W = 32
+    $W = if ($tamanhoPapel -eq "58mm") { 32 } else { 48 }
     function xB { param([byte[]]$v) foreach ($x in $v) { $b.Add($x) } }
     function xT { param([string]$s) foreach ($c in $s.ToCharArray()) { $n=[int][char]$c; $b.Add([byte]$(if($n -lt 256){$n}else{63})) } }
     function xN { param([int]$n=1) for($i=0;$i -lt $n;$i++){$b.Add([byte]10)} }
@@ -297,7 +298,7 @@ while ($true) {
     # no lugar do aviso amarelo "voce esta sem o app de impressao")
     try {
         $pingUri  = "$supabaseUrl/rest/v1/rpc/ping_print_agent"
-        $pingBody = @{ p_empresa_id = $empresaId; p_impressora = $printerName; p_tamanho_papel = "80mm" } | ConvertTo-Json
+        $pingBody = @{ p_empresa_id = $empresaId; p_impressora = $printerName; p_tamanho_papel = $tamanhoPapel; p_agent_token = $agentToken } | ConvertTo-Json
         Invoke-RestMethod -Uri $pingUri -Headers $headers -Method POST -Body $pingBody -ErrorAction SilentlyContinue | Out-Null
     } catch {}
 

@@ -66,6 +66,13 @@ Get-Printer | Select-Object -ExpandProperty Name | ForEach-Object { Write-Host "
 Write-Host ""
 $printerName = (Read-Host "Nome exato da impressora termica (ENTER = padrao do sistema)").Trim()
 
+Write-Host ""
+Write-Host "Tamanho da bobina de papel da impressora termica:" -ForegroundColor Yellow
+Write-Host "  1 = 58mm (bobina estreita)"
+Write-Host "  2 = 80mm (bobina larga)"
+$papelOpc = (Read-Host "Escolha 1 ou 2").Trim()
+$tamanhoPapel = if ($papelOpc -eq "1") { "58mm" } else { "80mm" }
+
 $cfg = [PSCustomObject]@{
     supabase_url      = $pub.supabase_url
     supabase_anon_key = $pub.supabase_anon_key
@@ -73,7 +80,7 @@ $cfg = [PSCustomObject]@{
     empresa_nome      = $empresaNome
     agent_token       = $agentToken
     printer_name      = $printerName
-    tamanho_papel     = "80mm"
+    tamanho_papel     = $tamanhoPapel
 }
 $cfg | ConvertTo-Json | Out-File -Encoding utf8 (Join-Path $dir "config.json")
 Write-Host ""
