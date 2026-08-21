@@ -34,29 +34,52 @@ export default function PrintAgentBanner({ empresaId }: Props) {
 
   return (
     <div
-      className="hidden md:flex fixed z-[9999] rounded-2xl"
+      className="hidden md:flex fixed z-[9999]"
       style={{
-        top: 16, right: 16,
-        alignItems: "flex-start", gap: 10,
-        width: "min(380px, calc(100vw - 32px))",
-        padding: "14px 16px",
-        background: "#fef3c7", border: "1px solid #fde68a",
-        boxShadow: "0 24px 64px rgba(0,0,0,0.25), 0 0 0 1px rgba(146,64,14,0.05)",
+        inset: 0, alignItems: "center", justifyContent: "center", padding: 16,
+        background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)",
       }}
+      onClick={e => { if (e.target === e.currentTarget) setDismissed(true); }}
     >
-      <AlertTriangle size={17} style={{ color: "#92400e", flexShrink: 0, marginTop: 1 }} />
-      <p style={{ flex: 1, fontSize: 12.5, fontWeight: 700, color: "#92400e", margin: 0, lineHeight: 1.4 }}>
-        Você está usando pelo navegador — novos pedidos correm risco de não imprimir sozinhos. Use o app/servidor de impressão no computador da impressora.
-        {" "}
-        <Link href="/configuracoes/impressao" style={{ color: "#92400e", textDecoration: "underline" }}>
-          Configurar impressão
-        </Link>
-      </p>
-      <button
-        onClick={() => setDismissed(true)}
-        style={{ background: "none", border: "none", cursor: "pointer", color: "#92400e", padding: 2, flexShrink: 0 }}>
-        <X size={15} />
-      </button>
+      <div style={{
+        position: "relative",
+        width: "100%", maxWidth: 440,
+        background: "var(--bg-1)", borderRadius: 22,
+        padding: "36px 28px 28px",
+        textAlign: "center",
+        boxShadow: "0 24px 64px rgba(0,0,0,0.3)",
+      }}>
+        <button
+          onClick={() => setDismissed(true)}
+          style={{ position: "absolute", top: 14, right: 14, background: "var(--bg-input)", border: "none", borderRadius: 8, padding: 6, cursor: "pointer", color: "var(--text-3)" }}>
+          <X size={16} />
+        </button>
+
+        <div style={{
+          width: 64, height: 64, margin: "0 auto 18px", borderRadius: "50%",
+          background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <AlertTriangle size={30} style={{ color: "#92400e" }} />
+        </div>
+
+        <p style={{ fontSize: 18, fontWeight: 900, color: "var(--text-1)", margin: "0 0 10px" }}>Atenção: impressão em risco</p>
+        <p style={{ fontSize: 14, fontWeight: 500, color: "var(--text-3)", margin: "0 0 24px", lineHeight: 1.5 }}>
+          Você está usando pelo navegador — novos pedidos correm risco de não imprimir sozinhos. Use o app/servidor de impressão no computador da impressora.
+        </p>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={() => setDismissed(true)}
+            style={{ flex: 1, padding: "12px", borderRadius: 12, background: "var(--bg-input)", border: "1px solid var(--border-1)", color: "var(--text-3)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+            Agora não
+          </button>
+          <Link
+            href="/configuracoes/impressao"
+            style={{ flex: 1, padding: "12px", borderRadius: 12, background: "#92400e", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            Configurar impressão
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }
