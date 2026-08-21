@@ -8,7 +8,7 @@ import {
   Upload, X, Link2, Check, ShoppingBag, Settings2,
   Image as ImageIcon, Tag, DollarSign, AlignLeft,
   ExternalLink, Clock, Truck, MapPin, BadgeCheck, User,
-  ScanLine, Loader2, ChevronRight,
+  ScanLine, Loader2, ChevronRight, ChevronDown,
 } from "lucide-react";
 import type { Produto, ConfiguracaoLoja, BairroTaxa, ProdutoVariacao, ProdutoSabor, ProdutoAdicional, CategoriaSabor, CategoriaPreco, CategoriaPrecoTamanho } from "@/types";
 
@@ -48,7 +48,6 @@ type ProdutoForm = {
   imagem_url: string; ativo: boolean;
   tipo: "simples" | "pizza";
   variantes_label: string;
-  mesclar_sabores: boolean;
   categoria_preco_id: string;
 };
 
@@ -59,7 +58,6 @@ const EMPTY_FORM: ProdutoForm = {
   categoria: "Lanches", categoriaCustom: "",
   imagem_url: "", ativo: true, tipo: "simples",
   variantes_label: "",
-  mesclar_sabores: false,
   categoria_preco_id: "",
 };
 
@@ -208,6 +206,9 @@ export default function CatalogoClient({
   // Category filter
   const [catFilter, setCatFilter] = useState<string>("Todos");
 
+  // Vínculo de sabores entre produtos (qual produto está com o seletor aberto)
+  const [vinculoAbertoId, setVinculoAbertoId] = useState<string | null>(null);
+
   // Inline add-sabor in __sabores__ view
   const [addSaborProdutoId, setAddSaborProdutoId] = useState<string | null>(null);
   const [addSaborNome, setAddSaborNome] = useState("");
@@ -339,7 +340,6 @@ export default function CatalogoClient({
       imagem_url: p.imagem_url ?? "", ativo: p.ativo,
       tipo: (p.tipo ?? "simples") as "simples" | "pizza",
       variantes_label: p.variantes_label ?? "",
-      mesclar_sabores: p.mesclar_sabores ?? false,
       categoria_preco_id: p.categoria_preco_id ?? "",
     });
     setImgPreview(p.imagem_url ?? "");
@@ -561,7 +561,6 @@ export default function CatalogoClient({
         ativo: form.ativo,
         tipo: form.tipo,
         variantes_label: form.tipo === "pizza" && form.variantes_label.trim() ? form.variantes_label.trim() : null,
-        mesclar_sabores: form.mesclar_sabores,
         categoria_preco_id: form.categoria_preco_id || null,
       };
       if (editId) {
@@ -863,13 +862,33 @@ export default function CatalogoClient({
     setAddSaborSaving(false);
   }
 
-  async function handleToggleMesclarSabores(produtoId: string, atual: boolean) {
-    const novo = !atual;
-    setProdutos(prev => prev.map(p => p.id === produtoId ? { ...p, mesclar_sabores: novo } : p));
-    const { error } = await supabase.from("produtos").update({ mesclar_sabores: novo }).eq("id", produtoId);
-    if (error) {
-      alert("Erro ao atualizar: " + error.message);
-      setProdutos(prev => prev.map(p => p.id === produtoId ? { ...p, mesclar_sabores: atual } : p));
+  // Vincula/desvincula dois produtos para compartilharem sabores. O vínculo é
+  // sempre simétrico: se A passa a compartilhar com B, B também passa a
+  // compartilhar com A — sem isso o produto B mostraria os sabores de A mas
+  // não o contrário, o que não faz sentido pro cliente na hora de escolher.
+  async function handleToggleVinculoSabor(produtoAId: string, produtoBId: string) {
+    const a = produtos.find(p => p.id === produtoAId);
+    const b = produtos.find(p => p.id === produtoBId);
+    if (!a || !b) return;
+    const ligado = (a.sabores_vinculo_ids ?? []).includes(produtoBId);
+    const novoA = ligado
+      ? (a.sabores_vinculo_ids ?? []).filter(id => id !== produtoBId)
+      : [...(a.sabores_vinculo_ids ?? []), produtoBId];
+    const novoB = ligado
+      ? (b.sabores_vinculo_ids ?? []).filter(id => id !== produtoAId)
+      : [...(b.sabores_vinculo_ids ?? []), produtoAId];
+    setProdutos(prev => prev.map(p =>
+      p.id === produtoAId ? { ...p, sabores_vinculo_ids: novoA } :
+      p.id === produtoBId ? { ...p, sabores_vinculo_ids: novoB } : p));
+    const [{ error: errA }, { error: errB }] = await Promise.all([
+      supabase.from("produtos").update({ sabores_vinculo_ids: novoA }).eq("id", produtoAId),
+      supabase.from("produtos").update({ sabores_vinculo_ids: novoB }).eq("id", produtoBId),
+    ]);
+    if (errA || errB) {
+      alert("Erro ao atualizar vínculo: " + (errA?.message || errB?.message));
+      setProdutos(prev => prev.map(p =>
+        p.id === produtoAId ? { ...p, sabores_vinculo_ids: a.sabores_vinculo_ids } :
+        p.id === produtoBId ? { ...p, sabores_vinculo_ids: b.sabores_vinculo_ids } : p));
     }
   }
 
@@ -1241,26 +1260,51 @@ export default function CatalogoClient({
                   <p style={{ fontSize: 12, color: "var(--text-4)", margin: 0 }}>Sabores de todos os produtos agrupados por origem</p>
                 </div>
 
-                {/* Seleção de quais produtos mesclam sabores entre si */}
+                {/* Vínculo explícito de sabores entre produtos */}
                 <div style={{ background: "#f5f3ff", border: "1.5px solid #ddd6fe", borderRadius: 16, padding: 16 }}>
-                  <p style={{ fontSize: 13, fontWeight: 800, color: "#6d28d9", margin: "0 0 3px" }}>Mesclar sabores entre produtos</p>
+                  <p style={{ fontSize: 13, fontWeight: 800, color: "#6d28d9", margin: "0 0 3px" }}>Vincular sabores entre produtos</p>
                   <p style={{ fontSize: 12, color: "#7c3aed", margin: "0 0 14px" }}>
-                    Marque os produtos que devem compartilhar a mesma lista de sabores na hora do pedido (ex: pizzas de tamanhos diferentes com os mesmos sabores). Desmarcado, cada produto mostra só os próprios sabores.
+                    Por padrão cada produto mostra só os próprios sabores. Escolha aqui, produto por produto, com quais outros produtos específicos ele deve compartilhar a lista de sabores (ex: a mesma pizza em tamanhos diferentes).
                   </p>
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    {saboresPorProduto.map(({ produto: p, sabores }) => (
-                      <label key={p.id} style={{
-                        display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
-                        padding: "8px 10px", borderRadius: 10,
-                        background: p.mesclar_sabores ? "#fff" : "transparent",
-                      }}>
-                        <input type="checkbox" checked={Boolean(p.mesclar_sabores)}
-                          onChange={() => handleToggleMesclarSabores(p.id, Boolean(p.mesclar_sabores))}
-                          style={{ width: 17, height: 17, accentColor: "#7c3aed", flexShrink: 0 }} />
-                        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)", flex: 1 }}>{p.nome}</span>
-                        <span style={{ fontSize: 11, color: "var(--text-4)" }}>{sabores.length} sabor{sabores.length !== 1 ? "es" : ""}</span>
-                      </label>
-                    ))}
+                    {saboresPorProduto.map(({ produto: p, sabores }) => {
+                      const vinculados = p.sabores_vinculo_ids ?? [];
+                      const aberto = vinculoAbertoId === p.id;
+                      return (
+                        <div key={p.id} style={{ borderRadius: 10, background: vinculados.length > 0 || aberto ? "#fff" : "transparent" }}>
+                          <button
+                            onClick={() => setVinculoAbertoId(aberto ? null : p.id)}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
+                              padding: "8px 10px", width: "100%", background: "none", border: "none", textAlign: "left",
+                            }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)", flex: 1 }}>{p.nome}</span>
+                            {vinculados.length > 0 && (
+                              <span style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed", background: "#ede9fe", borderRadius: 999, padding: "2px 8px" }}>
+                                vinculado a {vinculados.length}
+                              </span>
+                            )}
+                            <span style={{ fontSize: 11, color: "var(--text-4)" }}>{sabores.length} sabor{sabores.length !== 1 ? "es" : ""}</span>
+                            <ChevronDown size={14} style={{ color: "var(--text-4)", transform: aberto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+                          </button>
+                          {aberto && (
+                            <div style={{ padding: "0 10px 10px 10px", display: "flex", flexDirection: "column", gap: 2 }}>
+                              {saboresPorProduto.filter(g => g.produto.id !== p.id).length === 0 && (
+                                <p style={{ fontSize: 12, color: "var(--text-4)", margin: "4px 0" }}>Nenhum outro produto com sabores cadastrados ainda.</p>
+                              )}
+                              {saboresPorProduto.filter(g => g.produto.id !== p.id).map(({ produto: outro }) => (
+                                <label key={outro.id} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "5px 6px", fontSize: 12.5, color: "var(--text-2)" }}>
+                                  <input type="checkbox" checked={vinculados.includes(outro.id)}
+                                    onChange={() => handleToggleVinculoSabor(p.id, outro.id)}
+                                    style={{ width: 14, height: 14, accentColor: "#7c3aed" }} />
+                                  {outro.nome}
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 

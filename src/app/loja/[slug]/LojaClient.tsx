@@ -128,17 +128,24 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
     return map;
   }, [saboresPorProduto]);
 
-  // Pool de sabores mesclável: só produtos com "mesclar_sabores" ligado entram
-  // juntos numa lista compartilhada (ex: pizzas de tamanhos diferentes com
-  // sabores em comum). Produtos sem a flag mostram só os próprios sabores.
-  const saboresPoolMesclavel = useMemo(() =>
-    saboresPorProduto.filter(g => g.produto.mesclar_sabores),
-    [saboresPorProduto],
-  );
-  const mesclavelCount = useMemo(() =>
-    saboresPoolMesclavel.reduce((n, g) => n + g.sabores.length, 0),
-    [saboresPoolMesclavel],
-  );
+  // Pool de sabores vinculado: um produto só compartilha sabores com os
+  // produtos específicos que o admin vinculou explicitamente a ele
+  // (sabores_vinculo_ids) — nada automático por categoria ou flag global.
+  // Sem vínculo, o produto mostra só os próprios sabores. Percorre a cadeia
+  // de vínculos (ex: P vinculado a M, M vinculado a G) para juntar todos os
+  // produtos conectados na mesma lista.
+  function poolMesclavelPara(produto: Produto) {
+    const visitados = new Set<string>([produto.id]);
+    const fila = [produto.id];
+    while (fila.length > 0) {
+      const id = fila.shift()!;
+      const p = produtos.find(x => x.id === id);
+      (p?.sabores_vinculo_ids ?? []).forEach(outroId => {
+        if (!visitados.has(outroId)) { visitados.add(outroId); fila.push(outroId); }
+      });
+    }
+    return saboresPorProduto.filter(g => visitados.has(g.produto.id));
+  }
 
   // Busca o preço de um produto para um tamanho pelo nome (ex: "G", "M", "P")
   function precoByTamanhoNome(produto: Produto, nome: string): number {
@@ -280,7 +287,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
     setDetailQty(1);
     setMultiSaborStage(null);
     setUnidadesColetadas([]);
-    const hasSaborStep = sabores.length > 0 || (p.mesclar_sabores && mesclavelCount > 0);
+    const hasSaborStep = sabores.length > 0 || poolMesclavelPara(p).some(g => g.sabores.length > 0);
     if (variacoes.length > 0)    setDetailStep("variacao");
     else if (hasSaborStep)       setDetailStep("sabores");
     else                         setDetailStep("adicionais");
@@ -482,7 +489,6 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
 
   // Detail modal vars — memoized para não recomputar a cada render do carrinho
   const detailVars = useMemo(() => detailProduto?.produto_variacoes?.filter(v => v.ativo) ?? [], [detailProduto]);
-  const detailSabs = useMemo(() => detailProduto?.produto_sabores?.filter(s => s.ativo)   ?? [], [detailProduto]);
   const detailAdds = useMemo(() => detailProduto?.produto_adicionais?.filter(a => a.ativo) ?? [], [detailProduto]);
 
   const maxSabores = useMemo(() =>
@@ -526,19 +532,14 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
     [saboresPorProduto],
   );
 
-  // "sabores" aparece se o produto tem sabores próprios, ou se ele participa
-  // do pool mesclável (mesclar_sabores) e há sabores disponíveis nesse pool
-  const detailTemSaborStep = detailSabs.length > 0
-    || (Boolean(detailProduto?.mesclar_sabores) && mesclavelCount > 0);
-
-  // Grupos exibidos no passo de sabores: pool mesclável (vários produtos) se
-  // detailProduto tiver mesclar_sabores ligado, senão só os sabores dele mesmo
+  // Grupos exibidos no passo de sabores: o próprio produto mais qualquer
+  // produto explicitamente vinculado a ele (sabores_vinculo_ids)
   const detailGruposSabor = useMemo(() =>
-    detailProduto?.mesclar_sabores
-      ? saboresPoolMesclavel
-      : (detailProduto ? [{ produto: detailProduto, sabores: detailSabs }] : []),
-    [detailProduto, detailSabs, saboresPoolMesclavel],
+    detailProduto ? poolMesclavelPara(detailProduto) : [],
+    [detailProduto, saboresPorProduto, produtos],
   );
+
+  const detailTemSaborStep = detailGruposSabor.some(g => g.sabores.length > 0);
 
   const detailSteps = useMemo((): ("variacao" | "sabores" | "adicionais")[] => [
     ...(detailVars.length > 0 ? ["variacao"   as const] : []),

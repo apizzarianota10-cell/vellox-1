@@ -198,6 +198,7 @@ export interface Produto {
   tipo: "simples" | "pizza";
   variantes_label: string | null;
   mesclar_sabores: boolean;
+  sabores_vinculo_ids: string[];
   ordem: number;
   created_at: string;
   categoria_preco_id: string | null;
