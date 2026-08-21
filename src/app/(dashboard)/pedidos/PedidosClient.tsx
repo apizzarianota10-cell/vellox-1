@@ -308,16 +308,12 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
     try { audioCtxRef.current?.suspend(); } catch { /* ignore */ }
   }
 
-  // Pool global de sabores agrupado por produto
+  // Pool de sabores agrupado por produto
   const saboresPorProduto = useMemo(() =>
     produtos
       .map(p => ({ produto: p, sabores: p.produto_sabores?.filter(s => s.ativo) ?? [] }))
       .filter(g => g.sabores.length > 0),
     [produtos],
-  );
-  const allSaborCount = useMemo(() =>
-    saboresPorProduto.reduce((n, g) => n + g.sabores.length, 0),
-    [saboresPorProduto],
   );
   const saborToProduto = useMemo(() => {
     const map = new Map<string, Produto>();
@@ -326,6 +322,24 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
     });
     return map;
   }, [saboresPorProduto]);
+
+  // Pool de sabores vinculado: um produto só compartilha sabores com os
+  // produtos específicos que o admin vinculou explicitamente a ele
+  // (sabores_vinculo_ids) — nada automático por categoria, flag global ou
+  // tipo. Sem vínculo, o produto mostra só os próprios sabores. Percorre a
+  // cadeia de vínculos pra juntar todos os produtos conectados.
+  function poolMesclavelPara(produto: Produto) {
+    const visitados = new Set<string>([produto.id]);
+    const fila = [produto.id];
+    while (fila.length > 0) {
+      const id = fila.shift()!;
+      const p = produtos.find(x => x.id === id);
+      (p?.sabores_vinculo_ids ?? []).forEach(outroId => {
+        if (!visitados.has(outroId)) { visitados.add(outroId); fila.push(outroId); }
+      });
+    }
+    return saboresPorProduto.filter(g => visitados.has(g.produto.id));
+  }
 
   function precoByTamanhoNome(produto: Produto, nome: string): number {
     const cpTamanhos = produto.categoria_preco?.tamanhos;
@@ -506,7 +520,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
     setDetailSaboresSel([]);
     setDetailAdicionaisSel([]);
     setDetailQty(1);
-    const hasSaborStep = sabores.length > 0 || (p.tipo === "pizza" && allSaborCount > 0);
+    const hasSaborStep = sabores.length > 0 || poolMesclavelPara(p).some(g => g.sabores.length > 0);
     if (variacoes.length > 0)    setDetailStep("variacao");
     else if (hasSaborStep)       setDetailStep("sabores");
     else                         setDetailStep("adicionais");
@@ -2985,8 +2999,8 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
       {detailProduto && (() => {
         const p    = detailProduto;
         const detailVars = p.produto_variacoes?.filter(v => v.ativo) ?? [];
-        const detailSabs = p.produto_sabores?.filter(s => s.ativo)   ?? [];
         const detailAdds = p.produto_adicionais?.filter(a => a.ativo) ?? [];
+        const detailGruposSabor = poolMesclavelPara(p);
         const maxSabores = p && detailVariacao
           ? cartMaxSabores(p, detailVariacao)
           : (detailVars[0] ? cartMaxSabores(p, detailVars[0]) : 1);
@@ -2999,7 +3013,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
         const detailPrecoTotal = (detailPrecoBase + detailAdicionaisSel.reduce((s, a) => s + a.preco, 0)) * detailQty;
         const detailSteps: ("variacao" | "sabores" | "adicionais")[] = [
           ...(detailVars.length > 0 ? ["variacao" as const] : []),
-          ...((detailSabs.length > 0 || (p.tipo === "pizza" && allSaborCount > 0)) ? ["sabores" as const] : []),
+          ...(detailGruposSabor.some(g => g.sabores.length > 0) ? ["sabores" as const] : []),
           ...(detailAdds.length > 0 ? ["adicionais" as const] : []),
         ];
         const detailStepIdx    = Math.max(0, detailSteps.indexOf(detailStep));
@@ -3081,8 +3095,8 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                   </div>
                 )}
 
-                {/* Passo: Sabores — pool global agrupado por produto */}
-                {detailStep === "sabores" && allSaborCount > 0 && (
+                {/* Passo: Sabores — produtos vinculados explicitamente */}
+                {detailStep === "sabores" && detailGruposSabor.some(g => g.sabores.length > 0) && (
                   <div>
                     <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12 }}>
                       <p style={{ fontSize: 12, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", margin: 0 }}>
@@ -3151,7 +3165,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                     })()}
                     {/* Lista de sabores agrupados por produto */}
                     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                      {saboresPorProduto.map(({ produto: sp, sabores }) => (
+                      {detailGruposSabor.map(({ produto: sp, sabores }) => (
                         <div key={sp.id}>
                           <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 8 }}>
                             <span style={{ fontSize: 10, fontWeight: 800, color: "#7c3aed", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 999, padding: "2px 9px" }}>
