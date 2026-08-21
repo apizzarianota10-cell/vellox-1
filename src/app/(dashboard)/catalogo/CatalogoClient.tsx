@@ -212,9 +212,54 @@ export default function CatalogoClient({
   // Inline add-sabor in __sabores__ view
   const [addSaborProdutoId, setAddSaborProdutoId] = useState<string | null>(null);
   const [addSaborNome, setAddSaborNome] = useState("");
+
+  // Grupos de sabores (por produto) abertos/fechados na view __sabores__
+  const [saborGruposAbertos, setSaborGruposAbertos] = useState<Set<string>>(new Set());
+  function toggleSaborGrupo(produtoId: string) {
+    setSaborGruposAbertos(prev => {
+      const next = new Set(prev);
+      if (next.has(produtoId)) next.delete(produtoId); else next.add(produtoId);
+      return next;
+    });
+  }
   const [addSaborSaving, setAddSaborSaving] = useState(false);
 
-  const lojaPath = empresaSlug || empresaCodigo;
+  // Link da loja (slug editável nas Configurações)
+  const [slugAtual, setSlugAtual] = useState(empresaSlug);
+  const [slugInput, setSlugInput] = useState(empresaSlug);
+  const [savingSlug, setSavingSlug] = useState(false);
+  const [slugError, setSlugError] = useState("");
+  const [slugSalvo, setSlugSalvo] = useState(false);
+
+  function slugify(texto: string): string {
+    return texto
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
+
+  async function handleSaveSlug() {
+    const novoSlug = slugify(slugInput);
+    if (!novoSlug) { setSlugError("Digite um link válido."); return; }
+    if (novoSlug === slugAtual) return;
+    setSavingSlug(true);
+    setSlugError("");
+    setSlugSalvo(false);
+    const { error } = await supabase.from("empresas").update({ slug: novoSlug }).eq("id", empresaId);
+    setSavingSlug(false);
+    if (error) {
+      setSlugError(error.code === "23505" ? "Esse link já está em uso por outra loja." : "Erro ao atualizar: " + error.message);
+      return;
+    }
+    setSlugAtual(novoSlug);
+    setSlugInput(novoSlug);
+    setSlugSalvo(true);
+    setTimeout(() => setSlugSalvo(false), 3000);
+  }
+
+  const lojaPath = slugAtual || empresaCodigo;
   const lojaUrl = typeof window !== "undefined"
     ? `${window.location.origin}/loja/${lojaPath}`
     : `/loja/${lojaPath}`;
@@ -1278,22 +1323,22 @@ export default function CatalogoClient({
                               display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
                               padding: "8px 10px", width: "100%", background: "none", border: "none", textAlign: "left",
                             }}>
-                            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)", flex: 1 }}>{p.nome}</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "#1f2937", flex: 1 }}>{p.nome}</span>
                             {vinculados.length > 0 && (
                               <span style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed", background: "#ede9fe", borderRadius: 999, padding: "2px 8px" }}>
                                 vinculado a {vinculados.length}
                               </span>
                             )}
-                            <span style={{ fontSize: 11, color: "var(--text-4)" }}>{sabores.length} sabor{sabores.length !== 1 ? "es" : ""}</span>
-                            <ChevronDown size={14} style={{ color: "var(--text-4)", transform: aberto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+                            <span style={{ fontSize: 11, color: "#6b7280" }}>{sabores.length} sabor{sabores.length !== 1 ? "es" : ""}</span>
+                            <ChevronDown size={14} style={{ color: "#6b7280", transform: aberto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
                           </button>
                           {aberto && (
                             <div style={{ padding: "0 10px 10px 10px", display: "flex", flexDirection: "column", gap: 2 }}>
                               {saboresPorProduto.filter(g => g.produto.id !== p.id).length === 0 && (
-                                <p style={{ fontSize: 12, color: "var(--text-4)", margin: "4px 0" }}>Nenhum outro produto com sabores cadastrados ainda.</p>
+                                <p style={{ fontSize: 12, color: "#6b7280", margin: "4px 0" }}>Nenhum outro produto com sabores cadastrados ainda.</p>
                               )}
                               {saboresPorProduto.filter(g => g.produto.id !== p.id).map(({ produto: outro }) => (
-                                <label key={outro.id} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "5px 6px", fontSize: 12.5, color: "var(--text-2)" }}>
+                                <label key={outro.id} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "5px 6px", fontSize: 12.5, color: "#374151" }}>
                                   <input type="checkbox" checked={vinculados.includes(outro.id)}
                                     onChange={() => handleToggleVinculoSabor(p.id, outro.id)}
                                     style={{ width: 14, height: 14, accentColor: "#7c3aed" }} />
@@ -1308,10 +1353,14 @@ export default function CatalogoClient({
                   </div>
                 </div>
 
-                {saboresPorProduto.map(({ produto: p, sabores }) => (
+                {saboresPorProduto.map(({ produto: p, sabores }) => {
+                  const grupoAberto = saborGruposAbertos.has(p.id);
+                  return (
                   <div key={p.id} style={{ background: "var(--bg-1)", borderRadius: 16, border: "1px solid var(--border-1)", overflow: "hidden" }}>
-                    {/* Cabeçalho do grupo */}
-                    <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border-1)", display: "flex", alignItems: "center", gap: 10 }}>
+                    {/* Cabeçalho do grupo (clicável: abre/fecha a lista) */}
+                    <div
+                      onClick={() => toggleSaborGrupo(p.id)}
+                      style={{ padding: "14px 16px", borderBottom: grupoAberto ? "1px solid var(--border-1)" : "none", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
                       {p.imagem_url
                         // eslint-disable-next-line @next/next/no-img-element
                         ? <img src={p.imagem_url} alt={p.nome} style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
@@ -1322,14 +1371,15 @@ export default function CatalogoClient({
                         <p style={{ fontSize: 11, color: "var(--text-4)", margin: 0 }}>{sabores.length} sabor{sabores.length !== 1 ? "es" : ""}</p>
                       </div>
                       <button
-                        onClick={() => { setAddSaborProdutoId(addSaborProdutoId === p.id ? null : p.id); setAddSaborNome(""); }}
+                        onClick={e => { e.stopPropagation(); setAddSaborProdutoId(addSaborProdutoId === p.id ? null : p.id); setAddSaborNome(""); setSaborGruposAbertos(prev => new Set(prev).add(p.id)); }}
                         style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, background: addSaborProdutoId === p.id ? cor : "var(--bg-input)", border: `1px solid ${addSaborProdutoId === p.id ? cor : "var(--border-1)"}`, fontSize: 12, fontWeight: 700, color: addSaborProdutoId === p.id ? "#fff" : "var(--text-2)", cursor: "pointer" }}>
                         <Plus size={11} /> Novo sabor
                       </button>
-                      <button onClick={() => openEdit(p, "sabores")}
+                      <button onClick={e => { e.stopPropagation(); openEdit(p, "sabores"); }}
                         style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, background: "var(--bg-input)", border: "1px solid var(--border-1)", fontSize: 12, fontWeight: 700, color: "var(--text-2)", cursor: "pointer" }}>
                         <Pencil size={11} /> Editar sabores
                       </button>
+                      <ChevronDown size={16} style={{ color: "var(--text-4)", flexShrink: 0, transform: grupoAberto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
                     </div>
                     {/* Inline add form */}
                     {addSaborProdutoId === p.id && (
@@ -1349,6 +1399,7 @@ export default function CatalogoClient({
                       </div>
                     )}
                     {/* Lista de sabores */}
+                    {grupoAberto && (
                     <div style={{ display: "flex", flexDirection: "column" }}>
                       {sabores.map((s, idx) => (
                         <div key={s.id} style={{
@@ -1406,8 +1457,10 @@ export default function CatalogoClient({
                         </div>
                       ))}
                     </div>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
 
             </div>
             )}
@@ -1729,6 +1782,46 @@ export default function CatalogoClient({
 
               {/* Left column */}
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+                {/* Link da loja */}
+                <div style={{ background: "var(--bg-1)", borderRadius: 16, padding: "18px 20px", border: "1px solid var(--border-1)" }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)", margin: "0 0 6px" }}>Link da loja</p>
+                  <p style={{ fontSize: 11, color: "var(--text-4)", margin: "0 0 14px" }}>
+                    O endereço que seus clientes usam para acessar o cardápio online.
+                  </p>
+                  <div style={{ display: "flex", alignItems: "stretch", border: "1px solid var(--border-1)", borderRadius: 10, overflow: "hidden", background: "var(--bg-input)" }}>
+                    <span style={{ display: "flex", alignItems: "center", padding: "0 0 0 12px", fontSize: 12, color: "var(--text-4)", whiteSpace: "nowrap" }}>
+                      {typeof window !== "undefined" ? window.location.host : "seusite.com"}/loja/
+                    </span>
+                    <input
+                      value={slugInput}
+                      onChange={e => { setSlugInput(e.target.value); setSlugError(""); }}
+                      placeholder="minha-loja"
+                      style={{ flex: 1, minWidth: 60, padding: "9px 12px 9px 2px", border: "none", background: "transparent", fontSize: 13, fontWeight: 600, color: "var(--text-1)", outline: "none" }}
+                    />
+                  </div>
+                  {slugError && <p style={{ fontSize: 11, color: "#dc2626", margin: "6px 0 0" }}>{slugError}</p>}
+                  {!slugError && (
+                    <p style={{ fontSize: 10, color: "var(--text-4)", margin: "6px 0 0" }}>
+                      Ao mudar o link, endereços já compartilhados com clientes (QR code, redes sociais) param de funcionar.
+                    </p>
+                  )}
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+                    <button onClick={handleSaveSlug} disabled={savingSlug || !slugInput.trim() || slugify(slugInput) === slugAtual}
+                      style={{
+                        padding: "8px 14px", borderRadius: 10, background: cor, color: "#fff", border: "none",
+                        fontSize: 12, fontWeight: 700, cursor: "pointer",
+                        opacity: (!slugInput.trim() || slugify(slugInput) === slugAtual) ? 0.5 : 1,
+                      }}>
+                      {savingSlug ? "Salvando…" : "Salvar link"}
+                    </button>
+                    {slugSalvo && (
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "#16a34a", display: "flex", alignItems: "center", gap: 4 }}>
+                        <Check size={13} /> Link atualizado!
+                      </span>
+                    )}
+                  </div>
+                </div>
 
                 {/* Aberto / fechado */}
                 <div style={{ background: "var(--bg-1)", borderRadius: 16, padding: "18px 20px", border: "1px solid var(--border-1)" }}>
