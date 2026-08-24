@@ -17,7 +17,7 @@ export default async function ImpressaoPage() {
 
   const { data: printConfig } = await supabase
     .from("configuracoes_print_agent")
-    .select("ativo, impressora_nome, tamanho_papel, agent_last_seen")
+    .select("ativo, impressora_nome, tamanho_papel, agent_last_seen, layout")
     .eq("empresa_id", user.id)
     .single();
 

@@ -18,6 +18,12 @@ $empresaNome = if ($cfg.empresa_nome) { $cfg.empresa_nome.ToString().Trim() } el
 $printerName = $cfg.printer_name
 $agentToken  = if ($cfg.agent_token)  { $cfg.agent_token.ToString().Trim() }  else { $null }
 $tamanhoPapel = if ($cfg.tamanho_papel) { $cfg.tamanho_papel.ToString().Trim() } else { "80mm" }
+# Layout do cupom (classico/moderno/compacto) — ao contrário do resto do
+# config.json, este valor NÃO vem do arquivo local: é buscado do banco (ver
+# Refresh-Layout mais abaixo), pra poder ser trocado nas Configurações do
+# painel sem precisar reinstalar nada no PC. "moderno" é só o valor inicial
+# até a primeira busca responder.
+$layout = "moderno"
 
 if (-not $empresaId -or $empresaId -notmatch '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$') {
     Write-Host "ERRO: empresa_id ausente ou invalido no config.json." -ForegroundColor Red
@@ -88,68 +94,176 @@ function Build-EscPos($p) {
             elseif ($p.forma_pagamento -eq "ja_pago") { "JA PAGO" }
             else { "DELIVERY" }
 
-    # ── Layout espelhando o cupom "reimprimir" (formatReceipt, layout moderno) ──
+    # ── Layout espelhando o cupom "reimprimir" (formatReceipt) — clássico,
+    # moderno ou compacto, o mesmo que a empresa escolheu em Configurações.
     # Tudo em negrito o tempo todo (o HTML de referência usa peso 700 como base
     # em toda parte) — só Big/Align mudam pra marcar ênfase.
     Init
     Bold $true
-    Sep
-    Align 1; Big $true
-    xT $(if ($empresaNome) { $empresaNome.ToUpper() } else { "PEDIDO" }); xN
-    Big $false
-    xT $data; xN
-    Align 0
-    Sep
 
-    Align 1; Big $true
-    xT "[ $tipo ]"; xN
-    Big $false
-    xT "PEDIDO #$($p.id.Substring(0,8).ToUpper())"; xN
-    Align 0
-    Sep
+    if ($layout -eq "classico") {
+        $headerText = if ($p.forma_pagamento -eq "ja_pago") { "* JA PAGO *" }
+                      elseif ($p.tipo_pedido -eq "retirada") { "-- RETIRADA --" }
+                      else { "- DELIVERY -" }
 
-    Big $true
-    xT "> $($p.cliente_nome)"; xN
-    Big $false
-    if ($p.cliente_telefone) { xT "Tel: $($p.cliente_telefone)"; xN }
-    DSep
-
-    if ($p.tipo_pedido -eq "entrega") {
-        xT "End: $($p.endereco_entrega)$(if($p.bairro){", $($p.bairro)"})"; xN
-    } else {
         Align 1; Big $true
-        xT "*** RETIRADA NO LOCAL ***"; xN
+        xT $(if ($empresaNome) { $empresaNome.ToUpper() } else { "PEDIDO" }); xN
+        Big $false
+        xT $data; xN
+        Sep
+
+        Big $true
+        xT $headerText; xN
+        Big $false
+        xT "PEDIDO #$($p.id.Substring(0,8).ToUpper())"; xN
+        Align 0
+        Sep
+
+        xT "CLIENTE"; xN
+        Big $true
+        xT $p.cliente_nome; xN
+        Big $false
+        if ($p.cliente_telefone) { xT $p.cliente_telefone; xN }
+        Sep
+
+        if ($p.tipo_pedido -eq "entrega") {
+            xT "ENDERECO"; xN
+            xT "$($p.endereco_entrega)$(if($p.bairro){", $($p.bairro)"})"; xN
+        } else {
+            Align 1; Big $true
+            xT "*** RETIRADA NO LOCAL ***"; xN
+            Big $false; Align 0
+        }
+        Sep
+
+        xT "ITENS"; xN
+        if ($p.descricao_itens) {
+            foreach ($l in ($p.descricao_itens -split "`n")) { if ($l.Trim()) { xT $l.Trim(); xN } }
+        }
+        if ($p.observacoes) {
+            Sep
+            xT "OBS"; xN
+            xT $p.observacoes; xN
+        }
+        Sep
+
+        Cols "Subtotal:" "R$ $([double]$p.valor_pedido.ToString("F2").Replace(".",","))"
+        if ([double]$p.valor_motoboy -gt 0) { Cols "Entrega:" "R$ $([double]$p.valor_motoboy.ToString("F2").Replace(".",","))" }
+        Sep
+
+        Align 1; Big $true
+        xT "TOTAL: R$ $($total.ToString("F2").Replace(".",","))"; xN
         Big $false; Align 0
-    }
-    Sep
+        Sep
 
-    xT "ITENS"; xN
-    if ($p.descricao_itens) {
-        foreach ($l in ($p.descricao_itens -split "`n")) { if ($l.Trim()) { xT "- $($l.Trim())"; xN } }
-    }
-    if ($p.observacoes) {
+        xT "PAGAMENTO"; xN
+        Big $true
+        xT $pgto; xN
+        Big $false
+        if ($p.troco_para) { xT "Troco p/ R$ $([double]$p.troco_para.ToString("F2").Replace(".", ","))"; xN }
+        Sep
+
+        Align 1
+        xT "appvellox.online"; xN
+
+    } elseif ($layout -eq "compacto") {
+        $tag = if ($p.tipo_pedido -eq "retirada") { "[RETIRADA]" }
+               elseif ($p.forma_pagamento -eq "ja_pago") { "[JA PAGO]" }
+               else { "[DELIVERY]" }
+
+        Align 1; Big $true
+        xT $(if ($empresaNome) { $empresaNome.ToUpper() } else { "PEDIDO" }); xN
+        Big $false
+        xT "$data | #$($p.id.Substring(0,8).ToUpper())"; xN
+        Align 0
         DSep
-        xT "Obs: $($p.observacoes)"; xN
+
+        xT "$tag $($p.cliente_nome)"; xN
+        if ($p.cliente_telefone) { xT $p.cliente_telefone; xN }
+        if ($p.tipo_pedido -eq "entrega") { xT "$($p.endereco_entrega)$(if($p.bairro){", $($p.bairro)"})"; xN }
+        DSep
+
+        if ($p.descricao_itens) {
+            foreach ($l in ($p.descricao_itens -split "`n")) { if ($l.Trim()) { xT $l.Trim(); xN } }
+        }
+        if ($p.observacoes) { xT "Obs: $($p.observacoes)"; xN }
+        DSep
+
+        $subLinha = "Sub: R$ $([double]$p.valor_pedido.ToString("F2").Replace(".",","))"
+        if ([double]$p.valor_motoboy -gt 0) { $subLinha += " | Entr: R$ $([double]$p.valor_motoboy.ToString("F2").Replace(".",","))" }
+        xT $subLinha; xN
+        Big $true
+        xT "TOTAL: R$ $($total.ToString("F2").Replace(".",","))"; xN
+        Big $false
+        $pgtoLinha = "Pgto: $pgto"
+        if ($p.troco_para) { $pgtoLinha += " | Troco p/ R$ $([double]$p.troco_para.ToString("F2").Replace(".", ","))" }
+        xT $pgtoLinha; xN
+        DSep
+
+        Align 1
+        xT "appvellox.online"; xN
+
+    } else {
+        # Moderno (padrão)
+        Sep
+        Align 1; Big $true
+        xT $(if ($empresaNome) { $empresaNome.ToUpper() } else { "PEDIDO" }); xN
+        Big $false
+        xT $data; xN
+        Align 0
+        Sep
+
+        Align 1; Big $true
+        xT "[ $tipo ]"; xN
+        Big $false
+        xT "PEDIDO #$($p.id.Substring(0,8).ToUpper())"; xN
+        Align 0
+        Sep
+
+        Big $true
+        xT "> $($p.cliente_nome)"; xN
+        Big $false
+        if ($p.cliente_telefone) { xT "Tel: $($p.cliente_telefone)"; xN }
+        DSep
+
+        if ($p.tipo_pedido -eq "entrega") {
+            xT "End: $($p.endereco_entrega)$(if($p.bairro){", $($p.bairro)"})"; xN
+        } else {
+            Align 1; Big $true
+            xT "*** RETIRADA NO LOCAL ***"; xN
+            Big $false; Align 0
+        }
+        Sep
+
+        xT "ITENS"; xN
+        if ($p.descricao_itens) {
+            foreach ($l in ($p.descricao_itens -split "`n")) { if ($l.Trim()) { xT "- $($l.Trim())"; xN } }
+        }
+        if ($p.observacoes) {
+            DSep
+            xT "Obs: $($p.observacoes)"; xN
+        }
+        Sep
+
+        Cols "Subtotal:" "R$ $([double]$p.valor_pedido.ToString("F2").Replace(".",","))"
+        if ([double]$p.valor_motoboy -gt 0) { Cols "Entrega:" "R$ $([double]$p.valor_motoboy.ToString("F2").Replace(".",","))" }
+        Sep
+
+        Align 1; Big $true
+        xT ">> TOTAL: R$ $($total.ToString("F2").Replace(".",",")) <<"; xN
+        Big $false; Align 0
+        Sep
+
+        Big $true
+        xT "Pgto: $pgto"; xN
+        Big $false
+        if ($p.troco_para) { xT "Troco p/ R$ $([double]$p.troco_para.ToString("F2").Replace(".", ","))"; xN }
+        Sep
+
+        Align 1
+        xT "appvellox.online"; xN
     }
-    Sep
 
-    Cols "Subtotal:" "R$ $([double]$p.valor_pedido.ToString("F2").Replace(".",","))"
-    if ([double]$p.valor_motoboy -gt 0) { Cols "Entrega:" "R$ $([double]$p.valor_motoboy.ToString("F2").Replace(".",","))" }
-    Sep
-
-    Align 1; Big $true
-    xT ">> TOTAL: R$ $($total.ToString("F2").Replace(".",",")) <<"; xN
-    Big $false; Align 0
-    Sep
-
-    Big $true
-    xT "Pgto: $pgto"; xN
-    Big $false
-    if ($p.troco_para) { xT "Troco p/ R$ $([double]$p.troco_para.ToString("F2").Replace(".", ","))"; xN }
-    Sep
-
-    Align 1
-    xT "appvellox.online"; xN
     Bold $false
     xN; xN; xN
     Cut
@@ -303,6 +417,7 @@ Write-Host ""
 $headers = @{ "apikey" = $supabaseKey; "Authorization" = "Bearer $supabaseKey"; "Content-Type" = "application/json" }
 $printed = @{}
 $lastCheck = (Get-Date).AddSeconds(-30).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+$layoutRefreshAt = Get-Date # busca o layout já na primeira volta do loop
 
 Write-Host "Aguardando pedidos (verificando a cada 5s)..." -ForegroundColor Green
 Write-Host ""
@@ -318,6 +433,19 @@ while ($true) {
         $pingBody = @{ p_empresa_id = $empresaId; p_impressora = $printerName; p_tamanho_papel = $tamanhoPapel; p_agent_token = $agentToken } | ConvertTo-Json
         Invoke-RestMethod -Uri $pingUri -Headers $headers -Method POST -Body $pingBody -ErrorAction SilentlyContinue | Out-Null
     } catch {}
+
+    # Layout do cupom: busca no banco a cada 60s (não a cada 5s pra não
+    # dobrar o tráfego à toa) — assim, trocar o layout nas Configurações do
+    # painel reflete aqui sem precisar reiniciar o agente.
+    if ((Get-Date) -ge $layoutRefreshAt) {
+        try {
+            $prefsUri  = "$supabaseUrl/rest/v1/rpc/get_print_agent_prefs"
+            $prefsBody = @{ p_empresa_id = $empresaId; p_agent_token = $agentToken } | ConvertTo-Json
+            $prefs = Invoke-RestMethod -Uri $prefsUri -Headers $headers -Method POST -Body $prefsBody -ErrorAction Stop
+            if ($prefs -and $prefs.Count -gt 0 -and $prefs[0].layout) { $layout = $prefs[0].layout }
+        } catch {}
+        $layoutRefreshAt = (Get-Date).AddSeconds(60)
+    }
 
     try {
         $rpcUri = "$supabaseUrl/rest/v1/rpc/get_pedidos_pendentes_agent"

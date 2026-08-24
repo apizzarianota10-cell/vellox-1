@@ -6,10 +6,11 @@ import {
   ChevronLeft, Loader2, Zap, X, Copy, Eye, EyeOff, RefreshCw, KeyRound,
 } from "lucide-react";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 import {
   savePaperSize, getSavedPaperSize,
   saveFontSize,  getSavedFontSize,
-  saveLayout,    getSavedLayout,
+  saveLayout,
   saveLogo,      getSavedLogo,
   printOrder,
 } from "@/lib/printService";
@@ -23,15 +24,19 @@ interface Props {
     impressora_nome: string | null;
     tamanho_papel: string;
     agent_last_seen: string | null;
+    layout: string | null;
   } | null;
 }
 
 export default function ImpressaoClient({ empresa, initialConfig }: Props) {
+  const supabase = createClient();
   const [paperSize,   setPaperSize]   = useState<"58mm" | "80mm">(
     (initialConfig?.tamanho_papel as "58mm" | "80mm") ?? "80mm"
   );
   const [fontSize,      setFontSize]      = useState<FontSizeOpt>("m");
-  const [layout,        setLayout]        = useState<LayoutOpt>("classico");
+  const [layout,        setLayout]        = useState<LayoutOpt>(
+    (initialConfig?.layout as LayoutOpt) ?? "classico"
+  );
   const [logoUrl,       setLogoUrl]       = useState("");
   const [autoAtivo,     setAutoAtivo]     = useState(true);
   const [savingPaper,   setSavingPaper]   = useState(false);
@@ -104,7 +109,8 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
   useEffect(() => {
     setPaperSize(getSavedPaperSize());
     setFontSize(getSavedFontSize());
-    setLayout(getSavedLayout());
+    // layout vem do banco (initialConfig) agora — é o que o agente de
+    // impressão local também lê, então precisa ser a mesma fonte pros dois.
     setLogoUrl(getSavedLogo());
     setAutoAtivo(localStorage.getItem("vellox-autoprint-ativo") !== "0");
   }, []);
@@ -164,6 +170,11 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
     setSavingLayout(true);
     saveLayout(layout);
     saveLogo(logoUrl.trim());
+    // Também salva no banco: é de lá que o agente de impressão local
+    // (servidor.ps1) lê o layout, pra imprimir automaticamente igual ao
+    // que sai na reimpressão — sem precisar reinstalar nada no PC.
+    await supabase.from("configuracoes_print_agent")
+      .upsert({ empresa_id: empresa.id, layout }, { onConflict: "empresa_id" });
     await new Promise(r => setTimeout(r, 400));
     setSavingLayout(false);
     setLayoutSaved(true);
