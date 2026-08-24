@@ -413,7 +413,8 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
     return p.tipo === "pizza"
       || (p.produto_variacoes?.filter(v => v.ativo).length ?? 0) > 0
       || (p.produto_sabores?.filter(s => s.ativo).length ?? 0) > 0
-      || (p.produto_adicionais?.filter(a => a.ativo).length ?? 0) > 0;
+      || (p.produto_adicionais?.filter(a => a.ativo).length ?? 0) > 0
+      || poolMesclavelPara(p).some(g => g.sabores.length > 0);
   }
   function cartPrecoMin(p: Produto): number {
     const vars = p.produto_variacoes?.filter(v => v.ativo) ?? [];
