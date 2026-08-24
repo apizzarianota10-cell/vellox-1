@@ -72,68 +72,85 @@ function Build-EscPos($p) {
     function Bold  { param([bool]$on) xB @(27,69,$(if($on){1}else{0})) }
     function Big   { param([bool]$on) xB @(29,33,$(if($on){17}else{0})) }
     function Align { param([int]$a) xB @(27,97,$a) }
-    function Sep   { xT ("-"*$W); xN }
+    function Sep   { xT ("="*$W); xN }
+    function DSep  { xT ("-"*$W); xN }
     function Cut   { xB @(29,86,65,5) }
     function Cols  { param([string]$L,[string]$R)
         $sp=$W-$L.Length-$R.Length; xT ($L+$(if($sp -gt 0){" "*$sp}else{" "})+$R); xN }
 
-    $hora = [DateTime]::Parse($p.created_at).ToLocalTime().ToString("HH:mm")
-    $data = [DateTime]::Parse($p.created_at).ToLocalTime().ToString("dd/MM/yy")
+    $data = [DateTime]::Parse($p.created_at).ToLocalTime().ToString("dd/MM/yy HH:mm")
     $total = [double]$p.valor_pedido + [double]$p.valor_motoboy
-    $pgtoMap = @{dinheiro="Dinheiro";cartao_credito="Cartao Credito";cartao_debito="Cartao Debito";pix="PIX";ja_pago="Ja pago"}
+    $pgtoMap = @{dinheiro="Dinheiro";cartao_credito="Cartao de Credito";cartao_debito="Cartao de Debito";pix="PIX";ja_pago="Ja pago"}
     $pgto = if ($pgtoMap.ContainsKey($p.forma_pagamento)) { $pgtoMap[$p.forma_pagamento] } else { "$($p.forma_pagamento)" }
-    $trocoTxt = if ($p.troco_para) { " Troco p/ R$ $([double]$p.troco_para.ToString("F2").Replace(".", ","))" } else { "" }
-    $now = (Get-Date).ToString("dd/MM/yy HH:mm")
+    # Mesma prioridade do cupom "reimprimir" (src/lib/printService.ts, layout moderno):
+    # retirada vence, depois já pago, senão delivery.
+    $tipo = if ($p.tipo_pedido -eq "retirada") { "RETIRADA" }
+            elseif ($p.forma_pagamento -eq "ja_pago") { "JA PAGO" }
+            else { "DELIVERY" }
 
+    # ── Layout espelhando o cupom "reimprimir" (formatReceipt, layout moderno) ──
+    # Tudo em negrito o tempo todo (o HTML de referência usa peso 700 como base
+    # em toda parte) — só Big/Align mudam pra marcar ênfase.
     Init
-    Align 1; Big $true; Bold $true
+    Bold $true
+    Sep
+    Align 1; Big $true
     xT $(if ($empresaNome) { $empresaNome.ToUpper() } else { "PEDIDO" }); xN
     Big $false
+    xT $data; xN
+    Align 0
+    Sep
+
+    Align 1; Big $true
+    xT "[ $tipo ]"; xN
+    Big $false
     xT "PEDIDO #$($p.id.Substring(0,8).ToUpper())"; xN
-    Bold $false; Align 0
+    Align 0
     Sep
 
-    $cn = if ($p.cliente_nome.Length -gt 18) { $p.cliente_nome.Substring(0,18) } else { $p.cliente_nome }
-    Cols $cn "$hora $data"
-    Sep
-
-    Align 1; Bold $true; Big $true
-    xT $(if($p.tipo_pedido -eq "entrega"){"ENTREGA"}else{"RETIRADA"}); xN
-    Big $false; Bold $false; Align 0
-    Sep
-
-    Bold $true; xT "CLIENTE/CELULAR"; xN; Bold $false
-    xT "$($p.cliente_nome) - $($p.cliente_telefone)"; xN
+    Big $true
+    xT "> $($p.cliente_nome)"; xN
+    Big $false
+    if ($p.cliente_telefone) { xT "Tel: $($p.cliente_telefone)"; xN }
+    DSep
 
     if ($p.tipo_pedido -eq "entrega") {
-        Bold $true; xT "ENDERECO:"; xN; Bold $false
-        xT "$($p.endereco_entrega)$(if($p.bairro){", $($p.bairro)"})"; xN
+        xT "End: $($p.endereco_entrega)$(if($p.bairro){", $($p.bairro)"})"; xN
+    } else {
+        Align 1; Big $true
+        xT "*** RETIRADA NO LOCAL ***"; xN
+        Big $false; Align 0
+    }
+    Sep
+
+    xT "ITENS"; xN
+    if ($p.descricao_itens) {
+        foreach ($l in ($p.descricao_itens -split "`n")) { if ($l.Trim()) { xT "- $($l.Trim())"; xN } }
     }
     if ($p.observacoes) {
-        Bold $true; xT "OBS:"; xN; Bold $false
-        xT "$($p.observacoes)"; xN
+        DSep
+        xT "Obs: $($p.observacoes)"; xN
     }
     Sep
 
-    if ($p.descricao_itens) {
-        foreach ($l in ($p.descricao_itens -split "`n")) { if ($l.Trim()) { xT $l.Trim(); xN } }
-    }
+    Cols "Subtotal:" "R$ $([double]$p.valor_pedido.ToString("F2").Replace(".",","))"
+    if ([double]$p.valor_motoboy -gt 0) { Cols "Entrega:" "R$ $([double]$p.valor_motoboy.ToString("F2").Replace(".",","))" }
     Sep
 
-    Cols "SUBTOTAL" "R$ $([double]$p.valor_pedido.ToString("F2").Replace(".",","))"
-    if ([double]$p.valor_motoboy -gt 0) { Cols "TAXA ENTREGA" "R$ $([double]$p.valor_motoboy.ToString("F2").Replace(".",","))" }
-    Bold $true; Big $true
-    Cols "TOTAL" "R$ $($total.ToString("F2").Replace(".",","))"
-    Big $false; Bold $false
+    Align 1; Big $true
+    xT ">> TOTAL: R$ $($total.ToString("F2").Replace(".",",")) <<"; xN
+    Big $false; Align 0
     Sep
 
-    Bold $true; xT "PAGAMENTO"; xN; Bold $false
-    xT "$pgto$trocoTxt"; xN
+    Big $true
+    xT "Pgto: $pgto"; xN
+    Big $false
+    if ($p.troco_para) { xT "Troco p/ R$ $([double]$p.troco_para.ToString("F2").Replace(".", ","))"; xN }
     Sep
 
     Align 1
-    xT "IMPRESSO EM $now"; xN
-    Bold $true; xT "appvellox.online"; Bold $false; xN
+    xT "appvellox.online"; xN
+    Bold $false
     xN; xN; xN
     Cut
 
