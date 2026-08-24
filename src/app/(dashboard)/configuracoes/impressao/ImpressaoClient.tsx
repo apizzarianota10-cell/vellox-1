@@ -53,6 +53,7 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
   const [copiedField,   setCopiedField]   = useState<"id" | "token" | null>(null);
   const [showToken,     setShowToken]     = useState(false);
   const [baixandoInstalador, setBaixandoInstalador] = useState(false);
+  const [baixandoAtualizador, setBaixandoAtualizador] = useState(false);
 
   // Baixa o instalador com o número da versão já no nome do arquivo (lido do
   // próprio conteúdo, ex: "INSTALADOR_VERSAO=v3"), pra dar pra saber qual
@@ -73,6 +74,24 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
       URL.revokeObjectURL(url);
     } finally {
       setBaixandoInstalador(false);
+    }
+  }
+
+  // Atualizador: só baixa a versão mais nova do servidor.ps1 e reinicia, sem
+  // mexer nas credenciais já salvas no PC — pra mandar pro cliente quando ele
+  // não tem instalação nova pra fazer, só precisa atualizar o que já roda.
+  async function baixarAtualizador() {
+    setBaixandoAtualizador(true);
+    try {
+      const res = await fetch("/print-server/atualizar.bat", { cache: "no-store" });
+      const texto = await res.text();
+      const blob = new Blob([texto], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "vellox-atualizar.bat"; a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setBaixandoAtualizador(false);
     }
   }
 
@@ -294,15 +313,30 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
           Não compartilhe o token — quem tiver acesso a ele consegue ler os pedidos pendentes da sua loja.
         </p>
 
-        <button
-          onClick={baixarInstalador}
-          disabled={baixandoInstalador}
-          className="flex items-center justify-center gap-2 w-full mt-3 py-2.5 rounded-xl text-xs font-bold"
-          style={{ background: "var(--overlay-sm)", border: "1px solid var(--border-1)", color: "var(--text-1)", opacity: baixandoInstalador ? 0.6 : 1 }}
-        >
-          {baixandoInstalador ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-          {baixandoInstalador ? "Baixando…" : "Baixar instalador"}
-        </button>
+        <div className="flex gap-2 mt-3">
+          <button
+            onClick={baixarInstalador}
+            disabled={baixandoInstalador}
+            className="flex items-center justify-center gap-2 flex-1 py-2.5 rounded-xl text-xs font-bold"
+            style={{ background: "var(--overlay-sm)", border: "1px solid var(--border-1)", color: "var(--text-1)", opacity: baixandoInstalador ? 0.6 : 1 }}
+          >
+            {baixandoInstalador ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+            {baixandoInstalador ? "Baixando…" : "Baixar instalador"}
+          </button>
+          <button
+            onClick={baixarAtualizador}
+            disabled={baixandoAtualizador}
+            title="Já está instalado? Isso só atualiza o servidor.ps1 e reinicia, sem pedir credenciais de novo."
+            className="flex items-center justify-center gap-2 flex-1 py-2.5 rounded-xl text-xs font-bold"
+            style={{ background: "var(--overlay-sm)", border: "1px solid var(--border-1)", color: "var(--text-1)", opacity: baixandoAtualizador ? 0.6 : 1 }}
+          >
+            {baixandoAtualizador ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+            {baixandoAtualizador ? "Baixando…" : "Baixar atualizador"}
+          </button>
+        </div>
+        <p className="text-xs mt-1.5" style={{ color: "var(--text-4)" }}>
+          Já instalado no PC do cliente? Manda o "atualizador" — ele só troca o servidor.ps1 e reinicia, sem precisar reconfigurar nada.
+        </p>
       </div>
 
       {/* Toggle impressão automática */}
