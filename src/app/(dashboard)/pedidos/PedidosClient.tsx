@@ -359,7 +359,6 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
     observacoes:      "",
   });
   // ── Endereço manual ─────────────────────────────────────────────
-  const [cidadeOrigem,  setCidadeOrigem]  = useState<"empresa" | "manual">("empresa");
   const [endManual, setEndManual] = useState({
     rua: "", numero: "", bairro: "", complemento: "", referencia: "",
     cidade: empresaCidade ?? "", estado: empresaEstado ?? "", routeAddress: "",
@@ -602,7 +601,6 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
     setColarTexto("");
     setCartItems([]);
     setForm({ tipo_pedido: "entrega", cliente_nome: "", cliente_telefone: "", endereco_entrega: "", descricao_itens: "", valor_pedido: "", valor_motoboy: "", forma_pagamento: "", troco_para: "", observacoes: "" });
-    setCidadeOrigem("empresa");
     setEndManual({ rua: "", numero: "", bairro: "", complemento: "", referencia: "", cidade: empresaCidade ?? "", estado: empresaEstado ?? "", routeAddress: "" });
   }
 
@@ -2279,71 +2277,17 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                   </div>
                   <div className="p-3">
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs" style={{ color: "var(--text-3)" }}>Cidade / Estado</span>
-                        <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid var(--border-1)" }}>
-                          <button type="button"
-                            onClick={() => {
-                              setCidadeOrigem("empresa");
-                              setEndManual(e => {
-                                const next = { ...e, cidade: empresaCidade ?? "", estado: empresaEstado ?? "" };
-                                const street = [next.rua, next.numero].filter(Boolean).join(", ");
-                                const streetWithBairro = street + (next.bairro ? ` - ${next.bairro}` : "");
-                                const extras = [next.complemento, next.referencia ? `Ref: ${next.referencia}` : ""].filter(Boolean).join(", ");
-                                next.routeAddress = [streetWithBairro + (extras ? `. ${extras}` : ""), next.cidade, next.estado].filter(Boolean).join(", ");
-                                return next;
-                              });
-                            }}
-                            className="px-3 py-1 text-xs font-medium transition-colors"
-                            style={{ background: cidadeOrigem === "empresa" ? "rgba(96,165,250,0.15)" : "transparent", color: cidadeOrigem === "empresa" ? "#60a5fa" : "var(--text-4)" }}>
-                            Da empresa
-                          </button>
-                          <button type="button"
-                            onClick={() => {
-                              setCidadeOrigem("manual");
-                              setEndManual(e => {
-                                const next = { ...e, cidade: "", estado: "" };
-                                const street = [next.rua, next.numero].filter(Boolean).join(", ");
-                                const streetWithBairro = street + (next.bairro ? ` - ${next.bairro}` : "");
-                                const extras = [next.complemento, next.referencia ? `Ref: ${next.referencia}` : ""].filter(Boolean).join(", ");
-                                next.routeAddress = [streetWithBairro + (extras ? `. ${extras}` : ""), next.cidade, next.estado].filter(Boolean).join(", ");
-                                return next;
-                              });
-                            }}
-                            className="px-3 py-1 text-xs font-medium transition-colors"
-                            style={{ background: cidadeOrigem === "manual" ? "rgba(251,191,36,0.15)" : "transparent", color: cidadeOrigem === "manual" ? "#fbbf24" : "var(--text-4)" }}>
-                            Outra cidade
-                          </button>
-                        </div>
+                      <span className="text-xs" style={{ color: "var(--text-3)" }}>Cidade / Estado</span>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input value={endManual.cidade} onChange={e => updateEndManual("cidade", e.target.value)}
+                          placeholder="Cidade" required
+                          className="w-full px-3 py-2.5 rounded-xl text-sm placeholder-slate-600 outline-none"
+                          style={{ ...IS, color: "var(--text-1)" }} onFocus={e => focus(e)} onBlur={blur} />
+                        <input value={endManual.estado} onChange={e => updateEndManual("estado", e.target.value)}
+                          placeholder="Estado (ex: PE)"
+                          className="w-full px-3 py-2.5 rounded-xl text-sm placeholder-slate-600 outline-none"
+                          style={{ ...IS, color: "var(--text-1)" }} onFocus={e => focus(e)} onBlur={blur} />
                       </div>
-
-                      {cidadeOrigem === "empresa" && (endManual.cidade || endManual.estado) && (
-                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
-                          style={{ background: "rgba(96,165,250,0.06)", border: "1px solid rgba(96,165,250,0.15)" }}>
-                          <MapPin size={11} style={{ color: "#60a5fa" }} />
-                          <span className="text-xs" style={{ color: "#60a5fa" }}>
-                            {[endManual.cidade, endManual.estado].filter(Boolean).join(", ")}
-                          </span>
-                        </div>
-                      )}
-                      {cidadeOrigem === "empresa" && !endManual.cidade && !endManual.estado && (
-                        <p className="text-xs px-1" style={{ color: "#FF6A00" }}>
-                          Empresa sem cidade/estado cadastrado — use "Outra cidade"
-                        </p>
-                      )}
-
-                      {cidadeOrigem === "manual" && (
-                        <div className="grid grid-cols-2 gap-2">
-                          <input value={endManual.cidade} onChange={e => updateEndManual("cidade", e.target.value)}
-                            placeholder="Cidade" required
-                            className="w-full px-3 py-2.5 rounded-xl text-sm placeholder-slate-600 outline-none"
-                            style={{ ...IS, color: "var(--text-1)" }} onFocus={e => focus(e, "#fbbf24")} onBlur={blur} />
-                          <input value={endManual.estado} onChange={e => updateEndManual("estado", e.target.value)}
-                            placeholder="Estado (ex: PE)"
-                            className="w-full px-3 py-2.5 rounded-xl text-sm placeholder-slate-600 outline-none"
-                            style={{ ...IS, color: "var(--text-1)" }} onFocus={e => focus(e, "#fbbf24")} onBlur={blur} />
-                        </div>
-                      )}
 
                       <div className="grid grid-cols-3 gap-2">
                         <div className="col-span-2">
