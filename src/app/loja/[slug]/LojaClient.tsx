@@ -768,9 +768,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                 {empresa.nome}
               </h1>
               {empresa.verificado && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 999, padding: "2px 8px", fontSize: 10, fontWeight: 700, color: "#1d4ed8", flexShrink: 0 }}>
-                  <BadgeCheck size={10} /> Verificado
-                </span>
+                <BadgeCheck size={17} style={{ color: "#1d4ed8", flexShrink: 0 }} />
               )}
               {aberto && (
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 999, background: "#f0fdf4", border: "1px solid #bbf7d0" }}>
