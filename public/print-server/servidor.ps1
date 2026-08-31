@@ -36,6 +36,22 @@ if (-not $agentToken -or $agentToken.Length -lt 20) {
     exit 1
 }
 
+# Trava contra instancia duplicada: se duas copias deste script rodarem ao
+# mesmo tempo (janela fechada no X sem encerrar direito, teste manual
+# enquanto o atalho de inicializacao ja esta rodando, etc.), as duas ficam
+# fazendo polling em paralelo e disputando os mesmos pedidos — quem pegar
+# primeiro marca auto_printed=true e a outra nunca mais ve aquele pedido, sem
+# nenhum erro visivel (foi a causa de "imprime uma vez sim, outra nao"). O
+# Mutex garante que so uma instancia por empresa passa daqui — a segunda so
+# encerra na hora, antes de abrir porta ou comecar a pollar.
+$mutex = New-Object System.Threading.Mutex($false, "VelloxPrintServer_$empresaId")
+if (-not $mutex.WaitOne(0)) {
+    Write-Host "Ja existe uma instancia do servidor de impressao rodando neste PC para esta empresa." -ForegroundColor Yellow
+    Write-Host "Encerrando esta copia pra evitar dois processos disputando os mesmos pedidos." -ForegroundColor Yellow
+    try { Stop-Transcript | Out-Null } catch {}
+    exit 0
+}
+
 Write-Host "=====================================" -ForegroundColor Cyan
 Write-Host "  Vellox - Servidor de Impressao" -ForegroundColor Cyan
 Write-Host "  Versao $Versao" -ForegroundColor Cyan
@@ -520,5 +536,6 @@ while ($true) {
     if ($httpListener) { try { $httpListener.Stop(); $httpListener.Close() } catch {} }
     if ($listenerPs)   { try { $listenerPs.Stop(); $listenerPs.Dispose() } catch {} }
     if ($listenerRs)   { try { $listenerRs.Close(); $listenerRs.Dispose() } catch {} }
+    try { $mutex.ReleaseMutex(); $mutex.Dispose() } catch {}
     try { Stop-Transcript | Out-Null } catch {}
 }
