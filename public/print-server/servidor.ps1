@@ -1,5 +1,5 @@
 # Vellox Print Server - PowerShell (sem Node.js)
-$Versao = "v5"
+$Versao = "v6"
 
 # Roda oculto (-WindowStyle Hidden) — sem janela pra ver a tela ou pausar
 # num Read-Host, entao tudo vai pro log.txt em vez do console. Reinicia o
@@ -478,7 +478,7 @@ while ($true) {
     # no lugar do aviso amarelo "voce esta sem o app de impressao")
     try {
         $pingUri  = "$supabaseUrl/rest/v1/rpc/ping_print_agent"
-        $pingBody = @{ p_empresa_id = $empresaId; p_impressora = $printerName; p_tamanho_papel = $tamanhoPapel; p_agent_token = $agentToken } | ConvertTo-Json
+        $pingBody = @{ p_empresa_id = $empresaId; p_impressora = $printerName; p_tamanho_papel = $tamanhoPapel; p_agent_token = $agentToken; p_agent_versao = $Versao } | ConvertTo-Json
         Invoke-RestMethod -Uri $pingUri -Headers $headers -Method POST -Body $pingBody -TimeoutSec 15 -ErrorAction SilentlyContinue | Out-Null
     } catch {}
 

@@ -25,8 +25,14 @@ interface Props {
     tamanho_papel: string;
     agent_last_seen: string | null;
     layout: string | null;
+    agent_versao: string | null;
   } | null;
 }
+
+// Versão atual do servidor.ps1 (public/print-server/servidor.ps1, variável
+// $Versao no topo do arquivo) — mantenha os dois em sincronia a cada mudança
+// no script, pra esse aviso ficar confiável.
+const VERSAO_AGENTE_ATUAL = "v6";
 
 export default function ImpressaoClient({ empresa, initialConfig }: Props) {
   const supabase = createClient();
@@ -248,6 +254,44 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
           <p className="text-xs" style={{ color: "#64748b" }}>Configurações da impressora térmica</p>
         </div>
       </div>
+
+      {/* Status do agente de impressão local */}
+      {initialConfig?.agent_last_seen && (() => {
+        const ultimoMs = new Date(initialConfig.agent_last_seen!).getTime();
+        const agentOnline = Date.now() - ultimoMs < 30_000;
+        const versaoAtual = initialConfig.agent_versao;
+        const desatualizado = versaoAtual != null && versaoAtual !== VERSAO_AGENTE_ATUAL;
+        return (
+          <div className="rounded-2xl p-4" style={{ background: "var(--bg-2)", border: "1px solid var(--border-1)" }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full" style={{ background: agentOnline ? "#22c55e" : "#ef4444" }} />
+                <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>
+                  Agente de impressão {agentOnline ? "online" : "offline"}
+                </p>
+              </div>
+              {versaoAtual && (
+                <span className="text-xs font-mono px-2 py-1 rounded-lg" style={{ background: "var(--overlay-sm)", color: "var(--text-3)" }}>
+                  {versaoAtual}
+                </span>
+              )}
+            </div>
+            {!agentOnline && (
+              <p className="text-xs mt-1.5" style={{ color: "#64748b" }}>
+                Última vez visto: {new Date(initialConfig.agent_last_seen!).toLocaleString("pt-BR")}
+              </p>
+            )}
+            {desatualizado && (
+              <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-xl" style={{ background: "rgba(255,106,0,0.08)", border: "1px solid rgba(255,106,0,0.2)" }}>
+                <AlertCircle size={13} style={{ color: "#FF6A00", flexShrink: 0 }} />
+                <span className="text-xs font-semibold" style={{ color: "#FF6A00" }}>
+                  Versão desatualizada (atual é {VERSAO_AGENTE_ATUAL}) — baixa o &quot;atualizador&quot; abaixo.
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Credenciais do servidor de impressão (PowerShell, sem instalar programa) */}
       <div className="rounded-2xl p-4" style={{ background: "var(--bg-2)", border: "1px solid var(--border-1)" }}>
