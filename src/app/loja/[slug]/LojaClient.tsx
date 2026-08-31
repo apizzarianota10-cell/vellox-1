@@ -639,11 +639,11 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
             style={{
               display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
               width: "100%", marginTop: 14, padding: "13px 16px", borderRadius: 16,
-              background: "#fff", border: "1.5px solid #e2e8f0", cursor: "pointer",
-              fontSize: 13, fontWeight: 700, color: "#334155",
+              background: `${cor}10`, border: `1.5px solid ${cor}35`, cursor: "pointer",
+              fontSize: 13, fontWeight: 700, color: cor,
             }}>
-            <Search size={14} style={{ color: cor }} />
-            Já pediu aqui? Buscar meu pedido
+            <Search size={14} />
+            Já pedi aqui — buscar meu pedido
           </button>
 
           {/* Rodapé acolhedor */}
@@ -805,14 +805,19 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                   <Truck size={12} style={{ color: cor }} />Entrega R${taxaPadrao.toFixed(2)}
                 </span>
               )}
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 999, background: "#fffbeb", border: "1px solid #fde68a", fontSize: 12, fontWeight: 600, color: "#92400e" }}>
-                <Star size={11} style={{ color: "#f59e0b", fill: "#f59e0b" }} />Peça pelo site
-              </span>
-              <button onClick={() => setBuscaOpen(true)}
-                style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 999, background: "#f8fafc", border: "1px solid #e2e8f0", fontSize: 12, fontWeight: 600, color: "#475569", cursor: "pointer" }}>
-                <Search size={11} style={{ color: cor }} />Já pedi aqui
-              </button>
             </div>
+
+            {/* Buscar meu pedido — separado dos chips pra não se perder no meio deles */}
+            <button onClick={() => setBuscaOpen(true)}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                width: "100%", marginTop: 10, padding: "11px 14px", borderRadius: 14,
+                background: `${cor}10`, border: `1.5px solid ${cor}35`, cursor: "pointer",
+                fontSize: 13, fontWeight: 700, color: cor,
+              }}>
+              <Search size={14} />
+              Já pedi aqui — buscar meu pedido
+            </button>
 
           </div>
         </div>
