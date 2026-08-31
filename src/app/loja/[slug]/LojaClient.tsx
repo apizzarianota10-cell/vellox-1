@@ -6,8 +6,41 @@ import {
   ShoppingCart, Plus, Minus, X, ChevronRight,
   MapPin, Phone, User, Clock, Truck, CheckCircle,
   Store, Package, Star, ChevronDown, BadgeCheck,
+  Search, XCircle,
 } from "lucide-react";
-import type { Produto, ConfiguracaoLoja, Empresa, BairroTaxa, ProdutoVariacao, ProdutoSabor, ProdutoAdicional } from "@/types";
+import type { Produto, ConfiguracaoLoja, Empresa, BairroTaxa, ProdutoVariacao, ProdutoSabor, ProdutoAdicional, PedidoStatus } from "@/types";
+
+interface PedidoBuscado {
+  id: string;
+  tracking_token: string | null;
+  status: PedidoStatus;
+  created_at: string;
+  valor_pedido: number;
+  valor_motoboy: number;
+  tipo_pedido: string;
+}
+
+const BUSCA_STATUS_LABEL: Record<PedidoStatus, string> = {
+  em_fila:                "Na fila",
+  em_preparo:             "Em preparo",
+  finalizado:             "Pronto",
+  em_coleta:              "Coletando",
+  em_rota_de_entrega:     "Em rota",
+  aguardando_confirmacao: "Confirmando",
+  entregue:               "Entregue",
+  cancelado:              "Cancelado",
+};
+
+const BUSCA_STATUS_COLOR: Record<PedidoStatus, { bg: string; text: string }> = {
+  em_fila:                { bg: "#f1f5f9", text: "#64748b" },
+  em_preparo:             { bg: "#fffbeb", text: "#d97706" },
+  finalizado:             { bg: "#eff6ff", text: "#3b82f6" },
+  em_coleta:              { bg: "#fff7ed", text: "#f97316" },
+  em_rota_de_entrega:     { bg: "#f5f3ff", text: "#8b5cf6" },
+  aguardando_confirmacao: { bg: "#fffbeb", text: "#f59e0b" },
+  entregue:               { bg: "#f0fdf4", text: "#16a34a" },
+  cancelado:              { bg: "#fef2f2", text: "#dc2626" },
+};
 
 interface CartItem {
   produto: Produto;
@@ -17,6 +50,13 @@ interface CartItem {
   qty: number;
   precoUnit: number;
   cartKey: string;
+}
+
+function maskPhone(v: string): string {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 2)  return `(${d}`;
+  if (d.length <= 7)  return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
 
 type Step = "cart" | "form" | "success";
@@ -77,6 +117,122 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
   const idempotencyKeyRef = useRef<string | null>(null);
   const [submitError, setSubmitError]   = useState<string>("");
   const [stickyNav, setStickyNav] = useState(false);
+
+  // ── Buscar meu pedido (evita pedido duplicado por insegurança se "deu certo") ──
+  const [buscaOpen,     setBuscaOpen]     = useState(false);
+  const [buscaTel,      setBuscaTel]      = useState("");
+  const [buscaLoading,  setBuscaLoading]  = useState(false);
+  const [buscaSearched, setBuscaSearched] = useState(false);
+  const [buscaResultados, setBuscaResultados] = useState<PedidoBuscado[] | null>(null);
+
+  async function buscarMeuPedido(e: React.FormEvent) {
+    e.preventDefault();
+    const digits = buscaTel.replace(/\D/g, "");
+    if (digits.length < 8) return;
+    setBuscaLoading(true);
+    setBuscaSearched(true);
+    try {
+      const res = await fetch(`/api/meus-pedidos?tel=${digits}&empresa_id=${empresa.id}`);
+      const { pedidos: data } = await res.json();
+      setBuscaResultados(data ?? []);
+    } catch {
+      setBuscaResultados([]);
+    } finally {
+      setBuscaLoading(false);
+    }
+  }
+
+  const buscaMeuPedidoModal = buscaOpen && (
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 400, display: "flex", alignItems: "flex-end", justifyContent: "center", background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
+      onClick={e => { if (e.target === e.currentTarget) setBuscaOpen(false); }}>
+      <div style={{ width: "100%", maxWidth: 480, maxHeight: "85dvh", overflowY: "auto", background: "#fff", borderRadius: "24px 24px 0 0", boxShadow: "0 -12px 48px rgba(0,0,0,0.2)" }}>
+        <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <h2 style={{ fontSize: 17, fontWeight: 900, color: "#0f172a", margin: "0 0 3px" }}>Buscar meu pedido</h2>
+              <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>Digite o telefone usado no pedido</p>
+            </div>
+            <button onClick={() => setBuscaOpen(false)}
+              style={{ width: 32, height: 32, borderRadius: 10, background: "#f1f5f9", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <X size={16} style={{ color: "#64748b" }} />
+            </button>
+          </div>
+
+          <form onSubmit={buscarMeuPedido} style={{ display: "flex", gap: 10 }}>
+            <input
+              type="tel"
+              value={buscaTel}
+              onChange={e => setBuscaTel(maskPhone(e.target.value))}
+              placeholder="(00) 00000-0000"
+              autoFocus
+              style={{ flex: 1, padding: "13px 16px", borderRadius: 14, border: "1.5px solid #e2e8f0", fontSize: 16, color: "#0f172a", outline: "none", background: "#f8fafc", boxSizing: "border-box" }}
+            />
+            <button
+              type="submit"
+              disabled={buscaLoading || buscaTel.replace(/\D/g, "").length < 8}
+              style={{
+                padding: "0 20px", borderRadius: 14, border: "none", fontWeight: 700, fontSize: 14, cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 6, flexShrink: 0,
+                background: buscaTel.replace(/\D/g, "").length >= 8 ? cor : "#e2e8f0",
+                color: buscaTel.replace(/\D/g, "").length >= 8 ? "#fff" : "#94a3b8",
+              }}>
+              {buscaLoading ? <div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", animation: "spin 0.8s linear infinite" }} /> : <Search size={15} />}
+              Buscar
+            </button>
+          </form>
+
+          {buscaSearched && !buscaLoading && buscaResultados !== null && (
+            buscaResultados.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "24px 0" }}>
+                <Package size={32} style={{ color: "#e2e8f0", marginBottom: 10 }} />
+                <p style={{ fontSize: 13, fontWeight: 700, color: "#64748b", margin: "0 0 4px" }}>Nenhum pedido encontrado</p>
+                <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>Confira o número ou faça seu pedido acima</p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingBottom: 8 }}>
+                {buscaResultados.map(p => {
+                  const total = p.valor_pedido + p.valor_motoboy;
+                  const sc = BUSCA_STATUS_COLOR[p.status] ?? BUSCA_STATUS_COLOR.em_fila;
+                  const inner = (
+                    <>
+                      <div style={{ width: 40, height: 40, borderRadius: 12, background: sc.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        {p.status === "entregue" ? <CheckCircle size={18} style={{ color: sc.text }} />
+                          : p.status === "cancelado" ? <XCircle size={18} style={{ color: sc.text }} />
+                          : <Clock size={18} style={{ color: sc.text }} />}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 2 }}>
+                          <p style={{ fontSize: 12.5, fontWeight: 800, color: "#0f172a", margin: 0 }}>
+                            #{p.id.slice(0, 8).toUpperCase()}
+                          </p>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: sc.bg, color: sc.text }}>
+                            {BUSCA_STATUS_LABEL[p.status]}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: 12, color: "#94a3b8", margin: 0 }}>
+                          {new Date(p.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                          {" · "}R$ {total.toFixed(2).replace(".", ",")}
+                        </p>
+                      </div>
+                      {p.tracking_token && <ChevronRight size={16} style={{ color: "#cbd5e1", flexShrink: 0 }} />}
+                    </>
+                  );
+                  const cardStyle = { display: "flex" as const, alignItems: "center" as const, gap: 12, padding: "12px 14px", borderRadius: 14, border: "1px solid #f0f0f0", textDecoration: "none" };
+                  return p.tracking_token ? (
+                    <Link key={p.id} href={`/pedido/${p.tracking_token}`} style={cardStyle}>{inner}</Link>
+                  ) : (
+                    <div key={p.id} style={cardStyle}>{inner}</div>
+                  );
+                })}
+              </div>
+            )
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   const heroRef = useRef<HTMLDivElement>(null);
   const [form, setForm] = useState<OrderForm>({
     nome: "", telefone: "",
@@ -477,11 +633,25 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
             </div>
           )}
 
+          {/* Já pediu aqui antes? */}
+          <button
+            onClick={() => setBuscaOpen(true)}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+              width: "100%", marginTop: 14, padding: "13px 16px", borderRadius: 16,
+              background: "#fff", border: "1.5px solid #e2e8f0", cursor: "pointer",
+              fontSize: 13, fontWeight: 700, color: "#334155",
+            }}>
+            <Search size={14} style={{ color: cor }} />
+            Já pediu aqui? Buscar meu pedido
+          </button>
+
           {/* Rodapé acolhedor */}
           <p style={{ textAlign: "center", fontSize: 12, color: "#cbd5e1", marginTop: 28 }}>
             Aguardamos você com muito carinho 🍕
           </p>
         </div>
+        {buscaMeuPedidoModal}
       </div>
     );
   }
@@ -638,6 +808,10 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
               <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 999, background: "#fffbeb", border: "1px solid #fde68a", fontSize: 12, fontWeight: 600, color: "#92400e" }}>
                 <Star size={11} style={{ color: "#f59e0b", fill: "#f59e0b" }} />Peça pelo site
               </span>
+              <button onClick={() => setBuscaOpen(true)}
+                style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 999, background: "#f8fafc", border: "1px solid #e2e8f0", fontSize: 12, fontWeight: 600, color: "#475569", cursor: "pointer" }}>
+                <Search size={11} style={{ color: cor }} />Já pedi aqui
+              </button>
             </div>
 
           </div>
@@ -1683,6 +1857,8 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
           )}
         </div>
       )}
+
+      {buscaMeuPedidoModal}
     </div>
   );
 }
