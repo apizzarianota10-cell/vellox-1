@@ -637,13 +637,14 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
           <button
             onClick={() => setBuscaOpen(true)}
             style={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-              width: "100%", marginTop: 14, padding: "13px 16px", borderRadius: 16,
-              background: `${cor}10`, border: `1.5px solid ${cor}35`, cursor: "pointer",
-              fontSize: 13, fontWeight: 700, color: cor,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              width: "100%", marginTop: 14, padding: "14px 16px", borderRadius: 16,
+              background: cor, border: "none", cursor: "pointer",
+              boxShadow: `0 6px 18px ${cor}45`,
+              fontSize: 13.5, fontWeight: 800, color: "#fff",
             }}>
-            <Search size={14} />
-            Já pedi aqui — buscar meu pedido
+            <Search size={15} />
+            Buscar meu pedido
           </button>
 
           {/* Rodapé acolhedor */}
@@ -808,13 +809,14 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
             {/* Buscar meu pedido — separado dos chips pra não se perder no meio deles */}
             <button onClick={() => setBuscaOpen(true)}
               style={{
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-                width: "100%", marginTop: 10, padding: "11px 14px", borderRadius: 14,
-                background: `${cor}10`, border: `1.5px solid ${cor}35`, cursor: "pointer",
-                fontSize: 13, fontWeight: 700, color: cor,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                width: "100%", marginTop: 10, padding: "12px 14px", borderRadius: 14,
+                background: cor, border: "none", cursor: "pointer",
+                boxShadow: `0 6px 18px ${cor}45`,
+                fontSize: 13.5, fontWeight: 800, color: "#fff",
               }}>
-              <Search size={14} />
-              Já pedi aqui — buscar meu pedido
+              <Search size={15} />
+              Buscar meu pedido
             </button>
 
           </div>
