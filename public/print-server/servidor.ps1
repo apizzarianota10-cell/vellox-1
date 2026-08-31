@@ -147,8 +147,8 @@ function Build-EscPos($p) {
         }
         Sep
 
-        Cols "Subtotal:" "R$ $([double]$p.valor_pedido.ToString("F2").Replace(".",","))"
-        if ([double]$p.valor_motoboy -gt 0) { Cols "Entrega:" "R$ $([double]$p.valor_motoboy.ToString("F2").Replace(".",","))" }
+        Cols "Subtotal:" "R$ $(([double]$p.valor_pedido).ToString("F2").Replace(".",","))"
+        if ([double]$p.valor_motoboy -gt 0) { Cols "Entrega:" "R$ $(([double]$p.valor_motoboy).ToString("F2").Replace(".",","))" }
         Sep
 
         Align 1; Big $true
@@ -160,7 +160,7 @@ function Build-EscPos($p) {
         Big $true
         xT $pgto; xN
         Big $false
-        if ($p.troco_para) { xT "Troco p/ R$ $([double]$p.troco_para.ToString("F2").Replace(".", ","))"; xN }
+        if ($p.troco_para) { xT "Troco p/ R$ $(([double]$p.troco_para).ToString("F2").Replace(".", ","))"; xN }
         Sep
 
         Align 1
@@ -189,14 +189,14 @@ function Build-EscPos($p) {
         if ($p.observacoes) { xT "Obs: $($p.observacoes)"; xN }
         DSep
 
-        $subLinha = "Sub: R$ $([double]$p.valor_pedido.ToString("F2").Replace(".",","))"
-        if ([double]$p.valor_motoboy -gt 0) { $subLinha += " | Entr: R$ $([double]$p.valor_motoboy.ToString("F2").Replace(".",","))" }
+        $subLinha = "Sub: R$ $(([double]$p.valor_pedido).ToString("F2").Replace(".",","))"
+        if ([double]$p.valor_motoboy -gt 0) { $subLinha += " | Entr: R$ $(([double]$p.valor_motoboy).ToString("F2").Replace(".",","))" }
         xT $subLinha; xN
         Big $true
         xT "TOTAL: R$ $($total.ToString("F2").Replace(".",","))"; xN
         Big $false
         $pgtoLinha = "Pgto: $pgto"
-        if ($p.troco_para) { $pgtoLinha += " | Troco p/ R$ $([double]$p.troco_para.ToString("F2").Replace(".", ","))" }
+        if ($p.troco_para) { $pgtoLinha += " | Troco p/ R$ $(([double]$p.troco_para).ToString("F2").Replace(".", ","))" }
         xT $pgtoLinha; xN
         DSep
 
@@ -245,8 +245,8 @@ function Build-EscPos($p) {
         }
         Sep
 
-        Cols "Subtotal:" "R$ $([double]$p.valor_pedido.ToString("F2").Replace(".",","))"
-        if ([double]$p.valor_motoboy -gt 0) { Cols "Entrega:" "R$ $([double]$p.valor_motoboy.ToString("F2").Replace(".",","))" }
+        Cols "Subtotal:" "R$ $(([double]$p.valor_pedido).ToString("F2").Replace(".",","))"
+        if ([double]$p.valor_motoboy -gt 0) { Cols "Entrega:" "R$ $(([double]$p.valor_motoboy).ToString("F2").Replace(".",","))" }
         Sep
 
         Align 1; Big $true
@@ -257,7 +257,7 @@ function Build-EscPos($p) {
         Big $true
         xT "Pgto: $pgto"; xN
         Big $false
-        if ($p.troco_para) { xT "Troco p/ R$ $([double]$p.troco_para.ToString("F2").Replace(".", ","))"; xN }
+        if ($p.troco_para) { xT "Troco p/ R$ $(([double]$p.troco_para).ToString("F2").Replace(".", ","))"; xN }
         Sep
 
         Align 1
@@ -271,23 +271,55 @@ function Build-EscPos($p) {
     return ,$b.ToArray()
 }
 
+# IMPORTANTE: cada chamada Win32 abaixo retorna $false em caso de erro — isso
+# NAO PODE ser descartado com "| Out-Null" como era antes. Um OpenPrinter que
+# falha (impressora renomeada/desligada/offline, spooler parado, nome errado
+# no config.json) deixava o handle zerado e todas as chamadas seguintes eram
+# no-ops silenciosos: o log mostrava "[OK] 0 bytes enviados" (nunca um erro!)
+# e o pedido era marcado como impresso (auto_printed=true) — nenhuma outra
+# via (RPC, navegador) tentava de novo, e o problema ficava invisivel em
+# QUALQUER lugar. Agora cada etapa lanca excecao se falhar, o loop principal
+# ja captura isso (Write-Host "[ERRO impressao] ...") e, por lancar ANTES do
+# mark_pedido_printed, o pedido continua elegivel pra tentar de novo.
 function Print-Raw { param([byte[]]$bytes)
     $pn = if ($printerName -and $printerName.Trim()) { $printerName } else {
         (Get-WmiObject Win32_Printer | Where-Object { $_.Default -eq $true } | Select-Object -First 1).Name
     }
+    if (-not $pn) { throw "Nenhuma impressora encontrada (nome configurado vazio e sem impressora padrao no Windows)." }
     Write-Host "  Imprimindo em: $pn" -ForegroundColor Gray
     $h = [IntPtr]::Zero
-    [WinPrint]::OpenPrinter($pn, [ref]$h, [IntPtr]::Zero) | Out-Null
-    $di = New-Object WinPrint+DI; $di.n = "Vellox"; $di.t = "RAW"
-    [WinPrint]::StartDocPrinter($h, 1, [ref]$di) | Out-Null
-    [WinPrint]::StartPagePrinter($h) | Out-Null
-    $ptr = [Runtime.InteropServices.Marshal]::AllocCoTaskMem($bytes.Length)
-    [Runtime.InteropServices.Marshal]::Copy($bytes, 0, $ptr, $bytes.Length)
-    $w = 0; [WinPrint]::WritePrinter($h, $ptr, $bytes.Length, [ref]$w) | Out-Null
-    [Runtime.InteropServices.Marshal]::FreeCoTaskMem($ptr)
-    [WinPrint]::EndPagePrinter($h) | Out-Null
-    [WinPrint]::EndDocPrinter($h) | Out-Null
-    [WinPrint]::ClosePrinter($h) | Out-Null
+    if (-not [WinPrint]::OpenPrinter($pn, [ref]$h, [IntPtr]::Zero)) {
+        throw "OpenPrinter falhou para '$pn' (Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error())) — confira se o nome bate exatamente com o das Impressoras do Windows."
+    }
+    try {
+        $di = New-Object WinPrint+DI; $di.n = "Vellox"; $di.t = "RAW"
+        if ([WinPrint]::StartDocPrinter($h, 1, [ref]$di) -eq 0) {
+            throw "StartDocPrinter falhou (Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error())) — spooler pode estar parado ou pausado."
+        }
+        try {
+            if (-not [WinPrint]::StartPagePrinter($h)) {
+                throw "StartPagePrinter falhou (Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error()))."
+            }
+            $ptr = [Runtime.InteropServices.Marshal]::AllocCoTaskMem($bytes.Length)
+            try {
+                [Runtime.InteropServices.Marshal]::Copy($bytes, 0, $ptr, $bytes.Length)
+                $w = 0
+                if (-not [WinPrint]::WritePrinter($h, $ptr, $bytes.Length, [ref]$w)) {
+                    throw "WritePrinter falhou (Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error()))."
+                }
+                if ($w -ne $bytes.Length) {
+                    throw "WritePrinter enviou so $w de $($bytes.Length) bytes."
+                }
+            } finally {
+                [Runtime.InteropServices.Marshal]::FreeCoTaskMem($ptr)
+            }
+            [WinPrint]::EndPagePrinter($h) | Out-Null
+        } finally {
+            [WinPrint]::EndDocPrinter($h) | Out-Null
+        }
+    } finally {
+        [WinPrint]::ClosePrinter($h) | Out-Null
+    }
     Write-Host "  [OK] $w bytes enviados a impressora!" -ForegroundColor Green
 }
 
@@ -431,7 +463,7 @@ while ($true) {
     try {
         $pingUri  = "$supabaseUrl/rest/v1/rpc/ping_print_agent"
         $pingBody = @{ p_empresa_id = $empresaId; p_impressora = $printerName; p_tamanho_papel = $tamanhoPapel; p_agent_token = $agentToken } | ConvertTo-Json
-        Invoke-RestMethod -Uri $pingUri -Headers $headers -Method POST -Body $pingBody -ErrorAction SilentlyContinue | Out-Null
+        Invoke-RestMethod -Uri $pingUri -Headers $headers -Method POST -Body $pingBody -TimeoutSec 15 -ErrorAction SilentlyContinue | Out-Null
     } catch {}
 
     # Layout do cupom: busca no banco a cada 60s (não a cada 5s pra não
@@ -441,7 +473,7 @@ while ($true) {
         try {
             $prefsUri  = "$supabaseUrl/rest/v1/rpc/get_print_agent_prefs"
             $prefsBody = @{ p_empresa_id = $empresaId; p_agent_token = $agentToken } | ConvertTo-Json
-            $prefs = Invoke-RestMethod -Uri $prefsUri -Headers $headers -Method POST -Body $prefsBody -ErrorAction Stop
+            $prefs = Invoke-RestMethod -Uri $prefsUri -Headers $headers -Method POST -Body $prefsBody -TimeoutSec 15 -ErrorAction Stop
             if ($prefs -and $prefs.Count -gt 0 -and $prefs[0].layout) { $layout = $prefs[0].layout }
         } catch {}
         $layoutRefreshAt = (Get-Date).AddSeconds(60)
@@ -450,15 +482,20 @@ while ($true) {
     try {
         $rpcUri = "$supabaseUrl/rest/v1/rpc/get_pedidos_pendentes_agent"
         $body = @{ p_empresa_id = $empresaId; p_agent_token = $agentToken; p_desde = $lastCheck } | ConvertTo-Json
-        $orders = Invoke-RestMethod -Uri $rpcUri -Headers $headers -Method POST -Body $body -ErrorAction Stop
+        $orders = Invoke-RestMethod -Uri $rpcUri -Headers $headers -Method POST -Body $body -TimeoutSec 15 -ErrorAction Stop
         foreach ($pedido in $orders) {
             if (-not $printed.ContainsKey($pedido.id)) {
-                $printed[$pedido.id] = $true
                 $t = (Get-Date).ToString("HH:mm:ss")
                 Write-Host "[$t] Novo pedido: #$($pedido.id.Substring(0,8).ToUpper()) - $($pedido.cliente_nome)" -ForegroundColor Yellow
                 try {
                     $bytes = Build-EscPos $pedido
                     Print-Raw $bytes
+                    # So marca como "ja visto" DEPOIS de imprimir com sucesso — se
+                    # Print-Raw lancar erro, nao marca aqui, e o pedido continua
+                    # elegivel (auto_printed ainda false no banco) pra tentar de
+                    # novo no proximo ciclo de 5s, em vez de ficar "esquecido" so
+                    # porque essa tentativa falhou.
+                    $printed[$pedido.id] = $true
                     # Marca no banco que este pedido ja foi impresso (auto_printed=true).
                     # Isso faz o painel web (PrintListener) pular o fallback via
                     # navegador para este pedido caso ele ainda nao tenha rodado,
@@ -466,7 +503,7 @@ while ($true) {
                     try {
                         $markUri  = "$supabaseUrl/rest/v1/rpc/mark_pedido_printed"
                         $markBody = @{ p_pedido_id = $pedido.id; p_empresa_id = $empresaId; p_auto = $true } | ConvertTo-Json
-                        Invoke-RestMethod -Uri $markUri -Headers $headers -Method POST -Body $markBody -ErrorAction SilentlyContinue | Out-Null
+                        Invoke-RestMethod -Uri $markUri -Headers $headers -Method POST -Body $markBody -TimeoutSec 15 -ErrorAction SilentlyContinue | Out-Null
                     } catch {}
                 } catch {
                     Write-Host "  [ERRO impressao] $_" -ForegroundColor Red

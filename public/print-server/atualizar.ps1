@@ -15,7 +15,24 @@ if (-not (Test-Path "$dir\config.json")) {
     exit 1
 }
 
-Write-Host "Parando o servidor atual (se estiver rodando)..." -ForegroundColor Yellow
+Write-Host "Baixando a versao mais recente..." -ForegroundColor Yellow
+# Baixa pra um arquivo temporario primeiro e SO troca o servidor.ps1 (e para
+# o antigo) se o download realmente deu certo — assim, se a internet cair no
+# meio, o agente que ja estava rodando continua rodando em vez de ficar sem
+# nenhum processo de impressao ate alguem notar.
+$tmpFile = Join-Path $env:TEMP "vellox-servidor-novo.ps1"
+try {
+    Invoke-WebRequest "https://www.appvellox.online/print-server/servidor.ps1" -OutFile $tmpFile -UseBasicParsing -TimeoutSec 30
+    if (-not (Test-Path $tmpFile) -or (Get-Item $tmpFile).Length -lt 1000) {
+        throw "Arquivo baixado parece vazio ou incompleto."
+    }
+} catch {
+    Write-Host "ERRO: nao foi possivel baixar a atualizacao ($($_.Exception.Message)). O servidor atual continua rodando normalmente — tente de novo mais tarde." -ForegroundColor Red
+    Read-Host "Pressione ENTER para sair"
+    exit 1
+}
+
+Write-Host "Download OK. Parando o servidor atual (se estiver rodando)..." -ForegroundColor Yellow
 Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe'" -ErrorAction SilentlyContinue |
     Where-Object { $_.CommandLine -like "*servidor.ps1*" } |
     ForEach-Object {
@@ -23,14 +40,7 @@ Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe'" -ErrorAction Sil
     }
 Start-Sleep -Seconds 2
 
-Write-Host "Baixando a versao mais recente..." -ForegroundColor Yellow
-try {
-    Invoke-WebRequest "https://www.appvellox.online/print-server/servidor.ps1" -OutFile "$dir\servidor.ps1" -UseBasicParsing
-} catch {
-    Write-Host "ERRO: nao foi possivel baixar. Verifique a internet e tente de novo." -ForegroundColor Red
-    Read-Host "Pressione ENTER para sair"
-    exit 1
-}
+Move-Item -Path $tmpFile -Destination "$dir\servidor.ps1" -Force
 
 if (-not (Test-Path "$dir\iniciar.bat")) {
     # instalações antigas podem não ter o iniciar.bat — recria
