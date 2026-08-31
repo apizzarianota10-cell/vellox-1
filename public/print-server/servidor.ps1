@@ -99,6 +99,22 @@ function Build-EscPos($p) {
     function Cut   { xB @(29,86,65,5) }
     function Cols  { param([string]$L,[string]$R)
         $sp=$W-$L.Length-$R.Length; xT ($L+$(if($sp -gt 0){" "*$sp}else{" "})+$R); xN }
+    # Impressora térmica não sabe quebrar por palavra — sem isso, uma linha
+    # comprida (ex: "1x Pizza G (Calabresa/Mussarela) - R$45,00", comum com
+    # 2+ sabores no mesmo item) é cortada no meio de qualquer caractere onde
+    # bater a largura do papel, embaralhando o texto visualmente. Quebra nos
+    # espaços (como word-wrap normal) e só corta no meio da palavra se ela
+    # sozinha já for maior que a largura da linha.
+    function xWrap { param([string]$s)
+        $linha = $s
+        while ($linha.Length -gt $W) {
+            $corte = $linha.Substring(0, $W).LastIndexOf(' ')
+            if ($corte -lt 1) { $corte = $W }
+            xT $linha.Substring(0, $corte).TrimEnd(); xN
+            $linha = $linha.Substring($corte).TrimStart()
+        }
+        xT $linha; xN
+    }
 
     $data = [DateTime]::Parse($p.created_at).ToLocalTime().ToString("dd/MM/yy HH:mm")
     $total = [double]$p.valor_pedido + [double]$p.valor_motoboy
@@ -144,7 +160,7 @@ function Build-EscPos($p) {
 
         if ($p.tipo_pedido -eq "entrega") {
             xT "ENDERECO"; xN
-            xT "$($p.endereco_entrega)$(if($p.bairro){", $($p.bairro)"})"; xN
+            xWrap "$($p.endereco_entrega)$(if($p.bairro){", $($p.bairro)"})"
         } else {
             Align 1; Big $true
             xT "*** RETIRADA NO LOCAL ***"; xN
@@ -154,12 +170,12 @@ function Build-EscPos($p) {
 
         xT "ITENS"; xN
         if ($p.descricao_itens) {
-            foreach ($l in ($p.descricao_itens -split "`n")) { if ($l.Trim()) { xT $l.Trim(); xN } }
+            foreach ($l in ($p.descricao_itens -split "`n")) { if ($l.Trim()) { xWrap $l.Trim() } }
         }
         if ($p.observacoes) {
             Sep
             xT "OBS"; xN
-            xT $p.observacoes; xN
+            xWrap $p.observacoes
         }
         Sep
 
@@ -196,13 +212,13 @@ function Build-EscPos($p) {
 
         xT "$tag $($p.cliente_nome)"; xN
         if ($p.cliente_telefone) { xT $p.cliente_telefone; xN }
-        if ($p.tipo_pedido -eq "entrega") { xT "$($p.endereco_entrega)$(if($p.bairro){", $($p.bairro)"})"; xN }
+        if ($p.tipo_pedido -eq "entrega") { xWrap "$($p.endereco_entrega)$(if($p.bairro){", $($p.bairro)"})" }
         DSep
 
         if ($p.descricao_itens) {
-            foreach ($l in ($p.descricao_itens -split "`n")) { if ($l.Trim()) { xT $l.Trim(); xN } }
+            foreach ($l in ($p.descricao_itens -split "`n")) { if ($l.Trim()) { xWrap $l.Trim() } }
         }
-        if ($p.observacoes) { xT "Obs: $($p.observacoes)"; xN }
+        if ($p.observacoes) { xWrap "Obs: $($p.observacoes)" }
         DSep
 
         $subLinha = "Sub: R$ $(([double]$p.valor_pedido).ToString("F2").Replace(".",","))"
@@ -243,7 +259,7 @@ function Build-EscPos($p) {
         DSep
 
         if ($p.tipo_pedido -eq "entrega") {
-            xT "End: $($p.endereco_entrega)$(if($p.bairro){", $($p.bairro)"})"; xN
+            xWrap "End: $($p.endereco_entrega)$(if($p.bairro){", $($p.bairro)"})"
         } else {
             Align 1; Big $true
             xT "*** RETIRADA NO LOCAL ***"; xN
@@ -253,11 +269,11 @@ function Build-EscPos($p) {
 
         xT "ITENS"; xN
         if ($p.descricao_itens) {
-            foreach ($l in ($p.descricao_itens -split "`n")) { if ($l.Trim()) { xT "- $($l.Trim())"; xN } }
+            foreach ($l in ($p.descricao_itens -split "`n")) { if ($l.Trim()) { xWrap "- $($l.Trim())" } }
         }
         if ($p.observacoes) {
             DSep
-            xT "Obs: $($p.observacoes)"; xN
+            xWrap "Obs: $($p.observacoes)"
         }
         Sep
 

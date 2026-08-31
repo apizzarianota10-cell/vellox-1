@@ -51,6 +51,7 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
   const [fontSaved,     setFontSaved]     = useState(false);
   const [savingLayout,  setSavingLayout]  = useState(false);
   const [layoutSaved,   setLayoutSaved]   = useState(false);
+  const [layoutError,   setLayoutError]   = useState("");
   const [testing,       setTesting]       = useState(false);
   const [testResult,    setTestResult]    = useState<{ ok: boolean; msg: string } | null>(null);
   const [creds,         setCreds]         = useState<{ empresa_id: string; agent_token: string } | null>(null);
@@ -193,15 +194,19 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
 
   async function handleSaveLayout() {
     setSavingLayout(true);
+    setLayoutError("");
     saveLayout(layout);
     saveLogo(logoUrl.trim());
     // Também salva no banco: é de lá que o agente de impressão local
     // (servidor.ps1) lê o layout, pra imprimir automaticamente igual ao
     // que sai na reimpressão — sem precisar reinstalar nada no PC.
-    await supabase.from("configuracoes_print_agent")
+    const { error } = await supabase.from("configuracoes_print_agent")
       .upsert({ empresa_id: empresa.id, layout }, { onConflict: "empresa_id" });
-    await new Promise(r => setTimeout(r, 400));
     setSavingLayout(false);
+    if (error) {
+      setLayoutError("Não salvou no banco (ficou só neste navegador): " + error.message);
+      return;
+    }
     setLayoutSaved(true);
     setTimeout(() => setLayoutSaved(false), 2500);
   }
@@ -575,6 +580,9 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
           {savingLayout ? <Loader2 size={14} className="animate-spin" /> : layoutSaved ? <CheckCircle size={14} /> : null}
           {savingLayout ? "Salvando..." : layoutSaved ? "Salvo!" : "Salvar layout"}
         </button>
+        {layoutError && (
+          <p className="text-xs mt-1.5" style={{ color: "#ef4444" }}>{layoutError}</p>
+        )}
       </div>
 
       {/* Ações */}
