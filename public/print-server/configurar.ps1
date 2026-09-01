@@ -27,11 +27,11 @@ if (-not $pub.supabase_url -or -not $pub.supabase_anon_key) {
 # 2. Abre o navegador na tela de credenciais
 Write-Host "Abrindo a pagina de credenciais no navegador..." -ForegroundColor Yellow
 Write-Host "  1. Faca login com sua conta Vellox, se pedir"
-Write-Host "  2. Va em Configuracoes > Impressao"
+Write-Host "  2. Va em Automacoes > Impressao"
 Write-Host "  3. Ache 'Credenciais do servidor de impressao'"
 Write-Host "  4. Copie o 'ID da empresa' e o 'Token do agente'"
 Write-Host ""
-Start-Process "https://www.appvellox.online/configuracoes/impressao"
+Start-Process "https://www.appvellox.online/automacoes/impressao"
 Read-Host "Pressione ENTER aqui quando ja tiver os dois valores copiados"
 Write-Host ""
 

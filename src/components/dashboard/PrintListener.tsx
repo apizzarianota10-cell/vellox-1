@@ -230,7 +230,7 @@ export default function PrintListener({ empresaId, empresaNome, empresaCnpj }: P
             <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 10px", lineHeight: 1.4 }}>
               Você está no navegador e o Print Agent não respondeu — risco do pedido não imprimir sozinho. Abra o app no computador da impressora.
             </p>
-            <Link href="/configuracoes/impressao"
+            <Link href="/automacoes/impressao"
               style={{ fontSize: 12, fontWeight: 700, color: "#ef4444", textDecoration: "none" }}>
               Ver configuração de impressão →
             </Link>

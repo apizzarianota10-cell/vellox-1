@@ -74,7 +74,7 @@ export default function PrintAgentBanner({ empresaId }: Props) {
             Agora não
           </button>
           <Link
-            href="/configuracoes/impressao"
+            href="/automacoes/impressao"
             style={{ flex: 1, padding: "12px", borderRadius: 12, background: "#92400e", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
             Configurar impressão
           </Link>

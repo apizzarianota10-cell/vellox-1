@@ -8,7 +8,6 @@ import Link from "next/link";
 import CompanyLocationPicker from "@/components/company/CompanyLocationPicker";
 import type { Empresa } from "@/types";
 import { SOUNDS, SOUND_KEY, getSoundId, playSound, type SoundId } from "@/lib/sounds";
-import { getSavedPaperSize, savePaperSize, type PaperSize } from "@/lib/printService";
 
 function maskCNPJ(v: string): string {
   const d = v.replace(/\D/g, "").slice(0, 14);
@@ -59,14 +58,8 @@ export default function ConfiguracoesClient({ empresa }: Props) {
     previewSound(id);
   }
 
-  // ── Impressão automática (localStorage) ────────────────────────
-  const [apAtivo,    setApAtivo]    = useState(false);
-  const [paperSize,  setPaperSize]  = useState<PaperSize>("80mm");
-
   useEffect(() => {
     setSoundId(getSoundId());
-    setApAtivo(localStorage.getItem("vellox-autoprint-ativo") === "1");
-    setPaperSize(getSavedPaperSize());
   }, []);
 
 
@@ -206,115 +199,41 @@ export default function ConfiguracoesClient({ empresa }: Props) {
         </button>
       </div>
 
-      {/* ── Impressão automática ── */}
-      <div className="rounded-2xl overflow-hidden" style={{ background: "var(--bg-2)", border: "1px solid rgba(255,106,0,0.3)" }}>
-        <div className="p-5">
-          <div className="flex items-center gap-2 mb-1">
-            <Printer size={15} style={{ color: "#FF6A00" }} />
-            <h2 className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>Impressão automática</h2>
-            <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: "rgba(34,197,94,0.15)", color: "#22c55e" }}>NOVO</span>
+      {/* ── Automações (impressão + WhatsApp) ── */}
+      <Link
+        href="/automacoes"
+        className="rounded-2xl overflow-hidden flex items-center justify-between px-5 py-4 transition-all"
+        style={{ background: "var(--bg-2)", border: "1px solid rgba(255,106,0,0.3)" }}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,106,0,0.1)" }}>
+            <Printer size={16} style={{ color: "#FF6A00" }} />
           </div>
-          <p className="text-xs mb-4" style={{ color: "#475569" }}>
-            Pedido chegou → imprime sozinho na térmica, sem popup, sem clique. Estilo iFood/Neemo.
-          </p>
-
-          {/* Toggle impressão automática (browser fallback) */}
-          <div className="space-y-2 mb-4">
-            <button
-              onClick={() => { setApAtivo(false); localStorage.setItem("vellox-autoprint-ativo", "0"); }}
-              className="w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all"
-              style={{
-                background: !apAtivo ? "rgba(96,165,250,0.07)" : "var(--overlay-sm)",
-                border: `1px solid ${!apAtivo ? "rgba(96,165,250,0.35)" : "var(--border-1)"}`,
-              }}
-            >
-              <div style={{ width: 16, height: 16, borderRadius: "50%", flexShrink: 0, border: `2px solid ${!apAtivo ? "#60a5fa" : "#374151"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {!apAtivo && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#60a5fa" }} />}
-              </div>
-              <div>
-                <p className="text-xs font-semibold" style={{ color: "var(--text-1)" }}>Manual — imprimir por botão</p>
-              </div>
-            </button>
-            <button
-              onClick={() => { setApAtivo(true); localStorage.setItem("vellox-autoprint-ativo", "1"); }}
-              className="w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all"
-              style={{
-                background: apAtivo ? "rgba(34,197,94,0.07)" : "var(--overlay-sm)",
-                border: `1px solid ${apAtivo ? "rgba(34,197,94,0.35)" : "var(--border-1)"}`,
-              }}
-            >
-              <div style={{ width: 16, height: 16, borderRadius: "50%", flexShrink: 0, border: `2px solid ${apAtivo ? "#22c55e" : "#374151"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {apAtivo && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e" }} />}
-              </div>
-              <div>
-                <p className="text-xs font-semibold" style={{ color: "var(--text-1)" }}>Automático — imprime a cada novo pedido</p>
-              </div>
-            </button>
-          </div>
-
-          {/* Tamanho do papel */}
           <div>
-            <p className="text-xs font-semibold mb-2" style={{ color: "#64748b" }}>TAMANHO DO PAPEL</p>
-            <div className="grid grid-cols-2 gap-2">
-              {(["58mm", "80mm"] as const).map((size) => (
-                <button
-                  key={size}
-                  onClick={() => { setPaperSize(size); savePaperSize(size); }}
-                  className="flex items-center gap-2 p-3 rounded-xl text-left transition-all"
-                  style={{
-                    background: paperSize === size ? "rgba(255,106,0,0.08)" : "var(--overlay-sm)",
-                    border: `1px solid ${paperSize === size ? "rgba(255,106,0,0.4)" : "var(--border-1)"}`,
-                  }}
-                >
-                  <div style={{ width: 14, height: 14, borderRadius: "50%", flexShrink: 0, border: `2px solid ${paperSize === size ? "#FF6A00" : "#374151"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    {paperSize === size && <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#FF6A00" }} />}
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold" style={{ color: "var(--text-1)" }}>{size}</p>
-                    <p className="text-xs" style={{ color: "#64748b" }}>{size === "58mm" ? "Bobina estreita" : "Bobina larga"}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
+            <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>Automações</p>
+            <p className="text-xs" style={{ color: "#475569" }}>Impressão automática e confirmação por WhatsApp</p>
           </div>
         </div>
+        <ExternalLink size={14} style={{ color: "#FF6A00", flexShrink: 0 }} />
+      </Link>
 
-        {/* Link para Ofertas Relâmpago */}
-        <Link
-          href="/configuracoes/flash-sales"
-          className="flex items-center justify-between px-5 py-4 transition-all"
-          style={{ borderTop: "1px solid rgba(255,106,0,0.15)", background: "rgba(255,106,0,0.04)" }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,106,0,0.1)" }}>
-              <Zap size={15} style={{ color: "#FF6A00" }} />
-            </div>
-            <div>
-              <p className="text-xs font-bold" style={{ color: "#FF6A00" }}>Ofertas Relâmpago</p>
-              <p className="text-xs" style={{ color: "#475569" }}>Crie promoções com timer no Explorar</p>
-            </div>
+      {/* Link para Ofertas Relâmpago */}
+      <Link
+        href="/configuracoes/flash-sales"
+        className="rounded-2xl overflow-hidden flex items-center justify-between px-5 py-4 transition-all"
+        style={{ background: "var(--bg-2)", border: "1px solid var(--border-1)" }}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,106,0,0.1)" }}>
+            <Zap size={15} style={{ color: "#FF6A00" }} />
           </div>
-          <ChevronRight size={14} style={{ color: "#FF6A00", flexShrink: 0 }} />
-        </Link>
-
-        {/* Link para configuração completa do Print Agent */}
-        <Link
-          href="/configuracoes/impressao"
-          className="flex items-center justify-between px-5 py-4 transition-all"
-          style={{ borderTop: "1px solid rgba(255,106,0,0.15)", background: "rgba(255,106,0,0.04)" }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,106,0,0.1)" }}>
-              <Printer size={15} style={{ color: "#FF6A00" }} />
-            </div>
-            <div>
-              <p className="text-xs font-bold" style={{ color: "#FF6A00" }}>Configurar Vellox Print Agent</p>
-              <p className="text-xs" style={{ color: "#475569" }}>Instalar agente para impressão 100% silenciosa</p>
-            </div>
+          <div>
+            <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>Ofertas Relâmpago</p>
+            <p className="text-xs" style={{ color: "#475569" }}>Crie promoções com timer no Explorar</p>
           </div>
-          <ExternalLink size={14} style={{ color: "#FF6A00", flexShrink: 0 }} />
-        </Link>
-      </div>
+        </div>
+        <ChevronRight size={14} style={{ color: "#FF6A00", flexShrink: 0 }} />
+      </Link>
 
       {/* ── Som de notificação ── */}
       <button

@@ -60,7 +60,7 @@ export default function PrintAgentStatus({ empresaId }: Props) {
 
   if (!info?.online) {
     return (
-      <Link href="/configuracoes/impressao" title="Agente offline — clique para configurar">
+      <Link href="/automacoes/impressao" title="Agente offline — clique para configurar">
         <div
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold"
           style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444" }}
@@ -73,7 +73,7 @@ export default function PrintAgentStatus({ empresaId }: Props) {
   }
 
   return (
-    <Link href="/configuracoes/impressao" title="Print Agent — clique para configurar">
+    <Link href="/automacoes/impressao" title="Print Agent — clique para configurar">
       <div
         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold"
         style={{
