@@ -24,6 +24,9 @@ $tamanhoPapel = if ($cfg.tamanho_papel) { $cfg.tamanho_papel.ToString().Trim() }
 # painel sem precisar reinstalar nada no PC. "moderno" é só o valor inicial
 # até a primeira busca responder.
 $layout = "moderno"
+# Tamanho do destaque (nome/total/pagamento) — normal/grande/extra_grande.
+# Mesma lógica do $layout: vem do banco, não do config.json.
+$fonte = "grande"
 
 if (-not $empresaId -or $empresaId -notmatch '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$') {
     Write-Host "ERRO: empresa_id ausente ou invalido no config.json." -ForegroundColor Red
@@ -92,7 +95,18 @@ function Build-EscPos($p) {
     function xN { param([int]$n=1) for($i=0;$i -lt $n;$i++){$b.Add([byte]10)} }
     function Init  { xB @(27,64) }
     function Bold  { param([bool]$on) xB @(27,69,$(if($on){1}else{0})) }
-    function Big   { param([bool]$on) xB @(29,33,$(if($on){17}else{0})) }
+    # Tamanho do destaque configurável (fonte): 17=0x11 (2x2, "grande",
+    # comportamento de sempre), 1=0x01 (2x altura só, "normal", mais discreto),
+    # 34=0x22 (3x3, "extra_grande", bem maior). Só afeta os trechos já
+    # marcados como destaque (nome, total, pagamento) — o resto do cupom
+    # continua em tamanho normal de texto sempre.
+    function Big   { param([bool]$on)
+        $n = if (-not $on) { 0 }
+             elseif ($fonte -eq "normal") { 1 }
+             elseif ($fonte -eq "extra_grande") { 34 }
+             else { 17 }
+        xB @(29,33,$n)
+    }
     function Align { param([int]$a) xB @(27,97,$a) }
     function Sep   { xT ("="*$W); xN }
     function DSep  { xT ("-"*$W); xN }
@@ -151,16 +165,12 @@ function Build-EscPos($p) {
         Align 0
         Sep
 
-        xT "CLIENTE"; xN
         Big $true
         xT $p.cliente_nome; xN
         Big $false
-        if ($p.cliente_telefone) { xT $p.cliente_telefone; xN }
-        Sep
-
+        if ($p.cliente_telefone) { xT "Tel: $($p.cliente_telefone)"; xN }
         if ($p.tipo_pedido -eq "entrega") {
-            xT "ENDERECO"; xN
-            xWrap "$($p.endereco_entrega)$(if($p.bairro){", $($p.bairro)"})"
+            xWrap "End: $($p.endereco_entrega)$(if($p.bairro){", $($p.bairro)"})"
         } else {
             Align 1; Big $true
             xT "*** RETIRADA NO LOCAL ***"; xN
@@ -172,11 +182,7 @@ function Build-EscPos($p) {
         if ($p.descricao_itens) {
             foreach ($l in ($p.descricao_itens -split "`n")) { if ($l.Trim()) { xWrap $l.Trim() } }
         }
-        if ($p.observacoes) {
-            Sep
-            xT "OBS"; xN
-            xWrap $p.observacoes
-        }
+        if ($p.observacoes) { xWrap "Obs: $($p.observacoes)" }
         Sep
 
         Cols "Subtotal:" "R$ $(([double]$p.valor_pedido).ToString("F2").Replace(".",","))"
@@ -188,9 +194,8 @@ function Build-EscPos($p) {
         Big $false; Align 0
         Sep
 
-        xT "PAGAMENTO"; xN
         Big $true
-        xT $pgto; xN
+        xT "Pgto: $pgto"; xN
         Big $false
         if ($p.troco_para) { xT "Troco p/ R$ $(([double]$p.troco_para).ToString("F2").Replace(".", ","))"; xN }
         Sep
@@ -507,6 +512,7 @@ while ($true) {
             $prefsBody = @{ p_empresa_id = $empresaId; p_agent_token = $agentToken } | ConvertTo-Json
             $prefs = Invoke-RestMethod -Uri $prefsUri -Headers $headers -Method POST -Body $prefsBody -TimeoutSec 15 -ErrorAction Stop
             if ($prefs -and $prefs.Count -gt 0 -and $prefs[0].layout) { $layout = $prefs[0].layout }
+            if ($prefs -and $prefs.Count -gt 0 -and $prefs[0].fonte) { $fonte = $prefs[0].fonte }
         } catch {}
         $layoutRefreshAt = (Get-Date).AddSeconds(60)
     }

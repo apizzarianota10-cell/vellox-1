@@ -26,8 +26,16 @@ interface Props {
     agent_last_seen: string | null;
     layout: string | null;
     agent_versao: string | null;
+    fonte: string | null;
   } | null;
 }
+
+type Destaque = "normal" | "grande" | "extra_grande";
+const DESTAQUE_OPTS: { id: Destaque; label: string }[] = [
+  { id: "normal",       label: "Normal" },
+  { id: "grande",       label: "Grande" },
+  { id: "extra_grande", label: "Extra grande" },
+];
 
 // Versão atual do servidor.ps1 (public/print-server/servidor.ps1, variável
 // $Versao no topo do arquivo) — mantenha os dois em sincronia a cada mudança
@@ -42,6 +50,9 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
   const [fontSize,      setFontSize]      = useState<FontSizeOpt>("m");
   const [layout,        setLayout]        = useState<LayoutOpt>(
     (initialConfig?.layout as LayoutOpt) ?? "classico"
+  );
+  const [destaque,      setDestaque]      = useState<Destaque>(
+    (initialConfig?.fonte as Destaque) ?? "grande"
   );
   const [logoUrl,       setLogoUrl]       = useState("");
   const [autoAtivo,     setAutoAtivo]     = useState(true);
@@ -201,7 +212,7 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
     // (servidor.ps1) lê o layout, pra imprimir automaticamente igual ao
     // que sai na reimpressão — sem precisar reinstalar nada no PC.
     const { error } = await supabase.from("configuracoes_print_agent")
-      .upsert({ empresa_id: empresa.id, layout }, { onConflict: "empresa_id" });
+      .upsert({ empresa_id: empresa.id, layout, fonte: destaque }, { onConflict: "empresa_id" });
     setSavingLayout(false);
     if (error) {
       setLayoutError("Não salvou no banco (ficou só neste navegador): " + error.message);
@@ -547,6 +558,25 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
           ))}
         </div>
 
+        {/* Destaque (impressão automática) */}
+        <div className="mb-3">
+          <p className="text-xs font-semibold mb-2" style={{ color: "#64748b" }}>TAMANHO DO DESTAQUE (nome, total, pagamento — impressão automática)</p>
+          <div className="grid grid-cols-3 gap-2">
+            {DESTAQUE_OPTS.map(opt => (
+              <button
+                key={opt.id}
+                onClick={() => setDestaque(opt.id)}
+                className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl"
+                style={{ background: destaque === opt.id ? "rgba(255,106,0,0.08)" : "var(--overlay-sm)", border: `1px solid ${destaque === opt.id ? "rgba(255,106,0,0.4)" : "var(--border-1)"}` }}
+              >
+                <span className="font-black" style={{ fontSize: opt.id === "normal" ? 13 : opt.id === "grande" ? 17 : 21, color: destaque === opt.id ? "#FF6A00" : "var(--text-1)" }}>Aa</span>
+                <span className="text-xs font-semibold" style={{ color: destaque === opt.id ? "#FF6A00" : "var(--text-2)" }}>{opt.label}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs mt-1.5" style={{ color: "#374151" }}>Diferente do tamanho de fonte acima — esse é o que vale pro agente de impressão local, não pra reimpressão pelo navegador.</p>
+        </div>
+
         {/* Logo */}
         <div className="mb-3">
           <p className="text-xs font-semibold mb-2" style={{ color: "#64748b" }}>LOGO NO CUPOM (URL da imagem)</p>
@@ -578,7 +608,7 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
           style={{ background: layoutSaved ? "rgba(34,197,94,0.15)" : "var(--overlay-sm)", border: `1px solid ${layoutSaved ? "rgba(34,197,94,0.3)" : "var(--border-1)"}`, color: layoutSaved ? "#4ade80" : "var(--text-1)" }}
         >
           {savingLayout ? <Loader2 size={14} className="animate-spin" /> : layoutSaved ? <CheckCircle size={14} /> : null}
-          {savingLayout ? "Salvando..." : layoutSaved ? "Salvo!" : "Salvar layout"}
+          {savingLayout ? "Salvando..." : layoutSaved ? "Salvo!" : "Salvar layout e destaque"}
         </button>
         {layoutError && (
           <p className="text-xs mt-1.5" style={{ color: "#ef4444" }}>{layoutError}</p>
