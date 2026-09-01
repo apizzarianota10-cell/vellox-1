@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // Rate limit por IP: protege contra spam/bot, mas generoso o bastante pra não
@@ -124,6 +124,20 @@ export async function POST(req: NextRequest) {
       console.error("Erro ao inserir pedido:", error);
       return NextResponse.json({ error: "Não foi possível registrar o pedido. Tente novamente." }, { status: 500 });
     }
+
+    // Confirmação por WhatsApp (Z-API, se a loja tiver configurado) — dispara
+    // depois de já ter respondido ao checkout, pra não atrasar a confirmação
+    // na tela do cliente. Best-effort: se a loja não tem Z-API configurado ou
+    // o envio falha, /api/whatsapp/notificar já trata isso sem quebrar nada.
+    after(async () => {
+      try {
+        await fetch(`${req.nextUrl.origin}/api/whatsapp/notificar`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ pedido_id: data.id, tipo: "confirmacao" }),
+        });
+      } catch { /* best-effort */ }
+    });
 
     return NextResponse.json({ id: data.id, tracking_token: data.tracking_token }, { status: 201 });
   } catch (err) {

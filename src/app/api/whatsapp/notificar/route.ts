@@ -14,13 +14,13 @@ function normalizePhone(raw: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { pedido_id } = await req.json();
+    const { pedido_id, tipo } = await req.json() as { pedido_id?: string; tipo?: "confirmacao" | "saiu_entrega" };
     if (!pedido_id) return NextResponse.json({ ok: false, error: "pedido_id required" }, { status: 400 });
 
     // Busca pedido
     const { data: pedido, error: errP } = await supabaseAdmin
       .from("pedidos")
-      .select("id, empresa_id, cliente_nome, cliente_telefone, endereco_entrega, tipo_pedido")
+      .select("id, empresa_id, cliente_nome, cliente_telefone, endereco_entrega, tipo_pedido, tracking_token")
       .eq("id", pedido_id)
       .single();
 
@@ -38,13 +38,30 @@ export async function POST(req: NextRequest) {
     }
 
     const phone = normalizePhone(pedido.cliente_telefone);
-    const tipoMsg = pedido.tipo_pedido === "retirada"
-      ? "está pronto para retirada"
-      : "saiu para entrega e está a caminho";
-    const message =
-      `Olá ${pedido.cliente_nome}! 🚀\n` +
-      `Seu pedido ${tipoMsg}. Em breve chegará até você!\n\n` +
-      `Obrigado pela preferência! 😊`;
+
+    let message: string;
+    if (tipo === "confirmacao") {
+      const { data: empresa } = await supabaseAdmin
+        .from("empresas")
+        .select("nome")
+        .eq("id", pedido.empresa_id)
+        .single();
+      const link = pedido.tracking_token
+        ? `\n\nAcompanhe seu pedido em tempo real: https://www.appvellox.online/pedido/${pedido.tracking_token}`
+        : "";
+      message =
+        `Olá ${pedido.cliente_nome}! ✅\n` +
+        `Recebemos seu pedido na ${empresa?.nome ?? "loja"}!${link}\n\n` +
+        `Obrigado pela preferência! 😊`;
+    } else {
+      const tipoMsg = pedido.tipo_pedido === "retirada"
+        ? "está pronto para retirada"
+        : "saiu para entrega e está a caminho";
+      message =
+        `Olá ${pedido.cliente_nome}! 🚀\n` +
+        `Seu pedido ${tipoMsg}. Em breve chegará até você!\n\n` +
+        `Obrigado pela preferência! 😊`;
+    }
 
     const zApiUrl = `https://api.z-api.io/instances/${config.whatsapp_instance_id}/token/${config.whatsapp_token}/send-text`;
     const resp = await fetch(zApiUrl, {

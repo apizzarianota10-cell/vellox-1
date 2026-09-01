@@ -37,6 +37,7 @@ const DEFAULT_CONFIG: Omit<ConfiguracaoLoja, "empresa_id" | "updated_at"> = {
   preco_padrao_sabor: 0,
   whatsapp_instance_id: null,
   whatsapp_token: null,
+  telefone_contato: null,
   horario_funcionamento: null,
   modo_calculo_pizza: "maior_valor",
 };
@@ -86,6 +87,7 @@ export default function CatalogoClient({
           preco_padrao_sabor: initialConfig.preco_padrao_sabor ?? 0,
           whatsapp_instance_id: initialConfig.whatsapp_instance_id ?? null,
           whatsapp_token: initialConfig.whatsapp_token ?? null,
+          telefone_contato: initialConfig.telefone_contato ?? null,
           horario_funcionamento: initialConfig.horario_funcionamento ?? null,
           modo_calculo_pizza: initialConfig.modo_calculo_pizza ?? "maior_valor",
         }
@@ -516,6 +518,7 @@ export default function CatalogoClient({
       taxa_entrega: config.taxa_entrega,
       whatsapp_instance_id: config.whatsapp_instance_id,
       whatsapp_token: config.whatsapp_token,
+      telefone_contato: config.telefone_contato,
       updated_at: new Date().toISOString(),
     };
   }
@@ -1821,6 +1824,48 @@ export default function CatalogoClient({
                       </span>
                     )}
                   </div>
+                </div>
+
+                {/* WhatsApp */}
+                <div style={{ background: "var(--bg-1)", borderRadius: 16, padding: "18px 20px", border: "1px solid var(--border-1)" }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)", margin: "0 0 14px" }}>WhatsApp</p>
+
+                  <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", display: "block", marginBottom: 6 }}>
+                    Telefone de contato
+                  </label>
+                  <input
+                    value={config.telefone_contato ?? ""}
+                    onChange={e => setConfig(c => ({ ...c, telefone_contato: e.target.value }))}
+                    placeholder="(11) 99999-9999"
+                    style={{ width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border-1)", fontSize: 13, color: "var(--text-1)", background: "var(--bg-input)", boxSizing: "border-box" }}
+                  />
+                  <p style={{ fontSize: 10, color: "var(--text-4)", margin: "5px 0 0" }}>
+                    Aparece como botão &quot;Falar no WhatsApp&quot; na página de acompanhamento do pedido do cliente.
+                  </p>
+
+                  <div style={{ height: 1, background: "var(--border-1)", margin: "14px 0" }} />
+
+                  <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", display: "block", marginBottom: 6 }}>
+                    Instance ID (Z-API)
+                  </label>
+                  <input
+                    value={config.whatsapp_instance_id ?? ""}
+                    onChange={e => setConfig(c => ({ ...c, whatsapp_instance_id: e.target.value || null }))}
+                    placeholder="Opcional"
+                    style={{ width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border-1)", fontSize: 13, color: "var(--text-1)", background: "var(--bg-input)", boxSizing: "border-box", marginBottom: 10 }}
+                  />
+                  <label style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", display: "block", marginBottom: 6 }}>
+                    Token (Z-API)
+                  </label>
+                  <input
+                    value={config.whatsapp_token ?? ""}
+                    onChange={e => setConfig(c => ({ ...c, whatsapp_token: e.target.value || null }))}
+                    placeholder="Opcional"
+                    style={{ width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border-1)", fontSize: 13, color: "var(--text-1)", background: "var(--bg-input)", boxSizing: "border-box" }}
+                  />
+                  <p style={{ fontSize: 10, color: "var(--text-4)", margin: "5px 0 0" }}>
+                    Preenchendo os dois campos acima (conta no z-api.io), o cliente recebe uma confirmação automática por WhatsApp assim que o pedido é feito, com o link de acompanhamento.
+                  </p>
                 </div>
 
                 {/* Aberto / fechado */}

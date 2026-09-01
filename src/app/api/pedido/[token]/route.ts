@@ -21,7 +21,7 @@ export async function GET(
       descricao_itens, observacoes,
       valor_pedido, valor_motoboy, forma_pagamento, troco_para,
       motoboy:motoboys(nome, telefone, latitude, longitude),
-      empresa:empresas(nome)
+      empresa:empresas(nome, configuracao_loja(telefone_contato))
     `)
     .eq("tracking_token", token)
     .single();

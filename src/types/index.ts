@@ -232,6 +232,7 @@ export interface ConfiguracaoLoja {
   updated_at: string;
   whatsapp_instance_id: string | null;
   whatsapp_token: string | null;
+  telefone_contato: string | null;
   horario_funcionamento: string | null;
   modo_calculo_pizza: "maior_valor" | "proporcional" | null;
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { CheckCircle, Clock, ChevronRight, Package, Bike, Home, MapPin, Phone, RefreshCw, Zap, Bell, BellRing, X } from "lucide-react";
+import { CheckCircle, Clock, ChevronRight, Package, Bike, Home, MapPin, Phone, RefreshCw, Zap, Bell, BellRing, X, MessageCircle } from "lucide-react";
 
 type Status =
   | "em_fila" | "em_preparo" | "finalizado"
@@ -60,7 +60,17 @@ interface Pedido {
   forma_pagamento: string | null;
   troco_para: number | null;
   motoboy: { nome: string; telefone: string; latitude: number | null; longitude: number | null } | null;
-  empresa: { nome: string } | null;
+  empresa: { nome: string; configuracao_loja: { telefone_contato: string | null } | { telefone_contato: string | null }[] | null } | null;
+}
+
+function linkWhatsappLoja(pedido: Pedido): string | null {
+  const cfg = pedido.empresa?.configuracao_loja;
+  const raw = (Array.isArray(cfg) ? cfg[0]?.telefone_contato : cfg?.telefone_contato) ?? "";
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length < 8) return null;
+  const numero = digits.startsWith("55") ? digits : `55${digits}`;
+  const texto = encodeURIComponent(`Olá! Sobre meu pedido #${pedido.id.slice(0, 8).toUpperCase()} na ${pedido.empresa?.nome ?? "loja"}...`);
+  return `https://wa.me/${numero}?text=${texto}`;
 }
 
 const PGTO_LABELS: Record<string, string> = {
@@ -184,6 +194,7 @@ export default function TrackingClient({ token }: { token: string }) {
   const currentStep = isCancelado ? -1 : getStepIndex(steps, pedido.status);
   const total       = pedido.valor_pedido + pedido.valor_motoboy;
   const cor         = isCancelado ? "#ef4444" : isEntregue ? "#22c55e" : "#FF6A00";
+  const waLink      = linkWhatsappLoja(pedido);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f7f7f8", fontFamily: "system-ui,sans-serif" }}>
@@ -418,6 +429,20 @@ export default function TrackingClient({ token }: { token: string }) {
               </button>
             )}
           </div>
+        )}
+
+        {/* Falar com a loja no WhatsApp */}
+        {waLink && (
+          <a href={waLink} target="_blank" rel="noopener noreferrer"
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              padding: "14px", borderRadius: 16, marginBottom: 12,
+              background: "#25D366", boxShadow: "0 6px 18px rgba(37,211,102,0.35)",
+              textDecoration: "none", color: "#fff", fontSize: 14, fontWeight: 800,
+            }}>
+            <MessageCircle size={17} />
+            Falar com a loja no WhatsApp
+          </a>
         )}
 
         {/* Link meus pedidos */}
