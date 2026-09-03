@@ -77,9 +77,9 @@ function StatusBadge({ ativa }: { ativa: boolean }) {
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
       style={{
-        background: ativa ? "rgba(34,197,94,0.12)" : "rgba(255,106,0,0.12)",
-        color: ativa ? "#4ade80" : "#FF8C1A",
-        border: `1px solid ${ativa ? "rgba(34,197,94,0.25)" : "rgba(255,106,0,0.25)"}`,
+        background: ativa ? "rgba(34,197,94,0.12)" : "rgba(228,0,43,0.12)",
+        color: ativa ? "#4ade80" : "#FFC72C",
+        border: `1px solid ${ativa ? "rgba(34,197,94,0.25)" : "rgba(228,0,43,0.25)"}`,
       }}>
       {ativa ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
       {ativa ? "Ativa" : "Inativa"}
@@ -128,14 +128,14 @@ function ExplorarGodPanel() {
   const [savingBanner, setSavingBanner] = useState(false);
   const [savingCat,    setSavingCat]    = useState(false);
   const [savingEmp,    setSavingEmp]    = useState<string | null>(null);
-  const [bannerForm, setBannerForm] = useState({ titulo: "", subtitulo: "", imagem_url: "", link_url: "", cor_fundo: "#FF6A00" });
+  const [bannerForm, setBannerForm] = useState({ titulo: "", subtitulo: "", imagem_url: "", link_url: "", cor_fundo: "#E4002B" });
   const [catForm,    setCatForm]    = useState({ nome: "", emoji: "🍽️" });
   const [tab, setTab] = useState<"empresas" | "banners" | "categorias" | "flash_sales">("empresas");
   const [empSearch, setEmpSearch] = useState("");
 
   // Banner editing
   const [editingBanner,  setEditingBanner]  = useState<string | null>(null);
-  const [editBannerForm, setEditBannerForm] = useState({ titulo: "", subtitulo: "", imagem_url: "", link_url: "", cor_fundo: "#FF6A00" });
+  const [editBannerForm, setEditBannerForm] = useState({ titulo: "", subtitulo: "", imagem_url: "", link_url: "", cor_fundo: "#E4002B" });
   const [savingEditBanner, setSavingEditBanner] = useState(false);
 
   // Category editing
@@ -178,7 +178,7 @@ function ExplorarGodPanel() {
     setSavingBanner(true);
     try {
       await fetch("/api/god/explorar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "banner", ...bannerForm }) });
-      setBannerForm({ titulo: "", subtitulo: "", imagem_url: "", link_url: "", cor_fundo: "#FF6A00" });
+      setBannerForm({ titulo: "", subtitulo: "", imagem_url: "", link_url: "", cor_fundo: "#E4002B" });
       await load();
     } finally { setSavingBanner(false); }
   }
@@ -252,8 +252,8 @@ function ExplorarGodPanel() {
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,106,0,0.12)" }}>
-          <Compass size={18} style={{ color: "#FF6A00" }} />
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(228,0,43,0.12)" }}>
+          <Compass size={18} style={{ color: "#E4002B" }} />
         </div>
         <div>
           <h2 className="text-base font-bold text-white">Gerenciar Explorar</h2>
@@ -263,7 +263,7 @@ function ExplorarGodPanel() {
           <a href="/god/explorar-editor" className="px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5" style={{ background: "rgba(129,140,248,0.12)", color: "#818cf8", border: "1px solid rgba(129,140,248,0.25)" }}>
             <Edit2 size={11} /> Editor visual
           </a>
-          <a href="/explorar" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-xl text-xs font-semibold" style={{ background: "rgba(255,106,0,0.1)", color: "#FF6A00", border: "1px solid rgba(255,106,0,0.25)" }}>
+          <a href="/explorar" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 rounded-xl text-xs font-semibold" style={{ background: "rgba(228,0,43,0.1)", color: "#E4002B", border: "1px solid rgba(228,0,43,0.25)" }}>
             Ver página →
           </a>
         </div>
@@ -280,7 +280,7 @@ function ExplorarGodPanel() {
           <button key={key} onClick={() => setTab(key)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
             style={tab === key
-              ? { background: "rgba(255,106,0,0.15)", color: "#FF6A00", border: "1px solid rgba(255,106,0,0.3)" }
+              ? { background: "rgba(228,0,43,0.15)", color: "#E4002B", border: "1px solid rgba(228,0,43,0.3)" }
               : { background: "transparent", color: "#4b5563", border: "1px solid transparent" }}>
             <Icon size={12} /> {label}
             {key === "empresas" && empExtras.filter(e => e.destaque).length > 0 && (
@@ -293,7 +293,7 @@ function ExplorarGodPanel() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-12"><Loader2 size={24} className="animate-spin" style={{ color: "#FF6A00" }} /></div>
+        <div className="flex items-center justify-center py-12"><Loader2 size={24} className="animate-spin" style={{ color: "#E4002B" }} /></div>
       ) : tab === "empresas" ? (
         /* ── ABA EMPRESAS ── */
         <div className="space-y-3">
@@ -397,7 +397,7 @@ function ExplorarGodPanel() {
               <input type="color" value={bannerForm.cor_fundo} onChange={e => setBannerForm(p => ({ ...p, cor_fundo: e.target.value }))} className="w-10 h-10 rounded-lg cursor-pointer border-0" style={{ background: "transparent" }} />
               <span className="text-xs" style={{ color: "#6b7280" }}>Cor de fundo do banner</span>
             </div>
-            <button onClick={addBanner} disabled={savingBanner || !bannerForm.titulo.trim()} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold" style={{ background: "rgba(255,106,0,0.12)", color: "#FF6A00", border: "1px solid rgba(255,106,0,0.3)", opacity: !bannerForm.titulo.trim() ? 0.4 : 1 }}>
+            <button onClick={addBanner} disabled={savingBanner || !bannerForm.titulo.trim()} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold" style={{ background: "rgba(228,0,43,0.12)", color: "#E4002B", border: "1px solid rgba(228,0,43,0.3)", opacity: !bannerForm.titulo.trim() ? 0.4 : 1 }}>
               {savingBanner ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
               Adicionar Banner
             </button>
@@ -450,7 +450,7 @@ function ExplorarGodPanel() {
               <input style={{ ...IS, width: 64, flexShrink: 0, textAlign: "center", fontSize: 20 }} placeholder="🍽️" value={catForm.emoji} onChange={e => setCatForm(p => ({ ...p, emoji: e.target.value }))} />
               <input style={{ ...IS, flex: 1 }} placeholder="Nome da categoria *" value={catForm.nome} onChange={e => setCatForm(p => ({ ...p, nome: e.target.value }))} />
             </div>
-            <button onClick={addCategoria} disabled={savingCat || !catForm.nome.trim()} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold" style={{ background: "rgba(255,106,0,0.12)", color: "#FF6A00", border: "1px solid rgba(255,106,0,0.3)", opacity: !catForm.nome.trim() ? 0.4 : 1 }}>
+            <button onClick={addCategoria} disabled={savingCat || !catForm.nome.trim()} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold" style={{ background: "rgba(228,0,43,0.12)", color: "#E4002B", border: "1px solid rgba(228,0,43,0.3)", opacity: !catForm.nome.trim() ? 0.4 : 1 }}>
               {savingCat ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
               Adicionar Categoria
             </button>
@@ -488,13 +488,13 @@ function ExplorarGodPanel() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-xs" style={{ color: "#6b7280" }}>Todas as ofertas relâmpago · pode excluir qualquer uma</p>
-            <button onClick={() => { setLoadingFs(true); fetch("/api/god/flash-sales").then(r => r.json()).then(d => setFlashSales(d.flash_sales ?? [])).finally(() => setLoadingFs(false)); }} className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg" style={{ color: "#FF6A00", background: "rgba(255,106,0,0.08)", border: "1px solid rgba(255,106,0,0.2)" }}>
+            <button onClick={() => { setLoadingFs(true); fetch("/api/god/flash-sales").then(r => r.json()).then(d => setFlashSales(d.flash_sales ?? [])).finally(() => setLoadingFs(false)); }} className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg" style={{ color: "#E4002B", background: "rgba(228,0,43,0.08)", border: "1px solid rgba(228,0,43,0.2)" }}>
               <RefreshCw size={11} className={loadingFs ? "animate-spin" : ""} /> Atualizar
             </button>
           </div>
 
           {loadingFs ? (
-            <div className="flex items-center justify-center py-12"><Loader2 size={22} className="animate-spin" style={{ color: "#FF6A00" }} /></div>
+            <div className="flex items-center justify-center py-12"><Loader2 size={22} className="animate-spin" style={{ color: "#E4002B" }} /></div>
           ) : flashSales.length === 0 ? (
             <p className="text-sm text-center py-8" style={{ color: "#4b5563" }}>Nenhuma oferta relâmpago cadastrada.</p>
           ) : (
@@ -504,10 +504,10 @@ function ExplorarGodPanel() {
                 const pct = fs.preco_original && fs.preco_original > fs.preco_flash
                   ? Math.round((1 - fs.preco_flash / fs.preco_original) * 100) : null;
                 return (
-                  <div key={fs.id} className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: "#0f0f0f", border: `1px solid ${expired ? "#1a1a1a" : "rgba(255,106,0,0.2)"}`, opacity: expired ? 0.6 : 1 }}>
+                  <div key={fs.id} className="flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: "#0f0f0f", border: `1px solid ${expired ? "#1a1a1a" : "rgba(228,0,43,0.2)"}`, opacity: expired ? 0.6 : 1 }}>
                     {fs.imagem_url
                       ? <img src={fs.imagem_url} alt={fs.nome} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
-                      : <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-xl" style={{ background: "rgba(255,106,0,0.1)" }}>⚡</div>}
+                      : <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 text-xl" style={{ background: "rgba(228,0,43,0.1)" }}>⚡</div>}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-semibold text-white truncate">{fs.nome}</p>
@@ -515,7 +515,7 @@ function ExplorarGodPanel() {
                       </div>
                       <p className="text-xs truncate" style={{ color: "#6b7280" }}>{fs.empresa_nome}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs font-black" style={{ color: "#FF6A00" }}>R$ {Number(fs.preco_flash).toFixed(2).replace(".", ",")}</span>
+                        <span className="text-xs font-black" style={{ color: "#E4002B" }}>R$ {Number(fs.preco_flash).toFixed(2).replace(".", ",")}</span>
                         <span className="text-xs" style={{ color: expired ? "#ef4444" : "#22c55e" }}>
                           {expired ? "Expirada" : `até ${new Date(fs.termina_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`}
                         </span>
@@ -770,7 +770,7 @@ export default function GodClient({ empresas, error }: Props) {
           </button>
           <button onClick={handleLogout}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium"
-            style={{ border: "1px solid rgba(255,106,0,0.2)", color: "#FF8C1A", background: "rgba(255,106,0,0.06)" }}>
+            style={{ border: "1px solid rgba(228,0,43,0.2)", color: "#FFC72C", background: "rgba(228,0,43,0.06)" }}>
             <LogOut size={13} />
             <span className="hidden sm:inline">Sair</span>
           </button>
@@ -946,7 +946,7 @@ export default function GodClient({ empresas, error }: Props) {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
           {[
-            { icon: Building2, label: "Empresas",           value: empresas.length, color: "#FF6A00" },
+            { icon: Building2, label: "Empresas",           value: empresas.length, color: "#E4002B" },
             { icon: Shield,    label: "Assinaturas Ativas", value: ativas,          color: "#4ade80" },
             { icon: ShoppingBag, label: "Total de Pedidos", value: totalPedidos,    color: "#fbbf24" },
             { icon: Users,     label: "Total de Motoboys",  value: totalMotoboys,   color: "#818cf8" },
@@ -982,7 +982,7 @@ export default function GodClient({ empresas, error }: Props) {
 
         {error && (
           <div className="mb-5 px-4 py-3 rounded-xl text-sm"
-            style={{ background: "rgba(255,106,0,0.08)", border: "1px solid rgba(255,106,0,0.2)", color: "#FF8C1A" }}>
+            style={{ background: "rgba(228,0,43,0.08)", border: "1px solid rgba(228,0,43,0.2)", color: "#FFC72C" }}>
             Erro ao carregar empresas: {error}
           </div>
         )}
@@ -1058,7 +1058,7 @@ export default function GodClient({ empresas, error }: Props) {
                         </button>
                         <button onClick={() => setDiasTarget(null)}
                           className="flex items-center justify-center w-5 h-5 rounded"
-                          style={{ background: "rgba(255,106,0,0.08)", color: "#FF8C1A", border: "none", cursor: "pointer" }}>
+                          style={{ background: "rgba(228,0,43,0.08)", color: "#FFC72C", border: "none", cursor: "pointer" }}>
                           <XCircle size={9} />
                         </button>
                       </div>
@@ -1091,7 +1091,7 @@ export default function GodClient({ empresas, error }: Props) {
                     {/* Delete */}
                     <button onClick={() => deleteEmpresa(empresa)} disabled={deleting === empresa.id}
                       className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg"
-                      style={{ color: "#FF8C1A", background: "rgba(255,106,0,0.06)", border: "1px solid rgba(255,106,0,0.15)", cursor: "pointer" }}>
+                      style={{ color: "#FFC72C", background: "rgba(228,0,43,0.06)", border: "1px solid rgba(228,0,43,0.15)", cursor: "pointer" }}>
                       {deleting === empresa.id ? <RefreshCw size={11} className="animate-spin" /> : <Trash2 size={11} />}
                       {deleting === empresa.id ? "..." : "Excluir"}
                     </button>
@@ -1136,7 +1136,7 @@ export default function GodClient({ empresas, error }: Props) {
                                 <button onClick={() => removeMotoboy(empresa.id, mb.id)} disabled={removingMb === mb.id}
                                   className="p-1 rounded-lg shrink-0"
                                   style={{ color: "#374151", background: "none", border: "none", cursor: "pointer" }}
-                                  onMouseEnter={e => (e.currentTarget.style.color = "#FF8C1A")}
+                                  onMouseEnter={e => (e.currentTarget.style.color = "#FFC72C")}
                                   onMouseLeave={e => (e.currentTarget.style.color = "#374151")}>
                                   {removingMb === mb.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
                                 </button>

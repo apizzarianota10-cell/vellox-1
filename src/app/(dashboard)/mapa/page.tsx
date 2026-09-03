@@ -35,7 +35,7 @@ export default async function MapaPage() {
           {[
             { icon: Bike,    value: emRota.length,      label: "Em rota",    color: "#fbbf24" },
             { icon: Users,   value: disponiveis.length,  label: "Livres",     color: "#22c55e" },
-            { icon: MapPin,  value: pedidos.filter(p => p.status === "em_rota_de_entrega").length, label: "Entregas", color: "#FF6A00" },
+            { icon: MapPin,  value: pedidos.filter(p => p.status === "em_rota_de_entrega").length, label: "Entregas", color: "#E4002B" },
           ].map(({ icon: Icon, value, label, color }) => (
             <div key={label} className="flex items-center gap-2 px-3 py-2 rounded-xl"
               style={{ background: "#0f0f0f", border: "1px solid #1a1a1a" }}>
@@ -61,7 +61,7 @@ export default async function MapaPage() {
         {/* Sidebar — entregas ativas (hidden on mobile) */}
         <div className="hidden md:block w-72 shrink-0 overflow-y-auto p-4 space-y-3"
           style={{ borderLeft: "1px solid #1a1a1a" }}>
-          <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#FF6A00" }}>
+          <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: "#E4002B" }}>
             Entregas ativas
           </p>
 

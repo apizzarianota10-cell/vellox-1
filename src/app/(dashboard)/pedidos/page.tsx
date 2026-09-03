@@ -50,7 +50,7 @@ export default async function PedidosPage() {
       autoDespacho={empresa?.despacho_automatico ?? false}
       produtos={(produtosRes.data ?? []) as Produto[]}
       modoCalculo={(configRes.data?.modo_calculo_pizza ?? "maior_valor") as "maior_valor" | "proporcional"}
-      corPrincipal={configRes.data?.cor_principal ?? "#FF6A00"}
+      corPrincipal={configRes.data?.cor_principal ?? "#E4002B"}
     />
   );
 }

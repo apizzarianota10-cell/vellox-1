@@ -88,7 +88,7 @@ function borderStyle(pedido: Pedido): { borderCss: string; headerText: string; h
   if (pedido.tipo_pedido === "retirada") {
     return { borderCss: "2px solid #000", headerText: "— RETIRADA —", headerBg: "rgba(96,165,250,0.06)" };
   }
-  return { borderCss: "2px dashed #000", headerText: "- DELIVERY -", headerBg: "rgba(255,106,0,0.04)" };
+  return { borderCss: "2px dashed #000", headerText: "- DELIVERY -", headerBg: "rgba(228,0,43,0.04)" };
 }
 
 export function formatReceipt(

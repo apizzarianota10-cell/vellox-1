@@ -32,11 +32,11 @@ const DEFAULTS: HeroConfig = {
   hero_titulo:    "Peça comida no",
   hero_destaque:  "seu jeito",
   hero_subtitulo: "Descubra restaurantes incríveis e peça com entrega rápida",
-  accent_color:   "#FF6A00",
+  accent_color:   "#E4002B",
 };
 
 const ACCENT_PRESETS = [
-  "#FF6A00", "#ef4444", "#f97316", "#eab308",
+  "#E4002B", "#ef4444", "#E4002B", "#eab308",
   "#22c55e", "#06b6d4", "#818cf8", "#ec4899",
   "#a78bfa", "#14b8a6", "#e11d48", "#7c3aed",
 ];
@@ -110,7 +110,7 @@ function HeroPreview({ cfg, banners, cats }: { cfg: HeroConfig; banners: Banner[
             {banners.length > 1 && (
               <div style={{ position: "absolute", bottom: 14, right: 16, display: "flex", gap: 5 }}>
                 {banners.map((_, i) => (
-                  <div key={i} style={{ width: i === 0 ? 16 : 5, height: 5, borderRadius: 99, background: i === 0 ? "#FF6A00" : "rgba(255,255,255,0.3)" }} />
+                  <div key={i} style={{ width: i === 0 ? 16 : 5, height: 5, borderRadius: 99, background: i === 0 ? "#E4002B" : "rgba(255,255,255,0.3)" }} />
                 ))}
               </div>
             )}
@@ -119,7 +119,7 @@ function HeroPreview({ cfg, banners, cats }: { cfg: HeroConfig; banners: Banner[
       </div>
 
       {/* Stats bar */}
-      <div style={{ margin: "0 16px", padding: "10px 20px", borderRadius: 14, background: "rgba(255,106,0,0.08)", border: "1px solid rgba(255,106,0,0.12)", display: "flex", alignItems: "center", gap: 16, justifyContent: "center" }}>
+      <div style={{ margin: "0 16px", padding: "10px 20px", borderRadius: 14, background: "rgba(228,0,43,0.08)", border: "1px solid rgba(228,0,43,0.12)", display: "flex", alignItems: "center", gap: 16, justifyContent: "center" }}>
         <span style={{ fontSize: 12, color: "#9ca3af" }}><span style={{ color: "#22c55e", fontWeight: 900, fontSize: 14 }}>●</span> lojas abertas agora</span>
         <span style={{ width: 1, height: 16, background: "rgba(255,255,255,0.08)" }} />
         <span style={{ fontSize: 12, color: "#9ca3af" }}><span style={{ color: a, fontWeight: 900, fontSize: 14 }}>⚡</span> lojas no Vellox</span>
@@ -147,14 +147,14 @@ function HeroPreview({ cfg, banners, cats }: { cfg: HeroConfig; banners: Banner[
 // ─── BANNER FORM ─────────────────────────────────────────────────────────────
 
 function BannerForm({ onAdd }: { onAdd: (b: Omit<Banner, "id" | "ativo" | "ordem">) => Promise<void> }) {
-  const [f, setF] = useState({ titulo: "", subtitulo: "", imagem_url: "", link_url: "", cor_fundo: "#FF6A00" });
+  const [f, setF] = useState({ titulo: "", subtitulo: "", imagem_url: "", link_url: "", cor_fundo: "#E4002B" });
   const [saving, setSaving] = useState(false);
 
   async function submit() {
     if (!f.titulo.trim()) return;
     setSaving(true);
     await onAdd(f);
-    setF({ titulo: "", subtitulo: "", imagem_url: "", link_url: "", cor_fundo: "#FF6A00" });
+    setF({ titulo: "", subtitulo: "", imagem_url: "", link_url: "", cor_fundo: "#E4002B" });
     setSaving(false);
   }
 
@@ -183,7 +183,7 @@ function BannerForm({ onAdd }: { onAdd: (b: Omit<Banner, "id" | "ativo" | "ordem
         </div>
       </div>
       <button onClick={submit} disabled={saving || !f.titulo.trim()}
-        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px", borderRadius: 10, background: "rgba(255,106,0,0.12)", border: "1px solid rgba(255,106,0,0.3)", color: "#FF6A00", fontSize: 12, fontWeight: 700, cursor: !f.titulo.trim() ? "not-allowed" : "pointer", opacity: !f.titulo.trim() ? 0.5 : 1 }}>
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px", borderRadius: 10, background: "rgba(228,0,43,0.12)", border: "1px solid rgba(228,0,43,0.3)", color: "#E4002B", fontSize: 12, fontWeight: 700, cursor: !f.titulo.trim() ? "not-allowed" : "pointer", opacity: !f.titulo.trim() ? 0.5 : 1 }}>
         {saving ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />} Adicionar Banner
       </button>
     </div>
@@ -349,7 +349,7 @@ export default function ExplorarEditorClient() {
                 <input type="text" value={hero.hero_titulo} onChange={e => setHero(p => ({ ...p, hero_titulo: e.target.value }))} style={inputStyle} placeholder="Ex: Peça comida no" />
               </Field>
 
-              <Field label="PALAVRA EM DESTAQUE (laranja)">
+              <Field label="PALAVRA EM DESTAQUE (vermelho)">
                 <input type="text" value={hero.hero_destaque} onChange={e => setHero(p => ({ ...p, hero_destaque: e.target.value }))} style={inputStyle} placeholder="Ex: seu jeito" />
                 <p style={{ fontSize: 10, color: "#4b5563", marginTop: 4 }}>Aparece em destaque com brilho ao lado do título</p>
               </Field>
@@ -370,7 +370,7 @@ export default function ExplorarEditorClient() {
                   <input type="color" value={hero.accent_color} onChange={e => setHero(p => ({ ...p, accent_color: e.target.value }))}
                     style={{ width: 36, height: 36, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", padding: 2, cursor: "pointer", background: "transparent" }} />
                   <input type="text" value={hero.accent_color} onChange={e => setHero(p => ({ ...p, accent_color: e.target.value }))}
-                    style={{ ...inputStyle, width: 110 }} placeholder="#FF6A00" />
+                    style={{ ...inputStyle, width: 110 }} placeholder="#E4002B" />
                   <div style={{ width: 36, height: 36, borderRadius: 8, background: hero.accent_color, border: "1px solid rgba(255,255,255,0.1)", flexShrink: 0 }} />
                 </div>
               </Field>
@@ -381,7 +381,7 @@ export default function ExplorarEditorClient() {
                 {saving ? "Salvando..." : saved ? "Salvo com sucesso!" : "Salvar Hero"}
               </button>
 
-              <div style={{ borderRadius: 12, padding: "10px 14px", background: "rgba(255,106,0,0.05)", border: "1px solid rgba(255,106,0,0.1)" }}>
+              <div style={{ borderRadius: 12, padding: "10px 14px", background: "rgba(228,0,43,0.05)", border: "1px solid rgba(228,0,43,0.1)" }}>
                 <p style={{ fontSize: 11, color: "#6b7280", lineHeight: 1.6 }}>
                   💡 O preview ao lado atualiza em tempo real. Clique em "Salvar Hero" para aplicar na landing page real.
                 </p>
@@ -493,7 +493,7 @@ export default function ExplorarEditorClient() {
                     style={{ ...inputStyle, flex: 1 }} placeholder="Nome da categoria" />
                 </div>
                 <button onClick={addCategoria} disabled={savingCat || !catForm.nome.trim()}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px", borderRadius: 10, background: "rgba(255,106,0,0.12)", border: "1px solid rgba(255,106,0,0.3)", color: "#FF6A00", fontSize: 12, fontWeight: 700, cursor: !catForm.nome.trim() ? "not-allowed" : "pointer", opacity: !catForm.nome.trim() ? 0.5 : 1 }}>
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px", borderRadius: 10, background: "rgba(228,0,43,0.12)", border: "1px solid rgba(228,0,43,0.3)", color: "#E4002B", fontSize: 12, fontWeight: 700, cursor: !catForm.nome.trim() ? "not-allowed" : "pointer", opacity: !catForm.nome.trim() ? 0.5 : 1 }}>
                   {savingCat ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />} Adicionar
                 </button>
               </div>

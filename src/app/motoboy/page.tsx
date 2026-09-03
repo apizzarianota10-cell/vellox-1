@@ -157,7 +157,7 @@ function AddressMapLink({ lat, lng, label, routeAddress }: {
     ? `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`
     : `https://waze.com/ul?q=${encodeURIComponent(dest)}&navigate=yes`;
   return (
-    <div className="mt-2 rounded-xl" style={{ border: "1px solid rgba(255,106,0,0.2)", background: "rgba(255,106,0,0.05)" }}>
+    <div className="mt-2 rounded-xl" style={{ border: "1px solid rgba(228,0,43,0.2)", background: "rgba(228,0,43,0.05)" }}>
       <div className="px-3 py-2.5">
         <p className="text-xs text-white truncate mb-2">{label}</p>
         <div className="grid grid-cols-2 gap-2">
@@ -204,7 +204,7 @@ function getBadges(total: number, km: number): BadgeInfo[] {
   if (total >= 50)  b.push({ label: "Top Entregador",  emoji: "🏆", color: "#fbbf24" });
   if (total >= 100) b.push({ label: "Lendário",        emoji: "👑", color: "#a78bfa" });
   if (km >= 100)    b.push({ label: "Rodante",         emoji: "🛣️",  color: "#34d399" });
-  if (km >= 500)    b.push({ label: "Maratonista",     emoji: "🚀", color: "#FF8C1A" });
+  if (km >= 500)    b.push({ label: "Maratonista",     emoji: "🚀", color: "#FFC72C" });
   return b;
 }
 
@@ -1232,7 +1232,7 @@ export default function MotoboyApp() {
         <button
           onClick={devolverParaFila}
           className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-xs font-bold"
-          style={{ background: "rgba(255,106,0,0.07)", border: "1px solid rgba(255,106,0,0.18)", color: "#FF6A00" }}>
+          style={{ background: "rgba(228,0,43,0.07)", border: "1px solid rgba(228,0,43,0.18)", color: "#E4002B" }}>
           <X size={13} /> Devolver para fila
         </button>
       </div>
@@ -1306,15 +1306,15 @@ export default function MotoboyApp() {
   if (step === "app" && motoboy && !gpsAtivo) {
     return (
       <div data-theme="dark" className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: "#080808" }}>
-        <div className="w-16 h-16 rounded-3xl flex items-center justify-center mb-6" style={{ background: "rgba(255,106,0,0.1)" }}>
-          <Navigation size={28} style={{ color: "#FF6A00" }} />
+        <div className="w-16 h-16 rounded-3xl flex items-center justify-center mb-6" style={{ background: "rgba(228,0,43,0.1)" }}>
+          <Navigation size={28} style={{ color: "#E4002B" }} />
         </div>
         <h2 className="text-xl font-bold text-white mb-3 text-center">GPS obrigatório</h2>
         <p className="text-sm text-center mb-2" style={{ color: "#94a3b8" }}>
           O Vellox precisa da sua localização para atribuir entregas.
         </p>
         <p className="text-xs text-center mb-8 px-4 py-3 rounded-xl"
-          style={{ background: "rgba(255,106,0,0.06)", color: "#FF8C1A", border: "1px solid rgba(255,106,0,0.15)" }}>
+          style={{ background: "rgba(228,0,43,0.06)", color: "#FFC72C", border: "1px solid rgba(228,0,43,0.15)" }}>
           Vá em <strong>Configurações do navegador → Permissões → Localização</strong>
         </p>
         <button onClick={() => iniciarGPS(motoboy!)}
@@ -1378,7 +1378,7 @@ export default function MotoboyApp() {
           </label>
 
           {authError && (
-            <p className="text-xs px-3 py-2 rounded-lg" style={{ background: "rgba(255,106,0,0.08)", color: "#FF8C1A", border: "1px solid rgba(255,106,0,0.2)" }}>
+            <p className="text-xs px-3 py-2 rounded-lg" style={{ background: "rgba(228,0,43,0.08)", color: "#FFC72C", border: "1px solid rgba(228,0,43,0.2)" }}>
               {authError}
             </p>
           )}
@@ -1457,7 +1457,7 @@ export default function MotoboyApp() {
           <div className="flex flex-col items-end gap-2 shrink-0">
             {gpsAtivo
               ? <Wifi size={15} style={{ color: "#22c55e" }} />
-              : <WifiOff size={15} style={{ color: "#FF6A00" }} />}
+              : <WifiOff size={15} style={{ color: "#E4002B" }} />}
             <button onClick={handleLogout} style={{ color: "#94a3b8" }}>
               <LogOut size={16} />
             </button>
@@ -1482,10 +1482,10 @@ export default function MotoboyApp() {
                 return (
                 <>
                   {/* ── Hero card ── */}
-                  <div style={{ borderRadius: 20, background: "rgba(255,106,0,0.06)", border: "1px solid rgba(255,106,0,0.18)", padding: "20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+                  <div style={{ borderRadius: 20, background: "rgba(228,0,43,0.06)", border: "1px solid rgba(228,0,43,0.18)", padding: "20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 23, fontWeight: 800, color: "#fff", margin: 0, lineHeight: 1.2 }}>
-                        {saudacao}, <span style={{ color: "#FF6A00" }}>{primeiroNome}!</span>
+                        {saudacao}, <span style={{ color: "#E4002B" }}>{primeiroNome}!</span>
                       </p>
                       <p style={{ fontSize: 13, color: "#64748b", margin: "5px 0 14px" }}>Pronto para mais entregas?</p>
                       <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 20, background: gpsAtivo ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", border: `1px solid ${gpsAtivo ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)"}` }}>
@@ -1493,7 +1493,7 @@ export default function MotoboyApp() {
                         <span style={{ fontSize: 12, fontWeight: 700, color: gpsAtivo ? "#22c55e" : "#ef4444" }}>{gpsAtivo ? "Online" : "Offline"}</span>
                       </div>
                     </div>
-                    <div style={{ width: 72, height: 72, borderRadius: 18, background: "rgba(255,106,0,0.08)", border: "1px solid rgba(255,106,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 36 }}>
+                    <div style={{ width: 72, height: 72, borderRadius: 18, background: "rgba(228,0,43,0.08)", border: "1px solid rgba(228,0,43,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 36 }}>
                       {motoboy?.foto_url
                         ? <img src={motoboy.foto_url} alt="" style={{ width: "100%", height: "100%", borderRadius: 18, objectFit: "cover" }} />
                         : "🛵"}
@@ -1501,7 +1501,7 @@ export default function MotoboyApp() {
                   </div>
 
                   {/* ── Earnings card ── */}
-                  <div style={{ borderRadius: 20, background: "linear-gradient(135deg,#FF6A00 0%,#c94f00 100%)", padding: "20px" }}>
+                  <div style={{ borderRadius: 20, background: "linear-gradient(135deg,#E4002B 0%,#c94f00 100%)", padding: "20px" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
                       <div>
                         <p style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", margin: 0, textTransform: "uppercase", letterSpacing: "0.07em" }}>Ganhos de hoje</p>
@@ -1521,7 +1521,7 @@ export default function MotoboyApp() {
                   {/* ── Stats grid ── */}
                   <div style={{ display: "flex", gap: 8 }}>
                     {[
-                      { label: "Entregas", value: report.entregas.toString(), icon: <Package size={14} style={{ color: "#FF6A00" }} /> },
+                      { label: "Entregas", value: report.entregas.toString(), icon: <Package size={14} style={{ color: "#E4002B" }} /> },
                       { label: "Distância", value: totalDistancia > 0 ? `${totalDistancia.toFixed(0)}km` : "–", icon: <Navigation size={14} style={{ color: "#a78bfa" }} /> },
                       { label: "Avaliação", value: (motoboy?.avaliacao_media ?? 5).toFixed(1), icon: <Star size={14} style={{ color: "#fbbf24" }} /> },
                       { label: "Na fila", value: pedidosDisp.length.toString(), icon: <Bell size={14} style={{ color: "#60a5fa" }} /> },
@@ -1538,17 +1538,17 @@ export default function MotoboyApp() {
 
                   {/* ── Pedido ativo / Próxima entrega ── */}
                   {pedido && (
-                    <div style={{ borderRadius: 20, background: "#111", border: "1px solid rgba(255,106,0,0.25)", padding: 0 }}>
+                    <div style={{ borderRadius: 20, background: "#111", border: "1px solid rgba(228,0,43,0.25)", padding: 0 }}>
                       <div style={{ padding: "11px 18px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                        <p style={{ fontSize: 11, fontWeight: 800, color: "#FF6A00", textTransform: "uppercase", letterSpacing: "0.08em", margin: 0 }}>
+                        <p style={{ fontSize: 11, fontWeight: 800, color: "#E4002B", textTransform: "uppercase", letterSpacing: "0.08em", margin: 0 }}>
                           {pedido.status === "em_coleta" ? "🔶 Em coleta" : "🟣 Em entrega"}
                         </p>
                       </div>
                       <div style={{ padding: "18px", display: "flex", flexDirection: "column", gap: 14 }}>
                         <div style={{ display: "flex", gap: 14 }}>
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                            <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(255,106,0,0.12)", border: "1px solid rgba(255,106,0,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <Package size={15} style={{ color: "#FF6A00" }} />
+                            <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(228,0,43,0.12)", border: "1px solid rgba(228,0,43,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <Package size={15} style={{ color: "#E4002B" }} />
                             </div>
                             <div style={{ width: 2, height: 24, background: "rgba(255,255,255,0.08)", margin: "5px 0" }} />
                             <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1643,7 +1643,7 @@ export default function MotoboyApp() {
                                     </div>
                                     <p style={{ fontSize: 12, color: "#94a3b8", margin: "3px 0 6px" }}>{p.cliente_telefone} · {new Date(p.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
                                     <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-                                      <MapPin size={12} style={{ color: "#FF6A00", flexShrink: 0, marginTop: 1 }} />
+                                      <MapPin size={12} style={{ color: "#E4002B", flexShrink: 0, marginTop: 1 }} />
                                       <p style={{ fontSize: 12, color: "#d1d5db", margin: 0 }}>{navAddr}</p>
                                     </div>
                                   </div>
@@ -1744,7 +1744,7 @@ export default function MotoboyApp() {
                                   </div>
                                 </div>
                                 <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                                  <MapPin size={14} style={{ color: "#FF6A00", flexShrink: 0, marginTop: 1 }} />
+                                  <MapPin size={14} style={{ color: "#E4002B", flexShrink: 0, marginTop: 1 }} />
                                   <div style={{ flex: 1 }}>
                                     <p style={{ fontSize: 13, color: "#fff", margin: 0 }}>{p.endereco_entrega}</p>
                                     {bairro && <p style={{ fontSize: 12, color: "#60a5fa", margin: "3px 0 0" }}>{bairro}</p>}
@@ -1932,14 +1932,14 @@ export default function MotoboyApp() {
                   {historicoEntregas.length > 0 && (
                     <div style={{ borderRadius: 20, background: "#111", border: "1px solid rgba(255,255,255,0.06)" }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                        <p style={{ fontSize: 11, fontWeight: 800, color: "#FF6A00", textTransform: "uppercase", letterSpacing: "0.08em", margin: 0 }}>Pedidos do dia</p>
+                        <p style={{ fontSize: 11, fontWeight: 800, color: "#E4002B", textTransform: "uppercase", letterSpacing: "0.08em", margin: 0 }}>Pedidos do dia</p>
                         <span style={{ fontSize: 11, color: "#4b5563", fontWeight: 600 }}>{historicoEntregas.length} {historicoEntregas.length === 1 ? "entrega" : "entregas"}</span>
                       </div>
                       <div>
                         {historicoEntregas.slice(0, 5).map((e, i) => (
                           <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 18px", borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
-                            <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(255,106,0,0.08)", border: "1px solid rgba(255,106,0,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                              <span style={{ fontSize: 11, fontWeight: 800, color: "#FF6A00" }}>#{i + 1}</span>
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(228,0,43,0.08)", border: "1px solid rgba(228,0,43,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                              <span style={{ fontSize: 11, fontWeight: 800, color: "#E4002B" }}>#{i + 1}</span>
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <p style={{ fontSize: 13, fontWeight: 700, color: "#fff", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.cliente_nome}</p>
@@ -2012,7 +2012,7 @@ export default function MotoboyApp() {
                                 )}
                               </div>
                               <div className="flex items-start gap-1.5">
-                                <MapPin size={12} className="mt-0.5 shrink-0" style={{ color: "#FF6A00" }} />
+                                <MapPin size={12} className="mt-0.5 shrink-0" style={{ color: "#E4002B" }} />
                                 <p className="text-xs text-white">{navAddr}</p>
                               </div>
                               {p.descricao_itens && !entregue && (
@@ -2083,15 +2083,15 @@ export default function MotoboyApp() {
                   {/* ── PEDIDO ATIVO (atribuído pela empresa) ── */}
                   {pedido && (
                     <div className="rounded-2xl overflow-hidden"
-                      style={{ border: `1px solid ${pedido.status === "em_coleta" ? "rgba(249,115,22,0.3)" : "rgba(167,139,250,0.25)"}` }}>
+                      style={{ border: `1px solid ${pedido.status === "em_coleta" ? "rgba(228,0,43,0.3)" : "rgba(167,139,250,0.25)"}` }}>
                       <div className="px-5 py-3 flex items-center gap-2"
-                        style={{ background: pedido.status === "em_coleta" ? "rgba(249,115,22,0.08)" : "rgba(167,139,250,0.08)" }}>
+                        style={{ background: pedido.status === "em_coleta" ? "rgba(228,0,43,0.08)" : "rgba(167,139,250,0.08)" }}>
                         <Bike size={14} style={{ color: pedido.status === "em_coleta" ? "#fb923c" : "#a78bfa" }} />
                         <p className="text-sm font-bold" style={{ color: pedido.status === "em_coleta" ? "#fb923c" : "#a78bfa" }}>
                           {pedido.status === "em_coleta" ? "Em coleta — vai buscar o pedido" : "Em rota — entregando ao cliente"}
                         </p>
                         <span className="ml-auto w-2 h-2 rounded-full"
-                          style={{ background: pedido.status === "em_coleta" ? "#f97316" : "#8b5cf6" }} />
+                          style={{ background: pedido.status === "em_coleta" ? "#E4002B" : "#8b5cf6" }} />
                       </div>
 
                       <div className="p-5 space-y-3" style={{ background: "var(--bg-2)" }}>
@@ -2108,7 +2108,7 @@ export default function MotoboyApp() {
                           </div>
                         </div>
                         <div className="flex items-start gap-2">
-                          <MapPin size={14} className="mt-0.5 shrink-0" style={{ color: "#FF6A00" }} />
+                          <MapPin size={14} className="mt-0.5 shrink-0" style={{ color: "#E4002B" }} />
                           <p className="text-sm text-white">{pedido.endereco_entrega}</p>
                         </div>
                         {pedido.distancia_km != null && (
@@ -2207,7 +2207,7 @@ export default function MotoboyApp() {
                                 </div>
                               </div>
                               <div className="flex items-start gap-2">
-                                <MapPin size={14} className="mt-0.5 shrink-0" style={{ color: "#FF6A00" }} />
+                                <MapPin size={14} className="mt-0.5 shrink-0" style={{ color: "#E4002B" }} />
                                 <div>
                                   <p className="text-sm text-white">{p.endereco_entrega}</p>
                                   {bairro && <p className="text-xs mt-0.5" style={{ color: "#60a5fa" }}>{bairro}</p>}
@@ -2735,7 +2735,7 @@ export default function MotoboyApp() {
                   {/* Logout */}
                   <button onClick={handleLogout}
                     className="flex items-center gap-3 w-full p-4 rounded-2xl text-sm font-semibold"
-                    style={{ background: "rgba(255,106,0,0.06)", border: "1px solid rgba(255,106,0,0.15)", color: "#FF8C1A" }}>
+                    style={{ background: "rgba(228,0,43,0.06)", border: "1px solid rgba(228,0,43,0.15)", color: "#FFC72C" }}>
                     <LogOut size={16} />
                     Sair da conta
                   </button>
@@ -2776,7 +2776,7 @@ export default function MotoboyApp() {
               ) : (
                 <div className="flex items-center gap-2 px-4 py-3 rounded-2xl w-fit mx-auto"
                   style={{ background: "rgba(0,0,0,0.88)", border: "1px solid rgba(255,255,255,0.08)", pointerEvents: "none" }}>
-                  <span className="w-2 h-2 rounded-full" style={{ background: gpsAtivo ? "#22c55e" : "#FF6A00" }} />
+                  <span className="w-2 h-2 rounded-full" style={{ background: gpsAtivo ? "#22c55e" : "#E4002B" }} />
                   <span className="text-xs font-medium text-white">{gpsAtivo ? "GPS ativo — posição sendo rastreada" : "GPS inativo"}</span>
                 </div>
               )}
@@ -2791,7 +2791,7 @@ export default function MotoboyApp() {
           style={{
             position: "fixed", top: 20, left: "50%", transform: "translateX(-50%)",
             zIndex: 99999, pointerEvents: "none",
-            background: toast.tipo === "ok" ? "rgba(34,197,94,0.95)" : "rgba(255,106,0,0.95)",
+            background: toast.tipo === "ok" ? "rgba(34,197,94,0.95)" : "rgba(228,0,43,0.95)",
             color: "#fff", borderRadius: 14, padding: "12px 20px",
             fontSize: 14, fontWeight: 600, maxWidth: "90vw", textAlign: "center",
             boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
@@ -2874,13 +2874,13 @@ export default function MotoboyApp() {
                 flex: 1, display: "flex", flexDirection: "column", alignItems: "center",
                 gap: 3, paddingTop: 10, paddingBottom: 10,
                 background: "none", border: "none", cursor: "pointer",
-                color: active ? "#FF6A00" : "#4b5563", position: "relative",
+                color: active ? "#E4002B" : "#4b5563", position: "relative",
               }}>
               {/* Active top bar — sem transform */}
               {active && (
                 <span style={{
                   position: "absolute", top: 0, left: "25%", right: "25%",
-                  height: 2, borderRadius: "0 0 3px 3px", background: "#FF6A00",
+                  height: 2, borderRadius: "0 0 3px 3px", background: "#E4002B",
                 }} />
               )}
               <div style={{ position: "relative" }}>

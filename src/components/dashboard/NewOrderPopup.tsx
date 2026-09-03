@@ -104,19 +104,19 @@ export default function NewOrderPopup({ empresaId, empresaNome, empresaCnpj }: P
         right:  16,
         width: "min(368px, calc(100vw - 32px))",
         background: "#0f0f0f",
-        border: "1px solid rgba(255,106,0,0.22)",
-        boxShadow: "0 24px 64px rgba(0,0,0,0.85), 0 0 0 1px rgba(255,106,0,0.08)",
+        border: "1px solid rgba(228,0,43,0.22)",
+        boxShadow: "0 24px 64px rgba(0,0,0,0.85), 0 0 0 1px rgba(228,0,43,0.08)",
       }}
     >
       {/* ── Header ── */}
       <div
         className="flex items-center justify-between px-4 py-3"
-        style={{ background: "rgba(255,106,0,0.07)", borderBottom: "1px solid rgba(255,106,0,0.1)" }}
+        style={{ background: "rgba(228,0,43,0.07)", borderBottom: "1px solid rgba(228,0,43,0.1)" }}
       >
         <div className="flex items-center gap-2">
           <span
             className="animate-pulse w-2 h-2 rounded-full inline-block"
-            style={{ background: "#FF6A00" }}
+            style={{ background: "#E4002B" }}
           />
           <span className="text-sm font-bold text-white">
             {orders.length === 1 ? "Novo pedido!" : `${orders.length} novos pedidos!`}
@@ -147,7 +147,7 @@ export default function NewOrderPopup({ empresaId, empresaNome, empresaCnpj }: P
               style={{
                 width:      i === idx ? 22 : 6,
                 height:     6,
-                background: i === idx ? "#FF6A00" : "#374151",
+                background: i === idx ? "#E4002B" : "#374151",
                 flexShrink: 0,
               }}
             />
@@ -196,7 +196,7 @@ export default function NewOrderPopup({ empresaId, empresaNome, empresaCnpj }: P
                     className="text-xs font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1"
                     style={p.tipo_pedido === "retirada"
                       ? { background: "rgba(167,139,250,0.12)", color: "#a78bfa", border: "1px solid rgba(167,139,250,0.25)" }
-                      : { background: "rgba(249,115,22,0.1)",   color: "#fb923c", border: "1px solid rgba(249,115,22,0.25)" }}
+                      : { background: "rgba(228,0,43,0.1)",   color: "#fb923c", border: "1px solid rgba(228,0,43,0.25)" }}
                   >
                     {p.tipo_pedido === "retirada" ? <ShoppingBag size={10} /> : <Truck size={10} />}
                     {p.tipo_pedido === "retirada" ? "Retirada" : "Delivery"}
@@ -298,13 +298,13 @@ export default function NewOrderPopup({ empresaId, empresaNome, empresaCnpj }: P
           disabled={printingAll}
           className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-bold transition-all"
           style={{
-            background: "rgba(255,106,0,0.1)",
-            color:      "#FF6A00",
-            border:     "1px solid rgba(255,106,0,0.3)",
+            background: "rgba(228,0,43,0.1)",
+            color:      "#E4002B",
+            border:     "1px solid rgba(228,0,43,0.3)",
             opacity:    printingAll ? 0.4 : 1,
           }}
-          onMouseEnter={e => { if (!printingAll) (e.currentTarget as HTMLElement).style.background = "rgba(255,106,0,0.18)"; }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,106,0,0.1)"; }}
+          onMouseEnter={e => { if (!printingAll) (e.currentTarget as HTMLElement).style.background = "rgba(228,0,43,0.18)"; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(228,0,43,0.1)"; }}
         >
           <Printer size={14} />
           {printed.has(orders[idx].id) ? "Reimprimir este pedido" : "Imprimir este pedido"}

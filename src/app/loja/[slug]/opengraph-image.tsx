@@ -48,7 +48,7 @@ export default async function OGImage({
     .eq("empresa_id", empresa.id)
     .single();
 
-  const cor = config?.cor_principal ?? "#FF6A00";
+  const cor = config?.cor_principal ?? "#E4002B";
   const logo = config?.logo_url ?? null;
   const banner = config?.banner_url ?? null;
   const inicial = empresa.nome.charAt(0).toUpperCase();

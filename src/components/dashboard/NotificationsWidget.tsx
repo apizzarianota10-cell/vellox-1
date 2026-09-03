@@ -102,7 +102,7 @@ export default function NotificationsWidget({ empresaId }: Props) {
       <button
         onClick={abrir}
         className="relative flex items-center justify-center w-9 h-9 rounded-xl transition-all"
-        style={{ color: open ? "#FF6A00" : "#374151", background: open ? "rgba(255,106,0,0.1)" : "transparent" }}
+        style={{ color: open ? "#E4002B" : "#374151", background: open ? "rgba(228,0,43,0.1)" : "transparent" }}
         onMouseEnter={(e) => { if (!open) (e.currentTarget as HTMLElement).style.color = "#9ca3af"; }}
         onMouseLeave={(e) => { if (!open) (e.currentTarget as HTMLElement).style.color = "#374151"; }}
       >
@@ -110,7 +110,7 @@ export default function NotificationsWidget({ empresaId }: Props) {
         {naoLidas > 0 && (
           <span
             className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center text-white font-black"
-            style={{ background: "#FF6A00", fontSize: 9 }}
+            style={{ background: "#E4002B", fontSize: 9 }}
           >
             {naoLidas > 9 ? "9+" : naoLidas}
           </span>
@@ -144,7 +144,7 @@ export default function NotificationsWidget({ empresaId }: Props) {
                 const { Icon, color } = ICON_MAP[n.icon];
                 return (
                   <div key={n.id} className="flex items-start gap-3 px-4 py-3"
-                    style={{ borderBottom: "1px solid #141414", background: n.lida ? "transparent" : "rgba(255,106,0,0.03)" }}>
+                    style={{ borderBottom: "1px solid #141414", background: n.lida ? "transparent" : "rgba(228,0,43,0.03)" }}>
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
                       style={{ background: color + "18" }}>
                       <Icon size={13} style={{ color }} />

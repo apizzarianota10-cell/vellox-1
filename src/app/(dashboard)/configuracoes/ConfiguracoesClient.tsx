@@ -115,15 +115,15 @@ export default function ConfiguracoesClient({ empresa }: Props) {
         className="rounded-2xl p-5 flex items-center justify-between"
         style={{
           background: "var(--bg-2)",
-          border: `1px solid ${ativo ? "rgba(34,197,94,0.2)" : "rgba(255,106,0,0.2)"}`,
+          border: `1px solid ${ativo ? "rgba(34,197,94,0.2)" : "rgba(228,0,43,0.2)"}`,
         }}
       >
         <div className="flex items-center gap-3">
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center"
-            style={{ background: ativo ? "rgba(34,197,94,0.1)" : "rgba(255,106,0,0.1)" }}
+            style={{ background: ativo ? "rgba(34,197,94,0.1)" : "rgba(228,0,43,0.1)" }}
           >
-            <Power size={18} style={{ color: ativo ? "#22c55e" : "#FF6A00" }} />
+            <Power size={18} style={{ color: ativo ? "#22c55e" : "#E4002B" }} />
           </div>
           <div>
             <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>
@@ -203,18 +203,18 @@ export default function ConfiguracoesClient({ empresa }: Props) {
       <Link
         href="/automacoes"
         className="rounded-2xl overflow-hidden flex items-center justify-between px-5 py-4 transition-all"
-        style={{ background: "var(--bg-2)", border: "1px solid rgba(255,106,0,0.3)" }}
+        style={{ background: "var(--bg-2)", border: "1px solid rgba(228,0,43,0.3)" }}
       >
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,106,0,0.1)" }}>
-            <Printer size={16} style={{ color: "#FF6A00" }} />
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(228,0,43,0.1)" }}>
+            <Printer size={16} style={{ color: "#E4002B" }} />
           </div>
           <div>
             <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>Automações</p>
             <p className="text-xs" style={{ color: "#475569" }}>Impressão automática e confirmação por WhatsApp</p>
           </div>
         </div>
-        <ExternalLink size={14} style={{ color: "#FF6A00", flexShrink: 0 }} />
+        <ExternalLink size={14} style={{ color: "#E4002B", flexShrink: 0 }} />
       </Link>
 
       {/* Link para Ofertas Relâmpago */}
@@ -224,15 +224,15 @@ export default function ConfiguracoesClient({ empresa }: Props) {
         style={{ background: "var(--bg-2)", border: "1px solid var(--border-1)" }}
       >
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,106,0,0.1)" }}>
-            <Zap size={15} style={{ color: "#FF6A00" }} />
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(228,0,43,0.1)" }}>
+            <Zap size={15} style={{ color: "#E4002B" }} />
           </div>
           <div>
             <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>Ofertas Relâmpago</p>
             <p className="text-xs" style={{ color: "#475569" }}>Crie promoções com timer no Explorar</p>
           </div>
         </div>
-        <ChevronRight size={14} style={{ color: "#FF6A00", flexShrink: 0 }} />
+        <ChevronRight size={14} style={{ color: "#E4002B", flexShrink: 0 }} />
       </Link>
 
       {/* ── Som de notificação ── */}
@@ -335,7 +335,7 @@ export default function ConfiguracoesClient({ empresa }: Props) {
               onChange={(e) => setNome(e.target.value)}
               className="w-full px-4 rounded-xl text-sm placeholder-gray-700 outline-none transition-all"
               style={IS}
-              onFocus={(e) => (e.target.style.borderColor = "rgba(255,106,0,0.5)")}
+              onFocus={(e) => (e.target.style.borderColor = "rgba(228,0,43,0.5)")}
               onBlur={(e) => (e.target.style.borderColor = "var(--overlay-lg)")}
             />
           </div>
@@ -353,7 +353,7 @@ export default function ConfiguracoesClient({ empresa }: Props) {
               placeholder="00.000.000/0000-00"
               className="w-full px-4 rounded-xl text-sm placeholder-gray-700 outline-none transition-all"
               style={IS}
-              onFocus={(e) => (e.target.style.borderColor = "rgba(255,106,0,0.5)")}
+              onFocus={(e) => (e.target.style.borderColor = "rgba(228,0,43,0.5)")}
               onBlur={(e) => (e.target.style.borderColor = "var(--overlay-lg)")}
             />
           </div>
@@ -379,7 +379,7 @@ export default function ConfiguracoesClient({ empresa }: Props) {
             style={{
               background: savedOk
                 ? "rgba(34,197,94,0.15)"
-                : "linear-gradient(135deg,#cc5500,#a84400)",
+                : "linear-gradient(135deg,#A80021,#a84400)",
               color: savedOk ? "#4ade80" : "white",
             }}
           >
@@ -406,7 +406,7 @@ export default function ConfiguracoesClient({ empresa }: Props) {
         style={{ background: "var(--bg-2)", border: "1px solid var(--border-1)" }}
       >
         <div className="flex items-center gap-2 mb-1">
-          <MapPin size={15} style={{ color: "#FF6A00" }} />
+          <MapPin size={15} style={{ color: "#E4002B" }} />
           <h2 className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>Endereço da empresa</h2>
         </div>
         <p className="text-xs mb-5" style={{ color: "#475569" }}>

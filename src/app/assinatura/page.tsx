@@ -31,7 +31,7 @@ export default function AssinaturaPage() {
       <div
         className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full pointer-events-none"
         style={{
-          background: "radial-gradient(circle, rgba(255,106,0,0.06) 0%, transparent 70%)",
+          background: "radial-gradient(circle, rgba(228,0,43,0.06) 0%, transparent 70%)",
           filter: "blur(80px)",
         }}
       />
@@ -43,7 +43,7 @@ export default function AssinaturaPage() {
           border: "1px solid rgba(255,255,255,0.08)",
           backdropFilter: "blur(24px)",
           boxShadow: [
-            "0 0 0 1px rgba(255,106,0,0.05)",
+            "0 0 0 1px rgba(228,0,43,0.05)",
             "0 8px 16px rgba(0,0,0,0.5)",
             "0 32px 80px rgba(0,0,0,0.65)",
           ].join(", "),
@@ -53,12 +53,12 @@ export default function AssinaturaPage() {
           <div
             className="w-14 h-14 rounded-2xl flex items-center justify-center"
             style={{
-              background: "linear-gradient(135deg, rgba(255,106,0,0.2), rgba(255,106,0,0.04))",
-              border: "1px solid rgba(255,106,0,0.2)",
-              boxShadow: "0 0 30px rgba(255,106,0,0.18)",
+              background: "linear-gradient(135deg, rgba(228,0,43,0.2), rgba(228,0,43,0.04))",
+              border: "1px solid rgba(228,0,43,0.2)",
+              boxShadow: "0 0 30px rgba(228,0,43,0.18)",
             }}
           >
-            <CreditCard size={24} style={{ color: "#FF6A00" }} strokeWidth={2} />
+            <CreditCard size={24} style={{ color: "#E4002B" }} strokeWidth={2} />
           </div>
         </div>
 
@@ -90,8 +90,8 @@ export default function AssinaturaPage() {
           className="w-full flex items-center justify-center gap-2 rounded-xl text-sm font-bold text-white mb-3"
           style={{
             height: 48,
-            background: "linear-gradient(135deg, #FF8C1A 0%, #FF6A00 45%, #a84400 100%)",
-            boxShadow: "0 0 24px rgba(255,106,0,0.3), 0 4px 16px rgba(0,0,0,0.4)",
+            background: "linear-gradient(135deg, #FFC72C 0%, #E4002B 45%, #a84400 100%)",
+            boxShadow: "0 0 24px rgba(228,0,43,0.3), 0 4px 16px rgba(0,0,0,0.4)",
             textDecoration: "none",
             display: "flex",
           }}

@@ -167,7 +167,7 @@ export default function TrackingClient({ token }: { token: string }) {
   if (loading) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f7f7f8", fontFamily: "system-ui,sans-serif" }}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-        <div style={{ width: 44, height: 44, borderRadius: "50%", border: "3px solid #FF6A00", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
+        <div style={{ width: 44, height: 44, borderRadius: "50%", border: "3px solid #E4002B", borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         <p style={{ color: "#64748b", fontSize: 14 }}>Carregando pedido...</p>
       </div>
@@ -180,7 +180,7 @@ export default function TrackingClient({ token }: { token: string }) {
         <p style={{ fontSize: 48, margin: "0 0 12px" }}>🔍</p>
         <h1 style={{ fontSize: 20, fontWeight: 800, color: "#0f172a", margin: "0 0 8px" }}>Pedido não encontrado</h1>
         <p style={{ fontSize: 14, color: "#64748b" }}>{error || "O link pode estar incorreto."}</p>
-        <Link href="/meus-pedidos" style={{ display: "inline-block", marginTop: 20, padding: "10px 24px", borderRadius: 12, background: "#FF6A00", color: "#fff", fontWeight: 700, textDecoration: "none", fontSize: 14 }}>
+        <Link href="/meus-pedidos" style={{ display: "inline-block", marginTop: 20, padding: "10px 24px", borderRadius: 12, background: "#E4002B", color: "#fff", fontWeight: 700, textDecoration: "none", fontSize: 14 }}>
           Consultar pelo telefone
         </Link>
       </div>
@@ -193,7 +193,7 @@ export default function TrackingClient({ token }: { token: string }) {
   const steps       = isRetirada ? STEPS_RETIRADA : STEPS_ENTREGA;
   const currentStep = isCancelado ? -1 : getStepIndex(steps, pedido.status);
   const total       = pedido.valor_pedido + pedido.valor_motoboy;
-  const cor         = isCancelado ? "#ef4444" : isEntregue ? "#22c55e" : "#FF6A00";
+  const cor         = isCancelado ? "#ef4444" : isEntregue ? "#22c55e" : "#E4002B";
   const waLink      = linkWhatsappLoja(pedido);
 
   return (
@@ -213,7 +213,7 @@ export default function TrackingClient({ token }: { token: string }) {
             background: "#0f172a", color: "#fff", borderRadius: 14,
             padding: "12px 14px", boxShadow: "0 12px 32px rgba(0,0,0,0.25)",
           }}>
-            <BellRing size={17} style={{ color: "#FF6A00", flexShrink: 0 }} />
+            <BellRing size={17} style={{ color: "#E4002B", flexShrink: 0 }} />
             <p style={{ flex: 1, fontSize: 13, fontWeight: 700, margin: 0 }}>{toast}</p>
             <button onClick={() => setToast(null)}
               style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 2, flexShrink: 0 }}>
@@ -350,7 +350,7 @@ export default function TrackingClient({ token }: { token: string }) {
           <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 2px 20px rgba(0,0,0,0.08)", padding: "16px 20px", marginBottom: 16 }}>
             <div style={{ display: "flex", gap: 12 }}>
               <div style={{ width: 36, height: 36, borderRadius: 10, background: "#fff7ed", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <MapPin size={16} style={{ color: "#f97316" }} />
+                <MapPin size={16} style={{ color: "#E4002B" }} />
               </div>
               <div>
                 <p style={{ fontSize: 11, color: "#94a3b8", margin: "0 0 3px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Endereço de entrega</p>

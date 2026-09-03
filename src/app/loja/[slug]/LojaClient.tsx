@@ -35,7 +35,7 @@ const BUSCA_STATUS_COLOR: Record<PedidoStatus, { bg: string; text: string }> = {
   em_fila:                { bg: "#f1f5f9", text: "#64748b" },
   em_preparo:             { bg: "#fffbeb", text: "#d97706" },
   finalizado:             { bg: "#eff6ff", text: "#3b82f6" },
-  em_coleta:              { bg: "#fff7ed", text: "#f97316" },
+  em_coleta:              { bg: "#fff7ed", text: "#E4002B" },
   em_rota_de_entrega:     { bg: "#f5f3ff", text: "#8b5cf6" },
   aguardando_confirmacao: { bg: "#fffbeb", text: "#f59e0b" },
   entregue:               { bg: "#f0fdf4", text: "#16a34a" },
@@ -99,7 +99,7 @@ function describeItem(item: CartItem): string {
 }
 
 export default function LojaClient({ produtos, config, empresa, bairros }: Props) {
-  const cor = config?.cor_principal ?? "#FF6A00";
+  const cor = config?.cor_principal ?? "#E4002B";
   const taxaPadrao = config?.taxa_entrega ?? 0;
   const aberto = config?.aberto ?? true;
   const usaBairros = bairros.length > 0;
@@ -596,8 +596,8 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
           <div style={{ textAlign: "center", marginBottom: 24 }}>
             <h1 style={{ fontSize: 24, fontWeight: 900, color: "#0f172a", margin: "0 0 10px", letterSpacing: "-0.02em" }}>{empresa.nome}</h1>
             <div style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "6px 16px", borderRadius: 999, background: "#fff1f2", border: "1.5px solid #fecaca" }}>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#FF6A00", display: "inline-block", flexShrink: 0 }} />
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#cc5500" }}>Fechado agora</span>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#E4002B", display: "inline-block", flexShrink: 0 }} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#A80021" }}>Fechado agora</span>
             </div>
           </div>
 
@@ -897,7 +897,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                 const preco = precoMinimo(p);
                 const badgeIdx = i % 3;
                 const badge = badgeIdx === 0
-                  ? { label: "Mais vendido", bg: "#fff7ed", color: "#c2410c", border: "#fed7aa" }
+                  ? { label: "Mais vendido", bg: "#fff7ed", color: "#A80021", border: "#fed7aa" }
                   : badgeIdx === 1
                   ? { label: "Popular", bg: "#fffbeb", color: "#92400e", border: "#fde68a" }
                   : null;

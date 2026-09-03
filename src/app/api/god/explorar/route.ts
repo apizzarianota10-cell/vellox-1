@@ -80,7 +80,7 @@ export async function POST(req: Request) {
     try {
       const { data, error } = await supabase
         .from("explorar_banners")
-        .insert({ titulo, subtitulo: subtitulo || null, imagem_url: imagem_url || null, link_url: link_url || null, cor_fundo: cor_fundo ?? "#FF6A00" })
+        .insert({ titulo, subtitulo: subtitulo || null, imagem_url: imagem_url || null, link_url: link_url || null, cor_fundo: cor_fundo ?? "#E4002B" })
         .select().single();
       if (error) throw error;
       return NextResponse.json(data);

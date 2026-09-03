@@ -10,8 +10,8 @@ export default function DbError({ message }: Props) {
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-5 p-6 text-center">
       <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
-        style={{ background: "rgba(255,106,0,0.1)", border: "1px solid rgba(255,106,0,0.2)" }}>
-        <AlertTriangle size={28} style={{ color: "#FF6A00" }} />
+        style={{ background: "rgba(228,0,43,0.1)", border: "1px solid rgba(228,0,43,0.2)" }}>
+        <AlertTriangle size={28} style={{ color: "#E4002B" }} />
       </div>
       <div>
         <p className="text-lg font-bold mb-1" style={{ color: "var(--text-1)" }}>
@@ -27,7 +27,7 @@ export default function DbError({ message }: Props) {
       <button
         onClick={() => window.location.reload()}
         className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
-        style={{ background: "rgba(255,106,0,0.1)", color: "#FF6A00", border: "1px solid rgba(255,106,0,0.2)" }}
+        style={{ background: "rgba(228,0,43,0.1)", color: "#E4002B", border: "1px solid rgba(228,0,43,0.2)" }}
       >
         <RefreshCw size={15} />
         Tentar novamente

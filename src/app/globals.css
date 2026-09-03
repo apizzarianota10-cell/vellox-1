@@ -38,15 +38,15 @@
 
 /* ══════════════════════════════════════════════════════════════════
    TEMA ESCURO — PADRÃO GLOBAL (dark-first)
-   Paleta: Laranja #FF6A00 + Preto #0B0B0B
+   Paleta: Vermelho #E4002B + Amarelo #FFC72C + Preto #0B0B0B
 ══════════════════════════════════════════════════════════════════ */
 :root {
-  /* Primary orange */
-  --primary:       #FF6A00;
-  --primary-hover: #FF8C1A;
-  --primary-glow:  rgba(255,106,0,0.25);
-  --primary-tint:  rgba(255,106,0,0.08);
-  --primary-ring:  rgba(255,106,0,0.20);
+  /* Primary red */
+  --primary:       #E4002B;
+  --primary-hover: #FF1F44;
+  --primary-glow:  rgba(228,0,43,0.25);
+  --primary-tint:  rgba(228,0,43,0.08);
+  --primary-ring:  rgba(228,0,43,0.20);
 
   /* Fundos */
   --bg-base:   #0B0B0B;
@@ -86,11 +86,11 @@
 
 /* dark explícito = idêntico ao :root (para ThemeProvider) */
 [data-theme="dark"] {
-  --primary:       #FF6A00;
-  --primary-hover: #FF8C1A;
-  --primary-glow:  rgba(255,106,0,0.25);
-  --primary-tint:  rgba(255,106,0,0.08);
-  --primary-ring:  rgba(255,106,0,0.20);
+  --primary:       #E4002B;
+  --primary-hover: #FFC72C;
+  --primary-glow:  rgba(228,0,43,0.25);
+  --primary-tint:  rgba(228,0,43,0.08);
+  --primary-ring:  rgba(228,0,43,0.20);
 
   --bg-base:   #0B0B0B;
   --bg-1:      #121212;
@@ -122,11 +122,11 @@
 
 /* ── Tema Claro ─────────────────────────────────────────────────── */
 [data-theme="light"] {
-  --primary:       #FF6A00;
-  --primary-hover: #FF8C1A;
-  --primary-glow:  rgba(255,106,0,0.18);
-  --primary-tint:  rgba(255,106,0,0.06);
-  --primary-ring:  rgba(255,106,0,0.18);
+  --primary:       #E4002B;
+  --primary-hover: #FFC72C;
+  --primary-glow:  rgba(228,0,43,0.18);
+  --primary-tint:  rgba(228,0,43,0.06);
+  --primary-ring:  rgba(228,0,43,0.18);
 
   --bg-base:   #f0f2f7;
   --bg-1:      #ffffff;
@@ -197,13 +197,13 @@ input, select, textarea {
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes glow-pulse-orange {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255,106,0,0); }
-  50%       { box-shadow: 0 0 18px 3px rgba(255,106,0,0.28); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(228,0,43,0); }
+  50%       { box-shadow: 0 0 18px 3px rgba(228,0,43,0.28); }
 }
 /* backward-compat alias */
 @keyframes glow-pulse-red {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255,106,0,0); }
-  50%       { box-shadow: 0 0 18px 3px rgba(255,106,0,0.28); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(228,0,43,0); }
+  50%       { box-shadow: 0 0 18px 3px rgba(228,0,43,0.28); }
 }
 @keyframes shimmer {
   0%   { background-position: -200% center; }

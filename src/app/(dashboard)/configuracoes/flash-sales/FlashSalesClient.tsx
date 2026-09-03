@@ -29,7 +29,7 @@ function CountdownBadge({ termina_em }: { termina_em: string }) {
 
   const expired = new Date(termina_em).getTime() < Date.now();
   return (
-    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold" style={{ background: expired ? "rgba(100,116,139,0.1)" : "rgba(255,106,0,0.1)", color: expired ? "#64748b" : "#FF6A00", border: `1px solid ${expired ? "rgba(100,116,139,0.2)" : "rgba(255,106,0,0.25)"}` }}>
+    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold" style={{ background: expired ? "rgba(100,116,139,0.1)" : "rgba(228,0,43,0.1)", color: expired ? "#64748b" : "#E4002B", border: `1px solid ${expired ? "rgba(100,116,139,0.2)" : "rgba(228,0,43,0.25)"}` }}>
       <Clock size={10} /> {txt}
     </span>
   );
@@ -105,7 +105,7 @@ export default function FlashSalesClient({ empresaId, empresaNome }: { empresaId
         </Link>
         <div>
           <h1 className="font-black text-white flex items-center gap-2" style={{ fontSize: 22 }}>
-            <Zap size={20} style={{ color: "#FF6A00" }} /> Ofertas Relâmpago
+            <Zap size={20} style={{ color: "#E4002B" }} /> Ofertas Relâmpago
           </h1>
           <p style={{ fontSize: 12, color: "#6b7280" }}>{empresaNome} — aparece no Explorar para todos os clientes</p>
         </div>
@@ -114,7 +114,7 @@ export default function FlashSalesClient({ empresaId, empresaNome }: { empresaId
       {/* Formulário */}
       <div className="rounded-2xl mb-8" style={{ background: "#111", border: "1px solid rgba(255,255,255,0.07)", padding: "20px" }}>
         <p className="font-bold text-white mb-4 flex items-center gap-2" style={{ fontSize: 15 }}>
-          <Plus size={16} style={{ color: "#FF6A00" }} /> Nova Oferta
+          <Plus size={16} style={{ color: "#E4002B" }} /> Nova Oferta
         </p>
 
         <form onSubmit={criar} className="flex flex-col gap-3">
@@ -173,7 +173,7 @@ export default function FlashSalesClient({ empresaId, empresaNome }: { empresaId
 
           <button type="submit" disabled={saving}
             className="flex items-center justify-center gap-2 py-3 rounded-xl font-black text-white"
-            style={{ background: saving ? "#333" : "linear-gradient(135deg,#FF6A00,#FF6A00cc)", fontSize: 14 }}>
+            style={{ background: saving ? "#333" : "linear-gradient(135deg,#E4002B,#E4002Bcc)", fontSize: 14 }}>
             {saving ? "Criando..." : <><Zap size={15} /> Publicar Oferta Relâmpago</>}
           </button>
         </form>
@@ -186,18 +186,18 @@ export default function FlashSalesClient({ empresaId, empresaNome }: { empresaId
         <>
           {ativas.length > 0 && (
             <div className="mb-6">
-              <p className="font-bold mb-3 flex items-center gap-2" style={{ fontSize: 14, color: "#FF6A00" }}>
-                <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#FF6A00", display: "inline-block" }} />
+              <p className="font-bold mb-3 flex items-center gap-2" style={{ fontSize: 14, color: "#E4002B" }}>
+                <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "#E4002B", display: "inline-block" }} />
                 Ativas agora ({ativas.length})
               </p>
               <div className="flex flex-col gap-3">
                 {ativas.map(s => (
-                  <div key={s.id} className="flex items-center gap-3 rounded-xl" style={{ background: "#111", border: "1px solid rgba(255,106,0,0.2)", padding: "12px 14px" }}>
+                  <div key={s.id} className="flex items-center gap-3 rounded-xl" style={{ background: "#111", border: "1px solid rgba(228,0,43,0.2)", padding: "12px 14px" }}>
                     {s.imagem_url && <img src={s.imagem_url} alt={s.nome} className="rounded-lg object-cover flex-shrink-0" style={{ width: 44, height: 44 }} />}
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-white truncate" style={{ fontSize: 13 }}>{s.nome}</p>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="font-black" style={{ fontSize: 13, color: "#FF6A00" }}>R$ {s.preco_flash.toFixed(2).replace(".", ",")}</span>
+                        <span className="font-black" style={{ fontSize: 13, color: "#E4002B" }}>R$ {s.preco_flash.toFixed(2).replace(".", ",")}</span>
                         {s.preco_original && <span style={{ fontSize: 11, color: "#6b7280", textDecoration: "line-through" }}>R$ {s.preco_original.toFixed(2).replace(".", ",")}</span>}
                         <CountdownBadge termina_em={s.termina_em} />
                       </div>

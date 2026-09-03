@@ -61,15 +61,15 @@ function rnd<T>(a: T[]): T { return a[Math.floor(Math.random() * a.length)]; }
 const STEPS = [
   { icon: Smartphone,   color: "#3b82f6", title: "Pedido chega",     desc: "Via catálogo digital ou criado manualmente no painel" },
   { icon: Package,      color: "#8b5cf6", title: "Entra no painel",  desc: "Visível para toda a equipe em tempo real, sem atualizar" },
-  { icon: Users,        color: "#FF6A00", title: "Motoboy recebe",   desc: "Despacho automático ou manual com 1 clique" },
-  { icon: Navigation,   color: "#f97316", title: "Rota no Waze",     desc: "Endereço enviado direto para o app de navegação" },
+  { icon: Users,        color: "#E4002B", title: "Motoboy recebe",   desc: "Despacho automático ou manual com 1 clique" },
+  { icon: Navigation,   color: "#E4002B", title: "Rota no Waze",     desc: "Endereço enviado direto para o app de navegação" },
   { icon: CheckCircle2, color: "#22c55e", title: "Entregue ✓",       desc: "Status atualizado. Relatório gerado automaticamente." },
 ];
 
 const FEATURES = [
-  { icon: Bell,       color: "#FF6A00", bg: "#fef2f2", title: "Pedidos em tempo real",     desc: "Notificação instantânea de novos pedidos. Zero atraso, zero pedido perdido." },
+  { icon: Bell,       color: "#E4002B", bg: "#fef2f2", title: "Pedidos em tempo real",     desc: "Notificação instantânea de novos pedidos. Zero atraso, zero pedido perdido." },
   { icon: Truck,      color: "#3b82f6", bg: "#eff6ff", title: "Gestão de motoboys",        desc: "Fila inteligente, despacho automático e rastreamento GPS ao vivo." },
-  { icon: Navigation, color: "#f97316", bg: "#fff7ed", title: "Rotas inteligentes",        desc: "Múltiplas entregas por rota. Integração com Waze e Google Maps." },
+  { icon: Navigation, color: "#E4002B", bg: "#fff7ed", title: "Rotas inteligentes",        desc: "Múltiplas entregas por rota. Integração com Waze e Google Maps." },
   { icon: Monitor,    color: "#8b5cf6", bg: "#f5f3ff", title: "Monitor fast food",         desc: "Tela de cozinha com status em tempo real. Sem papel, sem grito." },
   { icon: Store,      color: "#22c55e", bg: "#f0fdf4", title: "Catálogo digital",          desc: "Link próprio da sua loja. Clientes pedem pelo celular. Pedidos caem no painel." },
   { icon: BarChart3,  color: "#0ea5e9", bg: "#f0f9ff", title: "Relatórios financeiros",    desc: "Receita diária, taxas de entrega e comissões. Tudo em um painel." },
@@ -177,7 +177,7 @@ export default function LandingPage() {
           <div style={{ fontSize: 13, color: "#64748b", marginBottom: 16 }}>João Silva · Rua das Flores, 123</div>
           <div style={{ background: "#fff", borderRadius: 10, padding: "10px 14px", border: "1px solid #e2e8f0", fontSize: 13, color: "#374151", marginBottom: 8 }}>2x X-Burguer · 1x Coca-Cola</div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontWeight: 700, color: "#FF6A00", fontSize: 18 }}>R$ 58,00</span>
+            <span style={{ fontWeight: 700, color: "#E4002B", fontSize: 18 }}>R$ 58,00</span>
             <span style={{ fontSize: 11, background: "#fef3c7", color: "#92400e", padding: "3px 10px", borderRadius: 999, fontWeight: 600 }}>Em fila</span>
           </div>
         </div>
@@ -189,13 +189,13 @@ export default function LandingPage() {
         <div style={{ background: "#f8fafc", borderRadius: 16, padding: 20, border: "1px solid #e2e8f0" }}>
           <div style={{ fontSize: 13, color: "#64748b", marginBottom: 12 }}>Motoboys disponíveis agora:</div>
           {["★ Lucas (1º da fila)", "Bruno", "Rafael"].map((mb, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: i === 0 ? "rgba(255,106,0,0.06)" : "#fff", border: `1px solid ${i === 0 ? "rgba(255,106,0,0.2)" : "#e2e8f0"}`, borderRadius: 10, marginBottom: 8 }}>
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#FF6A00", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>{mb.charAt(mb.includes("★") ? 2 : 0)}</div>
-              <span style={{ fontSize: 13, fontWeight: i === 0 ? 700 : 400, color: i === 0 ? "#FF6A00" : "#374151" }}>{mb}</span>
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: i === 0 ? "rgba(228,0,43,0.06)" : "#fff", border: `1px solid ${i === 0 ? "rgba(228,0,43,0.2)" : "#e2e8f0"}`, borderRadius: 10, marginBottom: 8 }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#E4002B", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>{mb.charAt(mb.includes("★") ? 2 : 0)}</div>
+              <span style={{ fontSize: 13, fontWeight: i === 0 ? 700 : 400, color: i === 0 ? "#E4002B" : "#374151" }}>{mb}</span>
               {i === 0 && <span style={{ marginLeft: "auto", fontSize: 10, background: "#dcfce7", color: "#166534", padding: "2px 8px", borderRadius: 999, fontWeight: 600 }}>Disponível</span>}
             </div>
           ))}
-          <div style={{ marginTop: 4, padding: "10px 16px", background: "linear-gradient(135deg,#FF6A00,#cc5500)", borderRadius: 10, textAlign: "center", color: "#fff", fontWeight: 700, fontSize: 14 }}>Despachar para Lucas →</div>
+          <div style={{ marginTop: 4, padding: "10px 16px", background: "linear-gradient(135deg,#E4002B,#A80021)", borderRadius: 10, textAlign: "center", color: "#fff", fontWeight: 700, fontSize: 14 }}>Despachar para Lucas →</div>
         </div>
       ),
     },
@@ -207,7 +207,7 @@ export default function LandingPage() {
           <div style={{ background: "#fff", borderRadius: 12, padding: "14px 16px", border: "1px solid #e2e8f0", marginBottom: 12 }}>
             <div style={{ fontWeight: 700, fontSize: 14, color: "#0f172a", marginBottom: 4 }}>João Silva</div>
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#64748b" }}>
-              <MapPin size={12} style={{ color: "#FF6A00" }} /> Rua das Flores, 123 · 2,4 km
+              <MapPin size={12} style={{ color: "#E4002B" }} /> Rua das Flores, 123 · 2,4 km
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -260,25 +260,25 @@ export default function LandingPage() {
         .land-pulse { animation: pulse2 2s ease-in-out infinite; }
         .btn-red {
           position:relative; overflow:hidden;
-          background:linear-gradient(135deg,#FF6A00,#cc5500);
+          background:linear-gradient(135deg,#E4002B,#A80021);
           color:#fff; border:none; cursor:pointer;
           transition:transform .2s,box-shadow .2s;
-          box-shadow:0 4px 24px rgba(255,106,0,.4);
+          box-shadow:0 4px 24px rgba(228,0,43,.4);
         }
         .btn-red::after {
           content:''; position:absolute; inset:0;
           background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.18) 50%,transparent 70%);
           animation:shimmer 3s ease-in-out infinite;
         }
-        .btn-red:hover { transform:translateY(-2px); box-shadow:0 8px 32px rgba(255,106,0,.5); }
+        .btn-red:hover { transform:translateY(-2px); box-shadow:0 8px 32px rgba(228,0,43,.5); }
         .btn-ghost { transition:background .15s,color .15s; cursor:pointer; }
-        .btn-ghost:hover { background:rgba(255,106,0,.06) !important; color:#FF6A00 !important; }
+        .btn-ghost:hover { background:rgba(228,0,43,.06) !important; color:#E4002B !important; }
         .feat-card { transition:transform .2s,box-shadow .2s; cursor:default; }
         .feat-card:hover { transform:translateY(-4px); box-shadow:0 12px 40px rgba(0,0,0,.1) !important; }
         .plan-card { transition:transform .2s,box-shadow .2s; }
         .plan-card:hover { transform:translateY(-6px); }
         .nav-link { transition:color .15s; cursor:pointer; }
-        .nav-link:hover { color:#FF6A00 !important; }
+        .nav-link:hover { color:#E4002B !important; }
         @media(max-width:768px){
           .hero-grid { flex-direction:column !important; }
           .hero-text { text-align:center !important; }
@@ -345,7 +345,7 @@ export default function LandingPage() {
             {[["#como-funciona","Como funciona"],["#recursos","Recursos"],["#planos","Planos"],["#faq","FAQ"]].map(([href, label]) => (
               <a key={href} href={href} onClick={() => setMobileOpen(false)}
                 style={{ fontSize: 15, fontWeight: 600, color: "#374151", textDecoration: "none", padding: "10px 8px", borderRadius: 8, transition: "background .15s" }}
-                onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,106,0,.06)")}
+                onMouseEnter={e => (e.currentTarget.style.background = "rgba(228,0,43,.06)")}
                 onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
                 {label}
               </a>
@@ -364,8 +364,8 @@ export default function LandingPage() {
       {/* ══ HERO ══════════════════════════════════════════════════════ */}
       <section style={{ paddingTop: 100, paddingBottom: 80, background: "linear-gradient(180deg,#fff9f9 0%,#fff 60%)", position: "relative", overflow: "hidden" }}>
         {/* BG orbs */}
-        <div style={{ position: "absolute", top: -120, right: -120, width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle,rgba(255,106,0,.06),transparent 70%)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", bottom: -80, left: -80, width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle,rgba(255,106,0,.04),transparent 70%)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", top: -120, right: -120, width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle,rgba(228,0,43,.06),transparent 70%)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: -80, left: -80, width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle,rgba(228,0,43,.04),transparent 70%)", pointerEvents: "none" }} />
 
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px" }}>
           <div className="hero-grid" style={{ display: "flex", alignItems: "center", gap: 64 }}>
@@ -373,15 +373,15 @@ export default function LandingPage() {
             {/* Left: Text */}
             <div className="hero-text" style={{ flex: 1, minWidth: 0 }}>
               {/* Badge */}
-              <div className="land-fade-up" style={{ animationDelay: "0ms", display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,106,0,.08)", border: "1px solid rgba(255,106,0,.2)", borderRadius: 999, padding: "6px 14px", marginBottom: 24 }}>
-                <span className="land-pulse" style={{ width: 7, height: 7, borderRadius: "50%", background: "#FF6A00", display: "inline-block" }} />
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#FF6A00" }}>Sistema de delivery profissional</span>
+              <div className="land-fade-up" style={{ animationDelay: "0ms", display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(228,0,43,.08)", border: "1px solid rgba(228,0,43,.2)", borderRadius: 999, padding: "6px 14px", marginBottom: 24 }}>
+                <span className="land-pulse" style={{ width: 7, height: 7, borderRadius: "50%", background: "#E4002B", display: "inline-block" }} />
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#E4002B" }}>Sistema de delivery profissional</span>
               </div>
 
               {/* Headline */}
               <h1 className="land-fade-up" style={{ animationDelay: "80ms", fontSize: "clamp(34px,4.5vw,56px)", fontWeight: 900, lineHeight: 1.08, letterSpacing: "-0.04em", color: "#0f172a", margin: "0 0 20px" }}>
                 Pare de perder pedidos.{" "}
-                <span style={{ background: "linear-gradient(135deg,#FF6A00,#cc5500)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                <span style={{ background: "linear-gradient(135deg,#E4002B,#A80021)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
                   Controle seu delivery em tempo real.
                 </span>
               </h1>
@@ -454,7 +454,7 @@ export default function LandingPage() {
                     const st = STATUS_MAP[o.status] ?? STATUS_MAP.em_fila;
                     return (
                       <div key={o.id} className={o.isNew && i === 0 ? "land-new-card" : ""}
-                        style={{ background: "rgba(255,255,255,.05)", border: `1px solid ${o.isNew && i === 0 ? "rgba(255,106,0,.35)" : "rgba(255,255,255,.07)"}`, borderRadius: 10, padding: "10px 12px", transition: "border-color .4s" }}>
+                        style={{ background: "rgba(255,255,255,.05)", border: `1px solid ${o.isNew && i === 0 ? "rgba(228,0,43,.35)" : "rgba(255,255,255,.07)"}`, borderRadius: 10, padding: "10px 12px", transition: "border-color .4s" }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
                           <span style={{ fontWeight: 700, fontSize: 13, color: "#f1f5f9" }}>{o.nome}</span>
                           <div style={{ display: "flex", alignItems: "center", gap: 5, background: st.bg, borderRadius: 999, padding: "2px 8px" }}>
@@ -486,7 +486,7 @@ export default function LandingPage() {
             { n: "24/7",   l: "Sistema sempre online" },
           ].map(({ n, l }) => (
             <div key={n} style={{ textAlign: "center" }}>
-              <div style={{ fontWeight: 900, fontSize: 28, color: "#FF6A00", letterSpacing: "-0.04em" }}>{n}</div>
+              <div style={{ fontWeight: 900, fontSize: 28, color: "#E4002B", letterSpacing: "-0.04em" }}>{n}</div>
               <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>{l}</div>
             </div>
           ))}
@@ -497,8 +497,8 @@ export default function LandingPage() {
       <section id="como-funciona" style={{ padding: "96px 24px", background: "#f8fafc" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 64 }}>
-            <div style={{ display: "inline-block", background: "rgba(255,106,0,.08)", border: "1px solid rgba(255,106,0,.15)", borderRadius: 999, padding: "5px 16px", marginBottom: 16 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#FF6A00" }}>Como funciona</span>
+            <div style={{ display: "inline-block", background: "rgba(228,0,43,.08)", border: "1px solid rgba(228,0,43,.15)", borderRadius: 999, padding: "5px 16px", marginBottom: 16 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#E4002B" }}>Como funciona</span>
             </div>
             <h2 style={{ fontSize: "clamp(28px,3.5vw,42px)", fontWeight: 900, letterSpacing: "-0.04em", margin: "0 0 12px", color: "#0f172a" }}>
               Do pedido à entrega em minutos
@@ -513,7 +513,7 @@ export default function LandingPage() {
               <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
                 {/* connector line */}
                 {i < STEPS.length - 1 && (
-                  <div className="step-line" style={{ position: "absolute", top: 28, left: "50%", right: "-50%", height: 2, background: "linear-gradient(90deg,#FF6A00,rgba(255,106,0,.1))", zIndex: 0 }} />
+                  <div className="step-line" style={{ position: "absolute", top: 28, left: "50%", right: "-50%", height: 2, background: "linear-gradient(90deg,#E4002B,rgba(228,0,43,.1))", zIndex: 0 }} />
                 )}
                 {/* Icon */}
                 <div style={{ width: 56, height: 56, borderRadius: 16, background: s.color, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1, boxShadow: `0 8px 24px ${s.color}40`, marginBottom: 16 }}>
@@ -538,8 +538,8 @@ export default function LandingPage() {
       <section id="recursos" style={{ padding: "96px 24px", background: "#fff" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 64 }}>
-            <div style={{ display: "inline-block", background: "rgba(255,106,0,.08)", border: "1px solid rgba(255,106,0,.15)", borderRadius: 999, padding: "5px 16px", marginBottom: 16 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#FF6A00" }}>Recursos</span>
+            <div style={{ display: "inline-block", background: "rgba(228,0,43,.08)", border: "1px solid rgba(228,0,43,.15)", borderRadius: 999, padding: "5px 16px", marginBottom: 16 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#E4002B" }}>Recursos</span>
             </div>
             <h2 style={{ fontSize: "clamp(28px,3.5vw,42px)", fontWeight: 900, letterSpacing: "-0.04em", margin: "0 0 12px", color: "#0f172a" }}>
               Tudo que você precisa para escalar
@@ -573,7 +573,7 @@ export default function LandingPage() {
             </div>
             <h2 style={{ fontSize: "clamp(26px,3vw,38px)", fontWeight: 900, letterSpacing: "-0.04em", margin: "0 0 16px", color: "#0f172a", lineHeight: 1.15 }}>
               Seu cardápio online,{" "}
-              <span style={{ color: "#FF6A00" }}>em segundos</span>
+              <span style={{ color: "#E4002B" }}>em segundos</span>
             </h2>
             <p style={{ fontSize: 16, color: "#64748b", lineHeight: 1.7, marginBottom: 28 }}>
               Crie um catálogo com sua logo, banner e cores. Compartilhe o link e seus clientes já podem pedir direto pelo celular — os pedidos chegam automaticamente no seu painel.
@@ -600,7 +600,7 @@ export default function LandingPage() {
           <div style={{ flex: 1, minWidth: 280, display: "flex", justifyContent: "center" }}>
             <div style={{ width: 300, background: "#fff", borderRadius: 24, overflow: "hidden", boxShadow: "0 24px 60px rgba(0,0,0,.15)", border: "1px solid #e2e8f0" }}>
               {/* Banner */}
-              <div style={{ height: 100, background: "linear-gradient(135deg,#FF6A00,#a84400)", position: "relative", display: "flex", alignItems: "flex-end", padding: "0 16px 12px" }}>
+              <div style={{ height: 100, background: "linear-gradient(135deg,#E4002B,#a84400)", position: "relative", display: "flex", alignItems: "flex-end", padding: "0 16px 12px" }}>
                 <div style={{ fontWeight: 900, fontSize: 18, color: "#fff", letterSpacing: "-0.03em" }}>Pizzaria Nota 10</div>
                 <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(0,0,0,.4)", borderRadius: 999, padding: "2px 10px", fontSize: 11, fontWeight: 700, color: "#fff" }}>⭐ 4.9</div>
               </div>
@@ -615,9 +615,9 @@ export default function LandingPage() {
                 <div key={n} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #f8fafc" }}>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 13, color: "#0f172a" }}>{n}</div>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: "#FF6A00", marginTop: 2 }}>{p}</div>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: "#E4002B", marginTop: 2 }}>{p}</div>
                   </div>
-                  <div style={{ width: 30, height: 30, borderRadius: 8, background: "#FF6A00", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 18, flexShrink: 0 }}>+</div>
+                  <div style={{ width: 30, height: 30, borderRadius: 8, background: "#E4002B", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 18, flexShrink: 0 }}>+</div>
                 </div>
               ))}
               <div style={{ padding: "12px 16px", background: "#f8fafc", textAlign: "center", fontSize: 11, color: "#94a3b8" }}>appvellox.online/loja/pizzaria</div>
@@ -630,8 +630,8 @@ export default function LandingPage() {
       <section id="planos" style={{ padding: "96px 24px", background: "#fff" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 64 }}>
-            <div style={{ display: "inline-block", background: "rgba(255,106,0,.08)", border: "1px solid rgba(255,106,0,.15)", borderRadius: 999, padding: "5px 16px", marginBottom: 16 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#FF6A00" }}>Planos e preços</span>
+            <div style={{ display: "inline-block", background: "rgba(228,0,43,.08)", border: "1px solid rgba(228,0,43,.15)", borderRadius: 999, padding: "5px 16px", marginBottom: 16 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#E4002B" }}>Planos e preços</span>
             </div>
             <h2 style={{ fontSize: "clamp(28px,3.5vw,42px)", fontWeight: 900, letterSpacing: "-0.04em", margin: "0 0 12px", color: "#0f172a" }}>
               Escolha o plano certo para o seu delivery
@@ -645,9 +645,9 @@ export default function LandingPage() {
             {PLANS.map((plan) => (
               <div key={plan.name} className="plan-card" style={{
                 flex: 1, maxWidth: 360, background: plan.highlighted ? "#0f172a" : "#fff",
-                border: plan.highlighted ? "2px solid #FF6A00" : "1.5px solid #e2e8f0",
+                border: plan.highlighted ? "2px solid #E4002B" : "1.5px solid #e2e8f0",
                 borderRadius: 24, padding: 32, position: "relative",
-                boxShadow: plan.highlighted ? "0 24px 60px rgba(255,106,0,.2), 0 0 0 1px rgba(255,106,0,.3)" : "0 2px 12px rgba(0,0,0,.05)",
+                boxShadow: plan.highlighted ? "0 24px 60px rgba(228,0,43,.2), 0 0 0 1px rgba(228,0,43,.3)" : "0 2px 12px rgba(0,0,0,.05)",
                 display: "flex", flexDirection: "column",
               }}>
                 {plan.badge && (
@@ -655,12 +655,12 @@ export default function LandingPage() {
                     position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)",
                     background: plan.name === "Business"
                       ? "linear-gradient(135deg,#d97706,#b45309)"
-                      : "linear-gradient(135deg,#FF6A00,#cc5500)",
+                      : "linear-gradient(135deg,#E4002B,#A80021)",
                     color: "#fff", fontWeight: 800, fontSize: 12, padding: "4px 16px",
                     borderRadius: 999, whiteSpace: "nowrap",
                     boxShadow: plan.name === "Business"
                       ? "0 4px 12px rgba(217,119,6,.4)"
-                      : "0 4px 12px rgba(255,106,0,.35)",
+                      : "0 4px 12px rgba(228,0,43,.35)",
                   }}>
                     ✦ {plan.badge}
                   </div>
@@ -676,7 +676,7 @@ export default function LandingPage() {
                 <div style={{ flex: 1, marginBottom: 28 }}>
                   {plan.features.map(f => (
                     <div key={f} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                      <CheckCircle2 size={16} style={{ color: plan.highlighted ? "#22c55e" : "#FF6A00", flexShrink: 0 }} />
+                      <CheckCircle2 size={16} style={{ color: plan.highlighted ? "#22c55e" : "#E4002B", flexShrink: 0 }} />
                       <span style={{ fontSize: 14, color: plan.highlighted ? "#e2e8f0" : "#374151" }}>{f}</span>
                     </div>
                   ))}
@@ -697,7 +697,7 @@ export default function LandingPage() {
                     color: plan.highlighted ? "#fff" : "#0f172a",
                     transition: "background .15s,border-color .15s",
                   }}
-                  onMouseEnter={e => { if (!plan.highlighted) { (e.currentTarget as HTMLElement).style.background = "rgba(255,106,0,.05)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,106,0,.3)"; (e.currentTarget as HTMLElement).style.color = "#FF6A00"; } }}
+                  onMouseEnter={e => { if (!plan.highlighted) { (e.currentTarget as HTMLElement).style.background = "rgba(228,0,43,.05)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(228,0,43,.3)"; (e.currentTarget as HTMLElement).style.color = "#E4002B"; } }}
                   onMouseLeave={e => { if (!plan.highlighted) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderColor = "#e2e8f0"; (e.currentTarget as HTMLElement).style.color = "#0f172a"; } }}
                 >
                   Assinar {plan.name} →
@@ -718,8 +718,8 @@ export default function LandingPage() {
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,106,0,.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Zap size={18} color="#FF6A00" />
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(228,0,43,.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Zap size={18} color="#E4002B" />
               </div>
               <div style={{ textAlign: "left" }}>
                 <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a" }}>Ative em 5 minutos</div>
@@ -753,7 +753,7 @@ export default function LandingPage() {
                 </div>
                 <p style={{ fontSize: 15, color: "#374151", lineHeight: 1.7, margin: "0 0 20px" }}>"{t.text}"</p>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: "linear-gradient(135deg,#FF6A00,#cc5500)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 16, color: "#fff" }}>
+                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: "linear-gradient(135deg,#E4002B,#A80021)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 16, color: "#fff" }}>
                     {t.avatar}
                   </div>
                   <div>
@@ -771,8 +771,8 @@ export default function LandingPage() {
       <section id="faq" style={{ padding: "96px 24px", background: "#fff" }}>
         <div style={{ maxWidth: 720, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 56 }}>
-            <div style={{ display: "inline-block", background: "rgba(255,106,0,.08)", border: "1px solid rgba(255,106,0,.15)", borderRadius: 999, padding: "5px 16px", marginBottom: 16 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#FF6A00" }}>Dúvidas frequentes</span>
+            <div style={{ display: "inline-block", background: "rgba(228,0,43,.08)", border: "1px solid rgba(228,0,43,.15)", borderRadius: 999, padding: "5px 16px", marginBottom: 16 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#E4002B" }}>Dúvidas frequentes</span>
             </div>
             <h2 style={{ fontSize: "clamp(28px,3.5vw,40px)", fontWeight: 900, letterSpacing: "-0.04em", margin: "0 0 12px", color: "#0f172a" }}>
               Perguntas frequentes
@@ -784,13 +784,13 @@ export default function LandingPage() {
 
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {FAQ_ITEMS.map((item, i) => (
-              <div key={i} style={{ border: "1.5px solid", borderColor: faqOpen === i ? "rgba(255,106,0,.3)" : "#e2e8f0", borderRadius: 16, overflow: "hidden", transition: "border-color .2s", background: faqOpen === i ? "rgba(255,106,0,.02)" : "#fff" }}>
+              <div key={i} style={{ border: "1.5px solid", borderColor: faqOpen === i ? "rgba(228,0,43,.3)" : "#e2e8f0", borderRadius: 16, overflow: "hidden", transition: "border-color .2s", background: faqOpen === i ? "rgba(228,0,43,.02)" : "#fff" }}>
                 <button
                   onClick={() => setFaqOpen(faqOpen === i ? null : i)}
                   style={{ width: "100%", padding: "18px 20px", background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, textAlign: "left" }}
                 >
                   <span style={{ fontWeight: 700, fontSize: 15, color: "#0f172a", lineHeight: 1.4 }}>{item.q}</span>
-                  <span style={{ fontSize: 18, color: faqOpen === i ? "#FF6A00" : "#94a3b8", flexShrink: 0, fontWeight: 300, transform: faqOpen === i ? "rotate(45deg)" : "none", transition: "transform .2s,color .2s", display: "inline-block" }}>+</span>
+                  <span style={{ fontSize: 18, color: faqOpen === i ? "#E4002B" : "#94a3b8", flexShrink: 0, fontWeight: 300, transform: faqOpen === i ? "rotate(45deg)" : "none", transition: "transform .2s,color .2s", display: "inline-block" }}>+</span>
                 </button>
                 {faqOpen === i && (
                   <div style={{ padding: "0 20px 18px" }}>
@@ -805,11 +805,11 @@ export default function LandingPage() {
 
       {/* ══ FINAL CTA ═══════════════════════════════════════════════ */}
       <section style={{ padding: "96px 24px", background: "linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%)", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 70% 70% at 50% 50%,rgba(255,106,0,.12),transparent)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 70% 70% at 50% 50%,rgba(228,0,43,.12),transparent)", pointerEvents: "none" }} />
         <div style={{ maxWidth: 700, margin: "0 auto", textAlign: "center", position: "relative", zIndex: 1 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,106,0,.15)", border: "1px solid rgba(255,106,0,.25)", borderRadius: 999, padding: "6px 16px", marginBottom: 24 }}>
-            <Clock size={13} color="#FF6A00" />
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#FF6A00" }}>Ative em menos de 5 minutos</span>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(228,0,43,.15)", border: "1px solid rgba(228,0,43,.25)", borderRadius: 999, padding: "6px 16px", marginBottom: 24 }}>
+            <Clock size={13} color="#E4002B" />
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#E4002B" }}>Ative em menos de 5 minutos</span>
           </div>
           <h2 style={{ fontSize: "clamp(30px,4vw,50px)", fontWeight: 900, letterSpacing: "-0.04em", color: "#fff", margin: "0 0 16px", lineHeight: 1.1 }}>
             Pronto para profissionalizar seu delivery?
@@ -835,7 +835,7 @@ export default function LandingPage() {
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div className="footer-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28, paddingBottom: 28, borderBottom: "1px solid rgba(255,255,255,.06)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 9, background: "linear-gradient(135deg,#FF6A00,#cc5500)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: 32, height: 32, borderRadius: 9, background: "linear-gradient(135deg,#E4002B,#A80021)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Zap size={16} color="#fff" strokeWidth={2.5} />
               </div>
               <span style={{ fontWeight: 900, fontSize: 18, letterSpacing: "-0.04em", color: "#fff" }}>Vellox</span>
@@ -882,10 +882,10 @@ export default function LandingPage() {
           }}>
             <div style={{
               width: 44, height: 44, borderRadius: "50%", flexShrink: 0,
-              background: "linear-gradient(135deg,#FF6A00,#cc5500)",
+              background: "linear-gradient(135deg,#E4002B,#A80021)",
               display: "flex", alignItems: "center", justifyContent: "center",
               border: "2px solid rgba(255,255,255,0.25)",
-              boxShadow: "0 0 16px rgba(255,106,0,0.4)",
+              boxShadow: "0 0 16px rgba(228,0,43,0.4)",
             }}>
               <Zap size={20} color="#fff" strokeWidth={2.5} />
             </div>
@@ -907,7 +907,7 @@ export default function LandingPage() {
             <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
               <div style={{
                 width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
-                background: "linear-gradient(135deg,#FF6A00,#a84400)",
+                background: "linear-gradient(135deg,#E4002B,#a84400)",
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}>
                 <Zap size={14} color="#fff" />
@@ -920,7 +920,7 @@ export default function LandingPage() {
                   border: "1px solid #222",
                 }}>
                   <p style={{ fontSize: 13.5, color: "#e5e7eb", lineHeight: 1.6, margin: 0 }}>
-                    Olá! 👋 Sou o assistente virtual do <strong style={{ color: "#FF6A00" }}>Vellox</strong>. Em que posso te ajudar hoje?
+                    Olá! 👋 Sou o assistente virtual do <strong style={{ color: "#E4002B" }}>Vellox</strong>. Em que posso te ajudar hoje?
                   </p>
                 </div>
                 <div style={{ fontSize: 10, color: "#374151", marginTop: 4, paddingLeft: 4 }}>Agora mesmo</div>
@@ -1008,7 +1008,7 @@ export default function LandingPage() {
             <div style={{
               position: "absolute", top: -2, right: -2,
               width: 14, height: 14, borderRadius: "50%",
-              background: "#FF6A00",
+              background: "#E4002B",
               border: "2px solid #fff",
               display: "flex", alignItems: "center", justifyContent: "center",
             }}>
@@ -1037,7 +1037,7 @@ export default function LandingPage() {
             {/* Steps nav */}
             <div style={{ display: "flex", padding: "12px 24px 0", gap: 6 }}>
               {DEMO_STEPS.map((_, i) => (
-                <button key={i} onClick={() => setDemoStep(i)} style={{ flex: 1, height: 3, borderRadius: 999, border: "none", cursor: "pointer", background: i === demoStep ? "#FF6A00" : i < demoStep ? "rgba(255,106,0,.3)" : "#e2e8f0", transition: "background .2s" }} />
+                <button key={i} onClick={() => setDemoStep(i)} style={{ flex: 1, height: 3, borderRadius: 999, border: "none", cursor: "pointer", background: i === demoStep ? "#E4002B" : i < demoStep ? "rgba(228,0,43,.3)" : "#e2e8f0", transition: "background .2s" }} />
               ))}
             </div>
 

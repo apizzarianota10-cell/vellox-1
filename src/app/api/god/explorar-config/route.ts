@@ -15,7 +15,7 @@ const DEFAULTS = {
   hero_titulo:    "Peça comida no",
   hero_destaque:  "seu jeito",
   hero_subtitulo: "Descubra restaurantes incríveis e peça com entrega rápida",
-  accent_color:   "#FF6A00",
+  accent_color:   "#E4002B",
 };
 
 export async function GET() {

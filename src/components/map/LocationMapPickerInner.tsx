@@ -36,12 +36,12 @@ const pinIcon = L.divIcon({
     <div style="display:flex;flex-direction:column;align-items:center;gap:0;">
       <div style="
         width:28px;height:28px;border-radius:50%;
-        background:#FF6A00;
+        background:#E4002B;
         border:3px solid white;
-        box-shadow:0 0 0 3px rgba(255,106,0,0.28),0 4px 10px rgba(0,0,0,0.38);
-        filter:drop-shadow(0 2px 4px rgba(255,106,0,0.4));
+        box-shadow:0 0 0 3px rgba(228,0,43,0.28),0 4px 10px rgba(0,0,0,0.38);
+        filter:drop-shadow(0 2px 4px rgba(228,0,43,0.4));
       "></div>
-      <div style="width:2.5px;height:6px;background:#FF6A00;margin-top:-2px;border-radius:0 0 2px 2px;"></div>
+      <div style="width:2.5px;height:6px;background:#E4002B;margin-top:-2px;border-radius:0 0 2px 2px;"></div>
     </div>
   `,
   className: "",
@@ -94,8 +94,8 @@ export default function LocationMapPickerInner({
             center={[lat, lng]}
             radius={raio}
             pathOptions={{
-              color: "#FF6A00",
-              fillColor: "#FF6A00",
+              color: "#E4002B",
+              fillColor: "#E4002B",
               fillOpacity: 0.10,
               weight: 2,
               dashArray: "6, 4",

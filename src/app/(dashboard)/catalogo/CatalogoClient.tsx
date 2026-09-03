@@ -27,7 +27,7 @@ interface Props {
 }
 
 const DEFAULT_CONFIG: Omit<ConfiguracaoLoja, "empresa_id" | "updated_at"> = {
-  cor_principal: "#FF6A00",
+  cor_principal: "#E4002B",
   logo_url: null,
   banner_url: null,
   descricao: "",
@@ -1454,7 +1454,7 @@ export default function CatalogoClient({
                                 : prod
                               ));
                             }}
-                            style={{ padding: "4px 8px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", color: "#FF6A00", cursor: "pointer", flexShrink: 0 }}>
+                            style={{ padding: "4px 8px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", color: "#E4002B", cursor: "pointer", flexShrink: 0 }}>
                             <Trash2 size={12} />
                           </button>
                         </div>
@@ -1539,7 +1539,7 @@ export default function CatalogoClient({
                           <Pencil size={14} />
                         </button>
                         <button onClick={() => handleDelete(p.id)} disabled={deleting === p.id}
-                          style={{ padding: "5px 8px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", cursor: "pointer", color: "#FF6A00" }}>
+                          style={{ padding: "5px 8px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", cursor: "pointer", color: "#E4002B" }}>
                           <Trash2 size={14} />
                         </button>
                         <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 700,
@@ -1608,7 +1608,7 @@ export default function CatalogoClient({
                   {config.banner_url && (
                     <button
                       onClick={e => { e.stopPropagation(); setConfig(c => ({ ...c, banner_url: null })); }}
-                      style={{ padding: "6px 10px", borderRadius: 8, background: "rgba(255,106,0,0.8)", border: "none", color: "#fff", cursor: "pointer" }}>
+                      style={{ padding: "6px 10px", borderRadius: 8, background: "rgba(228,0,43,0.8)", border: "none", color: "#fff", cursor: "pointer" }}>
                       <X size={12} />
                     </button>
                   )}
@@ -1650,7 +1650,7 @@ export default function CatalogoClient({
                   </button>
                   {config.logo_url && (
                     <button onClick={() => setConfig(c => ({ ...c, logo_url: null }))}
-                      style={{ padding: "5px 8px", borderRadius: 8, background: "#fef2f2", border: "1px solid #fee2e2", color: "#FF6A00", cursor: "pointer" }}>
+                      style={{ padding: "5px 8px", borderRadius: 8, background: "#fef2f2", border: "1px solid #fee2e2", color: "#E4002B", cursor: "pointer" }}>
                       <X size={11} />
                     </button>
                   )}
@@ -1770,7 +1770,7 @@ export default function CatalogoClient({
             </div>
             {profileError && (
               <div style={{ padding: "10px 14px", borderRadius: 10, background: "#fef2f2", border: "1px solid #fecaca" }}>
-                <p style={{ fontSize: 12, color: "#cc5500", margin: 0, wordBreak: "break-all" }}>⚠ {profileError}</p>
+                <p style={{ fontSize: 12, color: "#A80021", margin: 0, wordBreak: "break-all" }}>⚠ {profileError}</p>
               </div>
             )}
           </div>
@@ -1887,7 +1887,7 @@ export default function CatalogoClient({
                     <span style={{ width: 32, height: 32, borderRadius: 8, background: config.cor_principal, flexShrink: 0 }} />
                   </div>
                   <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                    {["#FF6A00","#f97316","#f59e0b","#22c55e","#3b82f6","#8b5cf6","#ec4899"].map(c => (
+                    {["#E4002B","#E4002B","#f59e0b","#22c55e","#3b82f6","#8b5cf6","#ec4899"].map(c => (
                       <button key={c} onClick={() => setConfig(cfg => ({ ...cfg, cor_principal: c }))}
                         style={{ width: 24, height: 24, borderRadius: 6, background: c, border: config.cor_principal === c ? "2px solid #0f172a" : "2px solid transparent", cursor: "pointer" }} />
                     ))}
@@ -2045,7 +2045,7 @@ export default function CatalogoClient({
                         Tamanhos de <span style={{ color: cat.cor }}>{cat.nome}</span>
                       </p>
                       <button onClick={() => handleDeleteCategoriaPreco(cat.id)}
-                        style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", color: "#FF6A00", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                        style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", color: "#E4002B", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                         Excluir categoria
                       </button>
                     </div>
@@ -2081,7 +2081,7 @@ export default function CatalogoClient({
                                   <Pencil size={11} />
                                 </button>
                                 <button onClick={() => handleDeleteTamanhoCatPreco(t.id)}
-                                  style={{ padding: "4px 8px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", color: "#FF6A00", cursor: "pointer" }}>
+                                  style={{ padding: "4px 8px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", color: "#E4002B", cursor: "pointer" }}>
                                   <Trash2 size={11} />
                                 </button>
                               </>
@@ -2142,7 +2142,7 @@ export default function CatalogoClient({
             {/* ── Taxas por bairro ──────────────────────────────────── */}
             <div style={{ background: "var(--bg-1)", borderRadius: 16, padding: "20px 22px", border: "1px solid var(--border-1)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-                <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #fb923c,#f97316)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg, #fb923c,#E4002B)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <MapPin size={14} color="#fff" />
                 </div>
                 <div>
@@ -2177,7 +2177,7 @@ export default function CatalogoClient({
                         {b.ativo ? "Ativo" : "Inativo"}
                       </button>
                       <button onClick={() => handleDeleteBairro(b.id)}
-                        style={{ padding: "4px 8px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", color: "#FF6A00", cursor: "pointer" }}>
+                        style={{ padding: "4px 8px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", color: "#E4002B", cursor: "pointer" }}>
                         <Trash2 size={12} />
                       </button>
                     </div>
@@ -3162,7 +3162,7 @@ export default function CatalogoClient({
                             <button onClick={() => toggleVariacaoAtivo(v)} style={{ padding: "4px 8px", borderRadius: 8, border: "1px solid var(--border-1)", background: v.ativo ? "#f0fdf4" : "var(--bg-input)", color: v.ativo ? "#16a34a" : "var(--text-4)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                               {v.ativo ? "Ativo" : "Inativo"}
                             </button>
-                            <button onClick={() => handleDeleteVariacao(v.id)} style={{ padding: "4px 8px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", color: "#FF6A00", cursor: "pointer" }}><Trash2 size={12} /></button>
+                            <button onClick={() => handleDeleteVariacao(v.id)} style={{ padding: "4px 8px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", color: "#E4002B", cursor: "pointer" }}><Trash2 size={12} /></button>
                           </div>
                         ))}
                       </div>
@@ -3317,7 +3317,7 @@ export default function CatalogoClient({
                             {c.preco_adicional > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: "#9333ea" }}>+R${c.preco_adicional.toFixed(2)}</span>}
                             {c.preco_adicional === 0 && <span style={{ fontSize: 10, color: "var(--text-4)" }}>grátis</span>}
                             <button onClick={() => handleDeleteCategoria(c.id)}
-                              style={{ background: "none", border: "none", cursor: "pointer", color: "#FF6A00", padding: 0, display: "flex", lineHeight: 1 }}>
+                              style={{ background: "none", border: "none", cursor: "pointer", color: "#E4002B", padding: 0, display: "flex", lineHeight: 1 }}>
                               <X size={11} />
                             </button>
                           </div>
@@ -3480,7 +3480,7 @@ export default function CatalogoClient({
                                 <button onClick={() => toggleSaborAtivo(s)} style={{ padding: "4px 8px", borderRadius: 8, border: "1px solid var(--border-1)", background: s.ativo ? "#f0fdf4" : "var(--bg-input)", color: s.ativo ? "#16a34a" : "var(--text-4)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                                   {s.ativo ? "Ativo" : "Inativo"}
                                 </button>
-                                <button onClick={() => handleDeleteSabor(s.id)} style={{ padding: "4px 8px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", color: "#FF6A00", cursor: "pointer" }}><Trash2 size={12} /></button>
+                                <button onClick={() => handleDeleteSabor(s.id)} style={{ padding: "4px 8px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", color: "#E4002B", cursor: "pointer" }}><Trash2 size={12} /></button>
                               </div>
                             )}
                           </div>
@@ -3586,7 +3586,7 @@ export default function CatalogoClient({
                             <p style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", margin: 0 }}>{a.nome}</p>
                             <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
                               {a.preco > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: cor }}>+R${a.preco.toFixed(2)}</span>}
-                              {a.obrigatorio && <span style={{ fontSize: 10, fontWeight: 700, color: "#FF6A00" }}>Obrigatório</span>}
+                              {a.obrigatorio && <span style={{ fontSize: 10, fontWeight: 700, color: "#E4002B" }}>Obrigatório</span>}
                             </div>
                           </div>
                         </label>
@@ -3626,13 +3626,13 @@ export default function CatalogoClient({
                               <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)", margin: 0 }}>{a.nome}</p>
                               <div style={{ display: "flex", gap: 6, marginTop: 3 }}>
                                 {a.preco > 0 && <span style={{ fontSize: 11, fontWeight: 700, color: cor }}>+R${a.preco.toFixed(2)}</span>}
-                                {a.obrigatorio && <span style={{ fontSize: 10, fontWeight: 700, color: "#FF6A00", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 6, padding: "1px 6px" }}>Obrigatório</span>}
+                                {a.obrigatorio && <span style={{ fontSize: 10, fontWeight: 700, color: "#E4002B", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 6, padding: "1px 6px" }}>Obrigatório</span>}
                               </div>
                             </div>
                             <button onClick={() => toggleAdicionalAtivo(a)} style={{ padding: "4px 8px", borderRadius: 8, border: "1px solid var(--border-1)", background: a.ativo ? "#f0fdf4" : "var(--bg-input)", color: a.ativo ? "#16a34a" : "var(--text-4)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                               {a.ativo ? "Ativo" : "Inativo"}
                             </button>
-                            <button onClick={() => handleDeleteAdicional(a.id)} style={{ padding: "4px 8px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", color: "#FF6A00", cursor: "pointer" }}><Trash2 size={12} /></button>
+                            <button onClick={() => handleDeleteAdicional(a.id)} style={{ padding: "4px 8px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", color: "#E4002B", cursor: "pointer" }}><Trash2 size={12} /></button>
                           </div>
                         ))}
                       </div>
@@ -3747,7 +3747,7 @@ export default function CatalogoClient({
                 type="range" min="1" max="3" step="0.05"
                 value={bannerZoom}
                 onChange={e => { setBannerZoom(parseFloat(e.target.value)); setBannerPan({ x: 0, y: 0 }); }}
-                style={{ flex: 1, accentColor: "#FF6A00" }}
+                style={{ flex: 1, accentColor: "#E4002B" }}
               />
               <span style={{ fontSize: 11, color: "#64748b", minWidth: 28 }}>{bannerZoom.toFixed(1)}×</span>
             </div>
@@ -3758,7 +3758,7 @@ export default function CatalogoClient({
                 Cancelar
               </button>
               <button onClick={confirmBannerCrop}
-                style={{ flex: 2, padding: "12px", borderRadius: 12, background: "#FF6A00", border: "none", color: "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
+                style={{ flex: 2, padding: "12px", borderRadius: 12, background: "#E4002B", border: "none", color: "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
                 Usar esta área
               </button>
             </div>

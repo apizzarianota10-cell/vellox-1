@@ -13,9 +13,9 @@ const MOTOBOY_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="
 </svg>`;
 
 const DEST_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="46" viewBox="0 0 36 46">
-  <circle cx="18" cy="18" r="15" fill="#FF6A00" stroke="white" stroke-width="3"/>
+  <circle cx="18" cy="18" r="15" fill="#E4002B" stroke="white" stroke-width="3"/>
   <path d="M18 10c-3.87 0-7 3.13-7 7 0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="white"/>
-  <rect x="16.5" y="33" width="3" height="10" rx="1.5" fill="#FF6A00"/>
+  <rect x="16.5" y="33" width="3" height="10" rx="1.5" fill="#E4002B"/>
 </svg>`;
 
 interface Props {

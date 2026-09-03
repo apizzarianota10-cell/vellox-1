@@ -129,8 +129,8 @@ export default function ChatMotoboy({ empresaId, motoboyId, motoboyNome, onClose
               <div key={m.id} className={`flex ${isEmp ? "justify-end" : "justify-start"}`}>
                 <div className="max-w-[78%] rounded-2xl px-3.5 py-2"
                   style={{
-                    background: isEmp ? "rgba(255,106,0,0.15)" : "var(--bg-2)",
-                    border: isEmp ? "1px solid rgba(255,106,0,0.2)" : "1px solid var(--border-1)",
+                    background: isEmp ? "rgba(228,0,43,0.15)" : "var(--bg-2)",
+                    border: isEmp ? "1px solid rgba(228,0,43,0.2)" : "1px solid var(--border-1)",
                     borderBottomRightRadius: isEmp ? 4 : 16,
                     borderBottomLeftRadius: isEmp ? 16 : 4,
                   }}>
@@ -164,9 +164,9 @@ export default function ChatMotoboy({ empresaId, motoboyId, motoboyNome, onClose
           <button onClick={enviar} disabled={!texto.trim() || sending}
             className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-all"
             style={{
-              background: texto.trim() ? "rgba(255,106,0,0.15)" : "var(--bg-base)",
-              color: texto.trim() ? "#FF6A00" : "#374151",
-              border: "1px solid " + (texto.trim() ? "rgba(255,106,0,0.2)" : "var(--border-1)"),
+              background: texto.trim() ? "rgba(228,0,43,0.15)" : "var(--bg-base)",
+              color: texto.trim() ? "#E4002B" : "#374151",
+              border: "1px solid " + (texto.trim() ? "rgba(228,0,43,0.2)" : "var(--border-1)"),
             }}>
             {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           </button>

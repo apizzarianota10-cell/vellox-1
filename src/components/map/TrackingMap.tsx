@@ -35,9 +35,9 @@ function makeMotoboyIcon(color: string, initial: string): google.maps.Icon {
 }
 
 const DEST_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="46" viewBox="0 0 36 46">
-  <circle cx="18" cy="18" r="15" fill="#FF6A00" stroke="white" stroke-width="3"/>
+  <circle cx="18" cy="18" r="15" fill="#E4002B" stroke="white" stroke-width="3"/>
   <path d="M18 10c-3.87 0-7 3.13-7 7 0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="white"/>
-  <rect x="16.5" y="33" width="3" height="10" rx="1.5" fill="#FF6A00"/>
+  <rect x="16.5" y="33" width="3" height="10" rx="1.5" fill="#E4002B"/>
 </svg>`;
 function makeDestIcon(): google.maps.Icon {
   return {
@@ -48,7 +48,7 @@ function makeDestIcon(): google.maps.Icon {
 }
 
 const COMPANY_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="42" height="44" viewBox="0 0 42 44">
-  <circle cx="21" cy="21" r="19" fill="#cc5500" stroke="white" stroke-width="3"/>
+  <circle cx="21" cy="21" r="19" fill="#A80021" stroke="white" stroke-width="3"/>
   <path d="M21 8 8 18.5h3.5V31h7v-6h5v6h7V18.5H34Z" fill="white"/>
 </svg>`;
 function makeCompanyIcon(): google.maps.Icon {
@@ -96,8 +96,8 @@ export default function TrackingMap({ motoboys: initialMotoboys, pedidos: initia
 
       new google.maps.Circle({
         center: { lat: empLat, lng: empLng }, radius: raio, map,
-        strokeColor: "#FF6A00", strokeOpacity: 0.5, strokeWeight: 1.5,
-        fillColor: "#FF6A00", fillOpacity: 0.07,
+        strokeColor: "#E4002B", strokeOpacity: 0.5, strokeWeight: 1.5,
+        fillColor: "#E4002B", fillOpacity: 0.07,
       });
 
       setMapReady(true);
@@ -237,7 +237,7 @@ export default function TrackingMap({ motoboys: initialMotoboys, pedidos: initia
         path: coords, strokeColor: "#7f1d1d", strokeOpacity: 0.35, strokeWeight: 7, map: mapRef.current,
       }));
       polylinesRef.current.push(new google.maps.Polyline({
-        path: coords, strokeColor: "#FF6A00", strokeOpacity: 0.9, strokeWeight: 3.5, map: mapRef.current,
+        path: coords, strokeColor: "#E4002B", strokeOpacity: 0.9, strokeWeight: 3.5, map: mapRef.current,
       }));
     }
   }, [motoboys, pedidos, mapReady]);
@@ -281,7 +281,7 @@ export default function TrackingMap({ motoboys: initialMotoboys, pedidos: initia
         {[
           { color: "#f59e0b", label: "Em entrega" },
           { color: "#22c55e", label: "Disponível" },
-          { color: "#FF6A00", label: "Destino" },
+          { color: "#E4002B", label: "Destino" },
         ].map(({ color, label }) => (
           <span key={label} style={{
             display: "flex", alignItems: "center", gap: 5,

@@ -39,7 +39,7 @@ export default function VersionChecker() {
       className="flex items-center"
       style={{
         gap: 10, padding: "9px 16px", width: "100%",
-        background: "#FF6A00", borderBottom: "1px solid rgba(0,0,0,0.1)",
+        background: "#E4002B", borderBottom: "1px solid rgba(0,0,0,0.1)",
       }}
     >
       <RefreshCw size={15} style={{ color: "#fff", flexShrink: 0 }} />
@@ -50,7 +50,7 @@ export default function VersionChecker() {
         onClick={() => window.location.reload()}
         style={{
           flexShrink: 0, padding: "6px 14px", borderRadius: 8,
-          background: "#fff", color: "#FF6A00", border: "none",
+          background: "#fff", color: "#E4002B", border: "none",
           fontSize: 12, fontWeight: 800, cursor: "pointer",
         }}>
         Atualizar agora

@@ -11,11 +11,11 @@ export default function Icon() {
           width: 32,
           height: 32,
           borderRadius: 8,
-          background: "linear-gradient(135deg, #FF8C1A 0%, #cc5500 100%)",
+          background: "linear-gradient(135deg, #FFC72C 0%, #A80021 100%)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          boxShadow: "0 0 12px rgba(255,106,0,0.6)",
+          boxShadow: "0 0 12px rgba(228,0,43,0.6)",
         }}
       >
         {/* Raio / Zap */}

@@ -298,9 +298,9 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
               </p>
             )}
             {desatualizado && (
-              <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-xl" style={{ background: "rgba(255,106,0,0.08)", border: "1px solid rgba(255,106,0,0.2)" }}>
-                <AlertCircle size={13} style={{ color: "#FF6A00", flexShrink: 0 }} />
-                <span className="text-xs font-semibold" style={{ color: "#FF6A00" }}>
+              <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-xl" style={{ background: "rgba(228,0,43,0.08)", border: "1px solid rgba(228,0,43,0.2)" }}>
+                <AlertCircle size={13} style={{ color: "#E4002B", flexShrink: 0 }} />
+                <span className="text-xs font-semibold" style={{ color: "#E4002B" }}>
                   Versão desatualizada (atual é {VERSAO_AGENTE_ATUAL}) — baixa o &quot;atualizador&quot; abaixo.
                 </span>
               </div>
@@ -312,7 +312,7 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
       {/* Credenciais do servidor de impressão (PowerShell, sem instalar programa) */}
       <div className="rounded-2xl p-4" style={{ background: "var(--bg-2)", border: "1px solid var(--border-1)" }}>
         <div className="flex items-center gap-2 mb-1">
-          <KeyRound size={15} style={{ color: "#FF6A00" }} />
+          <KeyRound size={15} style={{ color: "#E4002B" }} />
           <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>Credenciais do servidor de impressão</p>
         </div>
         <p className="text-xs mb-3" style={{ color: "#64748b" }}>
@@ -328,7 +328,7 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
           <button
             onClick={() => copiarCampo(empresa.id, "id")}
             className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold shrink-0"
-            style={{ background: "rgba(255,106,0,0.1)", color: copiedField === "id" ? "#22c55e" : "#FF6A00", border: "1px solid rgba(255,106,0,0.2)" }}
+            style={{ background: "rgba(228,0,43,0.1)", color: copiedField === "id" ? "#22c55e" : "#E4002B", border: "1px solid rgba(228,0,43,0.2)" }}
           >
             {copiedField === "id" ? <CheckCircle size={13} /> : <Copy size={13} />}
             Copiar
@@ -362,7 +362,7 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
             <button
               onClick={() => copiarCampo(creds.agent_token, "token")}
               className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold shrink-0"
-              style={{ background: "rgba(255,106,0,0.1)", color: copiedField === "token" ? "#22c55e" : "#FF6A00", border: "1px solid rgba(255,106,0,0.2)" }}
+              style={{ background: "rgba(228,0,43,0.1)", color: copiedField === "token" ? "#22c55e" : "#E4002B", border: "1px solid rgba(228,0,43,0.2)" }}
             >
               {copiedField === "token" ? <CheckCircle size={13} /> : <Copy size={13} />}
               Copiar
@@ -429,10 +429,10 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
               key={size}
               onClick={() => setPaperSize(size)}
               className="flex items-center gap-2 p-3 rounded-xl text-left"
-              style={{ background: paperSize === size ? "rgba(255,106,0,0.08)" : "var(--overlay-sm)", border: `1px solid ${paperSize === size ? "rgba(255,106,0,0.4)" : "var(--border-1)"}` }}
+              style={{ background: paperSize === size ? "rgba(228,0,43,0.08)" : "var(--overlay-sm)", border: `1px solid ${paperSize === size ? "rgba(228,0,43,0.4)" : "var(--border-1)"}` }}
             >
-              <div style={{ width: 16, height: 16, borderRadius: "50%", flexShrink: 0, border: `2px solid ${paperSize === size ? "#FF6A00" : "#374151"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {paperSize === size && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#FF6A00" }} />}
+              <div style={{ width: 16, height: 16, borderRadius: "50%", flexShrink: 0, border: `2px solid ${paperSize === size ? "#E4002B" : "#374151"}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {paperSize === size && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#E4002B" }} />}
               </div>
               <div>
                 <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>{size}</p>
@@ -466,9 +466,9 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
               key={opt.id}
               onClick={() => setFontSize(opt.id)}
               className="flex flex-col items-center gap-1 p-3 rounded-xl"
-              style={{ background: fontSize === opt.id ? "rgba(255,106,0,0.08)" : "var(--overlay-sm)", border: `1px solid ${fontSize === opt.id ? "rgba(255,106,0,0.4)" : "var(--border-1)"}` }}
+              style={{ background: fontSize === opt.id ? "rgba(228,0,43,0.08)" : "var(--overlay-sm)", border: `1px solid ${fontSize === opt.id ? "rgba(228,0,43,0.4)" : "var(--border-1)"}` }}
             >
-              <span className="font-black" style={{ fontSize: opt.id === "p" ? 13 : opt.id === "m" ? 16 : opt.id === "g" ? 19 : 22, color: fontSize === opt.id ? "#FF6A00" : "var(--text-1)" }}>{opt.label}</span>
+              <span className="font-black" style={{ fontSize: opt.id === "p" ? 13 : opt.id === "m" ? 16 : opt.id === "g" ? 19 : 22, color: fontSize === opt.id ? "#E4002B" : "var(--text-1)" }}>{opt.label}</span>
               <span style={{ fontSize: 10, color: "#64748b" }}>{opt.sub}</span>
             </button>
           ))}
@@ -547,12 +547,12 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
               key={opt.id}
               onClick={() => setLayout(opt.id)}
               className="rounded-xl overflow-hidden text-left transition-all"
-              style={{ border: `2px solid ${layout === opt.id ? "#FF6A00" : "var(--border-1)"}`, background: layout === opt.id ? "rgba(255,106,0,0.06)" : "var(--overlay-sm)", padding: 0 }}
+              style={{ border: `2px solid ${layout === opt.id ? "#E4002B" : "var(--border-1)"}`, background: layout === opt.id ? "rgba(228,0,43,0.06)" : "var(--overlay-sm)", padding: 0 }}
             >
               <div style={{ background: "#fff", minHeight: 90 }}>{opt.preview}</div>
               <div className="flex items-center justify-between px-2 py-1.5">
-                <span style={{ fontSize: 11, fontWeight: 700, color: layout === opt.id ? "#FF6A00" : "var(--text-2)" }}>{opt.label}</span>
-                {layout === opt.id && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#FF6A00" }} />}
+                <span style={{ fontSize: 11, fontWeight: 700, color: layout === opt.id ? "#E4002B" : "var(--text-2)" }}>{opt.label}</span>
+                {layout === opt.id && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#E4002B" }} />}
               </div>
             </button>
           ))}
@@ -567,10 +567,10 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
                 key={opt.id}
                 onClick={() => setDestaque(opt.id)}
                 className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl"
-                style={{ background: destaque === opt.id ? "rgba(255,106,0,0.08)" : "var(--overlay-sm)", border: `1px solid ${destaque === opt.id ? "rgba(255,106,0,0.4)" : "var(--border-1)"}` }}
+                style={{ background: destaque === opt.id ? "rgba(228,0,43,0.08)" : "var(--overlay-sm)", border: `1px solid ${destaque === opt.id ? "rgba(228,0,43,0.4)" : "var(--border-1)"}` }}
               >
-                <span className="font-black" style={{ fontSize: opt.id === "normal" ? 13 : opt.id === "grande" ? 17 : 21, color: destaque === opt.id ? "#FF6A00" : "var(--text-1)" }}>Aa</span>
-                <span className="text-xs font-semibold" style={{ color: destaque === opt.id ? "#FF6A00" : "var(--text-2)" }}>{opt.label}</span>
+                <span className="font-black" style={{ fontSize: opt.id === "normal" ? 13 : opt.id === "grande" ? 17 : 21, color: destaque === opt.id ? "#E4002B" : "var(--text-1)" }}>Aa</span>
+                <span className="text-xs font-semibold" style={{ color: destaque === opt.id ? "#E4002B" : "var(--text-2)" }}>{opt.label}</span>
               </button>
             ))}
           </div>
@@ -621,16 +621,16 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
         <button
           onClick={handleDownloadInstaller}
           className="flex items-center gap-3 p-4 rounded-2xl text-left"
-          style={{ background: "linear-gradient(135deg,rgba(255,106,0,0.12),rgba(204,85,0,0.06))", border: "1px solid rgba(255,106,0,0.25)" }}
+          style={{ background: "linear-gradient(135deg,rgba(228,0,43,0.12),rgba(168,0,33,0.06))", border: "1px solid rgba(228,0,43,0.25)" }}
         >
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(255,106,0,0.15)" }}>
-            <Zap size={18} style={{ color: "#FF6A00" }} />
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(228,0,43,0.15)" }}>
+            <Zap size={18} style={{ color: "#E4002B" }} />
           </div>
           <div className="flex-1">
             <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>Instalador de início automático</p>
             <p className="text-xs" style={{ color: "#64748b" }}>Chrome abre o painel sozinho quando o PC ligar</p>
           </div>
-          <Download size={15} style={{ color: "#FF6A00", flexShrink: 0 }} />
+          <Download size={15} style={{ color: "#E4002B", flexShrink: 0 }} />
         </button>
 
         {/* Teste de impressão */}

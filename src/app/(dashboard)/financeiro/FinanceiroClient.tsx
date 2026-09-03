@@ -136,7 +136,7 @@ export default function FinanceiroClient({ pedidos: allPedidos, motoboys }: Prop
               <button key={key} onClick={() => setPeriod(key)}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                 style={period === key
-                  ? { background: "rgba(204,85,0,0.2)", color: "#FF6A00" }
+                  ? { background: "rgba(168,0,33,0.2)", color: "#E4002B" }
                   : { color: "#64748b" }}>
                 {label}
               </button>
@@ -224,7 +224,7 @@ export default function FinanceiroClient({ pedidos: allPedidos, motoboys }: Prop
                     height: `${(count / maxDay) * 96}px`,
                     minHeight: count > 0 ? "6px" : "2px",
                     background: count > 0
-                      ? "linear-gradient(180deg, #FF6A00, #a84400)"
+                      ? "linear-gradient(180deg, #E4002B, #a84400)"
                       : "#1a1a1a",
                   }}
                 />
@@ -253,7 +253,7 @@ export default function FinanceiroClient({ pedidos: allPedidos, motoboys }: Prop
                     <p className="text-sm font-semibold truncate" style={{ color: "var(--text-1)" }}>{motoboy.nome}</p>
                     <p className="text-xs" style={{ color: "#475569" }}>
                       {quantidade} entrega{quantidade !== 1 ? "s" : ""}
-                      {taxa !== null && <span style={{ color: taxa >= 90 ? "#22c55e" : taxa >= 70 ? "#fbbf24" : "#FF6A00" }}> · {taxa}%</span>}
+                      {taxa !== null && <span style={{ color: taxa >= 90 ? "#22c55e" : taxa >= 70 ? "#fbbf24" : "#E4002B" }}> · {taxa}%</span>}
                     </p>
                   </div>
                   <span className="text-sm font-bold shrink-0" style={{ color: "#fbbf24" }}>

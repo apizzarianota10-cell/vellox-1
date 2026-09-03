@@ -49,7 +49,7 @@ export default function LoginPage() {
 
   const isYellow =
     step === "motoboy" || (step === "forgot" && forgotType === "motoboy");
-  const accent = isYellow ? "#fbbf24" : "#FF6A00";
+  const accent = isYellow ? "#fbbf24" : "#E4002B";
 
   function goTo(s: Step) {
     setStep(s);
@@ -85,7 +85,7 @@ export default function LoginPage() {
   if (checkingSession) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-base)" }}>
-        <Loader2 size={28} className="animate-spin" style={{ color: "#FF6A00" }} />
+        <Loader2 size={28} className="animate-spin" style={{ color: "#E4002B" }} />
       </div>
     );
   }
@@ -97,7 +97,7 @@ export default function LoginPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6" style={{ background: "var(--bg-base)" }}>
         <div className="w-10 h-10 rounded-2xl flex items-center justify-center mb-6"
-          style={{ background: "linear-gradient(135deg,#FF6A00,#a84400)", boxShadow: "0 0 24px rgba(255,106,0,0.35)" }}>
+          style={{ background: "linear-gradient(135deg,#E4002B,#a84400)", boxShadow: "0 0 24px rgba(228,0,43,0.35)" }}>
           <Zap size={20} className="text-white" />
         </div>
         <h1 className="text-xl font-bold text-white mb-1">Sessão ativa</h1>
@@ -108,7 +108,7 @@ export default function LoginPage() {
           <button
             onClick={() => { window.location.href = destino; }}
             className="w-full py-4 rounded-2xl text-sm font-bold text-white"
-            style={{ background: "linear-gradient(135deg,#cc5500,#a84400)" }}
+            style={{ background: "linear-gradient(135deg,#A80021,#a84400)" }}
           >
             Continuar como {label}
           </button>
@@ -162,8 +162,8 @@ export default function LoginPage() {
         }
         /* ── Glowing border pulse ── */
         @keyframes pulseRed {
-          0%,100%{box-shadow:0 0 0 1px rgba(255,106,0,.12),0 0 40px rgba(255,106,0,.08),0 32px 96px rgba(0,0,0,.75)}
-          50%{box-shadow:0 0 0 1px rgba(255,106,0,.28),0 0 70px rgba(255,106,0,.18),0 32px 96px rgba(0,0,0,.75)}
+          0%,100%{box-shadow:0 0 0 1px rgba(228,0,43,.12),0 0 40px rgba(228,0,43,.08),0 32px 96px rgba(0,0,0,.75)}
+          50%{box-shadow:0 0 0 1px rgba(228,0,43,.28),0 0 70px rgba(228,0,43,.18),0 32px 96px rgba(0,0,0,.75)}
         }
         @keyframes pulseYellow {
           0%,100%{box-shadow:0 0 0 1px rgba(251,191,36,.12),0 0 40px rgba(251,191,36,.08),0 32px 96px rgba(0,0,0,.75)}
@@ -203,7 +203,7 @@ export default function LoginPage() {
         .type-card:active{transform:scale(.98)}
 
         .input-field{transition:border-color .2s,box-shadow .2s,background .2s;outline:none}
-        .input-red:focus{border-color:rgba(255,106,0,.5)!important;box-shadow:0 0 0 3px rgba(255,106,0,.1)!important;background:rgba(255,106,0,.03)!important}
+        .input-red:focus{border-color:rgba(228,0,43,.5)!important;box-shadow:0 0 0 3px rgba(228,0,43,.1)!important;background:rgba(228,0,43,.03)!important}
         .input-yellow:focus{border-color:rgba(251,191,36,.5)!important;box-shadow:0 0 0 3px rgba(251,191,36,.1)!important;background:rgba(251,191,36,.03)!important}
 
         .back-btn{transition:background .15s,color .15s}
@@ -215,13 +215,13 @@ export default function LoginPage() {
         {/* Blob A — big red */}
         <div className="absolute pointer-events-none" style={{
           width: 720, height: 720, top: "-18%", left: "-12%", borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(204,85,0,.22) 0%, transparent 65%)",
+          background: "radial-gradient(circle, rgba(168,0,33,.22) 0%, transparent 65%)",
           animation: "blobA 14s ease-in-out infinite",
         }} />
         {/* Blob B — medium red bottom-right */}
         <div className="absolute pointer-events-none" style={{
           width: 580, height: 580, bottom: "-18%", right: "-10%", borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(255,106,0,.16) 0%, transparent 65%)",
+          background: "radial-gradient(circle, rgba(228,0,43,.16) 0%, transparent 65%)",
           animation: "blobB 18s ease-in-out infinite",
         }} />
         {/* Blob C — warm yellow accent */}
@@ -249,8 +249,8 @@ export default function LoginPage() {
           <div
             className="logo-float w-11 h-11 rounded-2xl flex items-center justify-center"
             style={{
-              background: "linear-gradient(135deg, #FF8C1A 0%, #cc5500 100%)",
-              boxShadow: "0 0 28px rgba(255,106,0,.55), 0 0 70px rgba(255,106,0,.18)",
+              background: "linear-gradient(135deg, #FFC72C 0%, #A80021 100%)",
+              boxShadow: "0 0 28px rgba(228,0,43,.55), 0 0 70px rgba(228,0,43,.18)",
             }}
           >
             <Zap size={22} className="text-white" strokeWidth={2.5} />
@@ -265,7 +265,7 @@ export default function LoginPage() {
           className={`${isYellow ? "card-yellow" : "card-red"} card-in w-full max-w-[400px] rounded-[28px] p-8`}
           style={{
             background: "rgba(255,255,255,.022)",
-            border: `1px solid ${isYellow ? "rgba(251,191,36,.14)" : "rgba(255,106,0,.14)"}`,
+            border: `1px solid ${isYellow ? "rgba(251,191,36,.14)" : "rgba(228,0,43,.14)"}`,
             backdropFilter: "blur(52px)",
             animationDelay: "80ms",
             transition: "border-color .4s",
@@ -289,18 +289,18 @@ export default function LoginPage() {
                 <button
                   className="type-card w-full p-5 rounded-2xl text-left"
                   style={{
-                    background: "linear-gradient(135deg, rgba(255,106,0,.09) 0%, rgba(255,106,0,.04) 100%)",
-                    border: "1px solid rgba(255,106,0,.2)",
+                    background: "linear-gradient(135deg, rgba(228,0,43,.09) 0%, rgba(228,0,43,.04) 100%)",
+                    border: "1px solid rgba(228,0,43,.2)",
                   }}
                   onClick={() => goTo("empresa")}
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
                       style={{
-                        background: "linear-gradient(135deg, rgba(255,106,0,.28) 0%, rgba(255,106,0,.1) 100%)",
-                        boxShadow: "0 0 20px rgba(255,106,0,.22)",
+                        background: "linear-gradient(135deg, rgba(228,0,43,.28) 0%, rgba(228,0,43,.1) 100%)",
+                        boxShadow: "0 0 20px rgba(228,0,43,.22)",
                       }}>
-                      <Building2 size={20} style={{ color: "#FF6A00" }} />
+                      <Building2 size={20} style={{ color: "#E4002B" }} />
                     </div>
                     <div className="flex-1">
                       <p className="font-bold text-white text-sm leading-tight">Entrar como Empresa</p>
@@ -338,7 +338,7 @@ export default function LoginPage() {
               <div className="mt-6 pt-5" style={{ borderTop: "1px solid rgba(255,255,255,.06)" }}>
                 <p className="text-center text-xs" style={{ color: "#4b5563" }}>
                   Ainda não tem conta?{" "}
-                  <Link href="/register" className="font-bold" style={{ color: "#FF6A00" }}>
+                  <Link href="/register" className="font-bold" style={{ color: "#E4002B" }}>
                     Criar conta gratuitamente
                   </Link>
                 </p>
@@ -423,7 +423,7 @@ export default function LoginPage() {
 
                 {error && (
                   <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl text-xs"
-                    style={{ background: "rgba(255,106,0,.07)", border: "1px solid rgba(255,106,0,.2)", color: "#FF8C1A" }}>
+                    style={{ background: "rgba(228,0,43,.07)", border: "1px solid rgba(228,0,43,.2)", color: "#FFC72C" }}>
                     <span>⚠</span> {error}
                   </div>
                 )}
@@ -437,11 +437,11 @@ export default function LoginPage() {
                       ? (isYellow ? "#78350f" : "#7f1d1d")
                       : isYellow
                         ? "linear-gradient(135deg, #fef3c7 0%, #fbbf24 45%, #d97706 100%)"
-                        : "linear-gradient(135deg, #fca5a5 0%, #FF6A00 45%, #a84400 100%)",
+                        : "linear-gradient(135deg, #fca5a5 0%, #E4002B 45%, #a84400 100%)",
                     color: isYellow && !loading ? "#000" : "#fff",
                     boxShadow: loading ? "none" : isYellow
                       ? "0 4px 24px rgba(251,191,36,.3)"
-                      : "0 4px 24px rgba(255,106,0,.3)",
+                      : "0 4px 24px rgba(228,0,43,.3)",
                     opacity: loading ? .7 : 1,
                     letterSpacing: "-0.01em",
                   }}
@@ -516,11 +516,11 @@ export default function LoginPage() {
                     style={{
                       height: 50,
                       background: forgotType === "empresa"
-                        ? "linear-gradient(135deg, #fca5a5 0%, #FF6A00 45%, #a84400 100%)"
+                        ? "linear-gradient(135deg, #fca5a5 0%, #E4002B 45%, #a84400 100%)"
                         : "linear-gradient(135deg, #fef3c7 0%, #fbbf24 45%, #d97706 100%)",
                       color: forgotType === "motoboy" ? "#000" : "#fff",
                       boxShadow: forgotType === "empresa"
-                        ? "0 4px 24px rgba(255,106,0,.3)"
+                        ? "0 4px 24px rgba(228,0,43,.3)"
                         : "0 4px 24px rgba(251,191,36,.3)",
                       opacity: forgotLoading ? .7 : 1,
                     }}

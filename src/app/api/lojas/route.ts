@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   const { data: existing } = await supabase.from("lojas").select("id").eq("empresa_id", user.id);
   const { data, error } = await supabase
     .from("lojas")
-    .insert({ empresa_id: user.id, nome: nome.trim(), cor: cor ?? "#FF6A00", descricao: descricao ?? "", ordem: (existing?.length ?? 0) })
+    .insert({ empresa_id: user.id, nome: nome.trim(), cor: cor ?? "#E4002B", descricao: descricao ?? "", ordem: (existing?.length ?? 0) })
     .select().single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

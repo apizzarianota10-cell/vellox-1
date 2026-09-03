@@ -78,7 +78,7 @@ export default function MonitorShell({
             transition: "border-color 0.2s, transform 0.15s",
           }}
           onMouseEnter={e => {
-            e.currentTarget.style.borderColor = "#f97316";
+            e.currentTarget.style.borderColor = "#E4002B";
             e.currentTarget.style.transform = "translateY(-3px)";
           }}
           onMouseLeave={e => {
@@ -96,10 +96,10 @@ export default function MonitorShell({
           </div>
           <div style={{
             marginTop: 18, display: "inline-flex", alignItems: "center", gap: 6,
-            fontSize: 13, fontWeight: 700, color: "#f97316",
+            fontSize: 13, fontWeight: 700, color: "#E4002B",
           }}>
             <span style={{
-              width: 8, height: 8, borderRadius: "50%", background: "#f97316",
+              width: 8, height: 8, borderRadius: "50%", background: "#E4002B",
               display: "inline-block",
             }} />
             Fila → Em Preparo → Pronto

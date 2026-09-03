@@ -244,15 +244,15 @@ export default function MotoboysClient({ motoboys: initial, empresaId, plano, as
             disabled={atingiuLimite}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
             style={{
-              background: atingiuLimite ? "rgba(71,85,105,0.3)" : "linear-gradient(135deg, #cc5500, #a84400)",
+              background: atingiuLimite ? "rgba(71,85,105,0.3)" : "linear-gradient(135deg, #A80021, #a84400)",
               color: atingiuLimite ? "#64748b" : "var(--text-1)",
-              boxShadow: atingiuLimite ? "none" : "0 0 20px rgba(204,85,0,0.3)",
+              boxShadow: atingiuLimite ? "none" : "0 0 20px rgba(168,0,33,0.3)",
               cursor: atingiuLimite ? "not-allowed" : "pointer",
             }}
           >
             <Plus size={16} /> Novo motoboy
           </button>
-          <span style={{ fontSize: 10, color: atingiuLimite ? "#FF6A00" : "#64748b", fontWeight: 600 }}>
+          <span style={{ fontSize: 10, color: atingiuLimite ? "#E4002B" : "#64748b", fontWeight: 600 }}>
             {motoboys.length}/{limite === 999 ? "∞" : limite} · plano {NOME_PLANO[plano] ?? plano}
           </span>
         </div>
@@ -260,10 +260,10 @@ export default function MotoboysClient({ motoboys: initial, empresaId, plano, as
 
       {atingiuLimite && !assinaturaAtiva && (
         <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
-          style={{ background: "rgba(255,106,0,0.08)", border: "1px solid rgba(255,106,0,0.2)" }}>
-          <AlertTriangle size={15} style={{ color: "#FF6A00", flexShrink: 0 }} />
+          style={{ background: "rgba(228,0,43,0.08)", border: "1px solid rgba(228,0,43,0.2)" }}>
+          <AlertTriangle size={15} style={{ color: "#E4002B", flexShrink: 0 }} />
           <div>
-            <p style={{ fontSize: 13, fontWeight: 700, color: "#FF6A00", margin: 0 }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: "#E4002B", margin: 0 }}>
               Limite do plano {NOME_PLANO[plano]} atingido ({limite} motoboys)
             </p>
             <p style={{ fontSize: 11, color: "#94a3b8", margin: "2px 0 0" }}>
@@ -307,7 +307,7 @@ export default function MotoboysClient({ motoboys: initial, empresaId, plano, as
                 <div key={m.id} className="flex items-center gap-2">
                   <div
                     className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium"
-                    style={{ background: i === 0 ? "rgba(204,85,0,0.15)" : "var(--overlay-sm)", color: i === 0 ? "#FF6A00" : "#94a3b8", border: i === 0 ? "1px solid rgba(204,85,0,0.3)" : "1px solid var(--border-1)" }}
+                    style={{ background: i === 0 ? "rgba(168,0,33,0.15)" : "var(--overlay-sm)", color: i === 0 ? "#E4002B" : "#94a3b8", border: i === 0 ? "1px solid rgba(168,0,33,0.3)" : "1px solid var(--border-1)" }}
                   >
                     <span className="font-bold">{i + 1}º</span>
                     {m.nome}
@@ -331,7 +331,7 @@ export default function MotoboysClient({ motoboys: initial, empresaId, plano, as
             <button
               onClick={openCreate}
               className="text-sm font-medium px-5 py-2.5 rounded-xl transition-colors"
-              style={{ background: "rgba(204,85,0,0.1)", color: "#FF6A00" }}
+              style={{ background: "rgba(168,0,33,0.1)", color: "#E4002B" }}
             >
               Cadastrar primeiro motoboy
             </button>
@@ -387,7 +387,7 @@ export default function MotoboysClient({ motoboys: initial, empresaId, plano, as
                   </button>
                   <button onClick={() => setDeleteTarget(m)}
                     className="p-2 rounded-lg transition-colors" style={{ color: "var(--text-3)" }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,106,0,0.1)"; (e.currentTarget as HTMLElement).style.color = "#FF6A00"; }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(228,0,43,0.1)"; (e.currentTarget as HTMLElement).style.color = "#E4002B"; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-3)"; }}>
                     <Trash2 size={14} />
                   </button>
@@ -496,7 +496,7 @@ export default function MotoboysClient({ motoboys: initial, empresaId, plano, as
 
         {erroBusca && (
           <p className="text-xs mt-3 px-3 py-2 rounded-lg"
-            style={{ background: "rgba(255,106,0,0.08)", color: "#FF8C1A", border: "1px solid rgba(255,106,0,0.15)" }}>
+            style={{ background: "rgba(228,0,43,0.08)", color: "#FFC72C", border: "1px solid rgba(228,0,43,0.15)" }}>
             {erroBusca}
           </p>
         )}
@@ -546,11 +546,11 @@ export default function MotoboysClient({ motoboys: initial, empresaId, plano, as
         <div className="fixed inset-0 flex items-center justify-center z-50 px-4"
           style={{ background: "rgba(0,0,0,0.88)", backdropFilter: "blur(4px)" }}
           onClick={(e) => e.target === e.currentTarget && setDeleteTarget(null)}>
-          <div className="w-full max-w-sm rounded-2xl p-6" style={{ background: "var(--bg-1)", border: "1px solid rgba(255,106,0,0.2)" }}>
+          <div className="w-full max-w-sm rounded-2xl p-6" style={{ background: "var(--bg-1)", border: "1px solid rgba(228,0,43,0.2)" }}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: "rgba(255,106,0,0.1)" }}>
-                <AlertTriangle size={18} style={{ color: "#FF6A00" }} />
+                style={{ background: "rgba(228,0,43,0.1)" }}>
+                <AlertTriangle size={18} style={{ color: "#E4002B" }} />
               </div>
               <div>
                 <h2 className="text-base font-bold" style={{ color: "var(--text-1)" }}>Excluir motoboy</h2>
@@ -593,7 +593,7 @@ export default function MotoboysClient({ motoboys: initial, empresaId, plano, as
               </button>
               <button onClick={confirmarDelete} disabled={deletingMb}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold"
-                style={{ background: "linear-gradient(135deg,#cc5500,#991b1b)", color: "var(--text-1)" }}>
+                style={{ background: "linear-gradient(135deg,#A80021,#991b1b)", color: "var(--text-1)" }}>
                 {deletingMb ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                 {deletingMb ? "Excluindo..." : "Excluir"}
               </button>
@@ -654,7 +654,7 @@ export default function MotoboysClient({ motoboys: initial, empresaId, plano, as
                 historico.pedidos.map((p) => (
                   <div key={p.id} className="flex items-center gap-3 px-5 py-3" style={{ borderBottom: "1px solid var(--border-1)" }}>
                     <div className="w-2 h-2 rounded-full shrink-0"
-                      style={{ background: p.status === "entregue" ? "#22c55e" : p.status === "cancelado" ? "#FF6A00" : "#fbbf24" }} />
+                      style={{ background: p.status === "entregue" ? "#22c55e" : p.status === "cancelado" ? "#E4002B" : "#fbbf24" }} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate" style={{ color: "var(--text-1)" }}>{p.cliente_nome}</p>
                       <p className="text-xs truncate" style={{ color: "var(--text-3)" }}>{p.endereco_entrega}</p>
@@ -697,7 +697,7 @@ export default function MotoboysClient({ motoboys: initial, empresaId, plano, as
                     placeholder={placeholder}
                     className="w-full px-4 py-3 rounded-xl text-sm placeholder-slate-600 outline-none transition-all"
                     style={{ background: "var(--bg-base)", border: "1px solid var(--border-1)", color: "var(--text-1)" }}
-                    onFocus={(e) => (e.target.style.borderColor = "#FF6A00")}
+                    onFocus={(e) => (e.target.style.borderColor = "#E4002B")}
                     onBlur={(e) => (e.target.style.borderColor = "var(--border-1)")}
                   />
                 </div>
@@ -715,7 +715,7 @@ export default function MotoboysClient({ motoboys: initial, empresaId, plano, as
                   type="submit"
                   disabled={saving}
                   className="flex-1 py-3 rounded-xl text-sm font-bold transition-all"
-                  style={{ background: "linear-gradient(135deg, #cc5500, #a84400)", color: "var(--text-1)" }}
+                  style={{ background: "linear-gradient(135deg, #A80021, #a84400)", color: "var(--text-1)" }}
                 >
                   {saving ? "Salvando..." : "Salvar"}
                 </button>

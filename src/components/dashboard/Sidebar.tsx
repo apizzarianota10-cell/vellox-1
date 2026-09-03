@@ -17,28 +17,28 @@ import PrintAgentStatus from "@/components/dashboard/PrintAgentStatus";
 import type { Plano, Loja } from "@/types";
 
 const NAV_BASE = [
-  { href: "/dashboard",     label: "Dashboard",    icon: LayoutDashboard, color: "#FF6A00" },
+  { href: "/dashboard",     label: "Dashboard",    icon: LayoutDashboard, color: "#E4002B" },
   { href: "/mapa",          label: "Mapa ao vivo", icon: Map,             color: "#34d399" },
   { href: "/motoboys",      label: "Motoboys",     icon: Users,           color: "#60a5fa" },
-  { href: "/pedidos",       label: "Pedidos",      icon: Package,         color: "#FF8C1A" },
+  { href: "/pedidos",       label: "Pedidos",      icon: Package,         color: "#FFC72C" },
   { href: "/catalogo",      label: "Catálogo",     icon: ShoppingBag,     color: "#f59e0b" },
   { href: "/monitor",       label: "Monitor",      icon: Monitor,         color: "#a78bfa" },
   { href: "/financeiro",    label: "Financeiro",   icon: DollarSign,      color: "#34d399" },
   { href: "/auditoria",     label: "Auditoria",    icon: Shield,          color: "#a78bfa" },
-  { href: "/automacoes",    label: "Automações",   icon: Zap,             color: "#FF6A00" },
+  { href: "/automacoes",    label: "Automações",   icon: Zap,             color: "#E4002B" },
   { href: "/configuracoes", label: "Config.",      icon: Settings,        color: "#666666" },
 ];
 
 const NAV_ENTERPRISE = [
-  { href: "/lojas", label: "Minhas Lojas", icon: Store, color: "#f97316" },
+  { href: "/lojas", label: "Minhas Lojas", icon: Store, color: "#E4002B" },
 ];
 
 const NAV_KTL = [
-  { href: "/pedidos",       label: "Pedidos",    icon: Package,    color: "#FF8C1A" },
+  { href: "/pedidos",       label: "Pedidos",    icon: Package,    color: "#FFC72C" },
   { href: "/motoboys",      label: "Motoboys",   icon: Users,      color: "#60a5fa" },
   { href: "/financeiro",    label: "Financeiro", icon: DollarSign, color: "#34d399" },
   { href: "/catalogo",      label: "Catálogo",   icon: ShoppingBag, color: "#f59e0b" },
-  { href: "/automacoes",    label: "Automações", icon: Zap,        color: "#FF6A00" },
+  { href: "/automacoes",    label: "Automações", icon: Zap,        color: "#E4002B" },
   { href: "/configuracoes", label: "Config.",    icon: Settings,   color: "#666666" },
 ];
 
@@ -170,14 +170,14 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
       <button
         onClick={toggleNotif}
         className="relative flex items-center justify-center w-9 h-9 rounded-xl transition-all"
-        style={{ color: notifOpen ? "#FF6A00" : "var(--text-4)", background: notifOpen ? "rgba(255,106,0,0.1)" : "transparent" }}
+        style={{ color: notifOpen ? "#E4002B" : "var(--text-4)", background: notifOpen ? "rgba(228,0,43,0.1)" : "transparent" }}
         onMouseEnter={(e) => { if (!notifOpen) (e.currentTarget as HTMLElement).style.color = "var(--text-3)"; }}
         onMouseLeave={(e) => { if (!notifOpen) (e.currentTarget as HTMLElement).style.color = "var(--text-4)"; }}
       >
         <Bell size={17} />
         {naoLidas > 0 && (
           <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center font-black"
-            style={{ background: "#FF6A00", color: "white", fontSize: 9 }}>
+            style={{ background: "#E4002B", color: "white", fontSize: 9 }}>
             {naoLidas > 9 ? "9+" : naoLidas}
           </span>
         )}
@@ -202,7 +202,7 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
           onMouseEnter={(e) => (e.currentTarget.style.background = "var(--overlay-sm)")}
           onMouseLeave={(e) => { if (!lojaDropOpen) e.currentTarget.style.background = "transparent"; }}
         >
-          <div style={{ width: 26, height: 26, borderRadius: 8, background: lojaAtiva?.cor ?? "#FF6A00", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 26, height: 26, borderRadius: 8, background: lojaAtiva?.cor ?? "#E4002B", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Store size={13} color="#fff" />
           </div>
           <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
@@ -224,17 +224,17 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
               onClick={() => { setLojaAtiva(null); setLojaDropOpen(false); }}
               style={{
                 width: "100%", display: "flex", alignItems: "center", gap: 8,
-                padding: "10px 12px", background: !lojaAtiva ? "rgba(255,106,0,.06)" : "transparent",
+                padding: "10px 12px", background: !lojaAtiva ? "rgba(228,0,43,.06)" : "transparent",
                 border: "none", cursor: "pointer", transition: "background .12s",
               }}
               onMouseEnter={(e) => (e.currentTarget.style.background = "var(--overlay-sm)")}
-              onMouseLeave={(e) => { e.currentTarget.style.background = !lojaAtiva ? "rgba(255,106,0,.06)" : "transparent"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = !lojaAtiva ? "rgba(228,0,43,.06)" : "transparent"; }}
             >
               <div style={{ width: 24, height: 24, borderRadius: 7, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <Store size={12} style={{ color: "#64748b" }} />
               </div>
               <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-1)", flex: 1, textAlign: "left" }}>Todas as lojas</span>
-              {!lojaAtiva && <Check size={12} style={{ color: "#FF6A00" }} />}
+              {!lojaAtiva && <Check size={12} style={{ color: "#E4002B" }} />}
             </button>
             {lojas.map((l) => (
               <button
@@ -243,24 +243,24 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
                 style={{
                   width: "100%", display: "flex", alignItems: "center", gap: 8,
                   padding: "10px 12px",
-                  background: lojaAtiva?.id === l.id ? "rgba(255,106,0,.06)" : "transparent",
+                  background: lojaAtiva?.id === l.id ? "rgba(228,0,43,.06)" : "transparent",
                   border: "none", borderTop: "1px solid var(--border-1)", cursor: "pointer", transition: "background .12s",
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = "var(--overlay-sm)")}
-                onMouseLeave={(e) => { e.currentTarget.style.background = lojaAtiva?.id === l.id ? "rgba(255,106,0,.06)" : "transparent"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = lojaAtiva?.id === l.id ? "rgba(228,0,43,.06)" : "transparent"; }}
               >
                 <div style={{ width: 24, height: 24, borderRadius: 7, background: l.cor, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Store size={12} color="#fff" />
                 </div>
                 <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-1)", flex: 1, textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.nome}</span>
-                {lojaAtiva?.id === l.id && <Check size={12} style={{ color: "#FF6A00" }} />}
+                {lojaAtiva?.id === l.id && <Check size={12} style={{ color: "#E4002B" }} />}
               </button>
             ))}
             <div style={{ borderTop: "1px solid var(--border-1)", padding: "6px 8px" }}>
               <Link
                 href="/lojas"
                 onClick={() => setLojaDropOpen(false)}
-                style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", borderRadius: 8, fontSize: 11, fontWeight: 700, color: "#FF6A00", textDecoration: "none" }}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", borderRadius: 8, fontSize: 11, fontWeight: 700, color: "#E4002B", textDecoration: "none" }}
               >
                 <Store size={11} /> Gerenciar lojas
               </Link>
@@ -315,7 +315,7 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
               const { Icon, color } = ICON_MAP[n.icon];
               return (
                 <div key={n.id} className="flex items-start gap-3 px-4 py-3"
-                  style={{ borderBottom: "1px solid var(--border-1)", background: n.lida ? "transparent" : "rgba(255,106,0,0.04)" }}>
+                  style={{ borderBottom: "1px solid var(--border-1)", background: n.lida ? "transparent" : "rgba(228,0,43,0.04)" }}>
                   <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5" style={{ background: color + "18" }}>
                     <Icon size={13} style={{ color }} />
                   </div>
@@ -338,7 +338,7 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
         style={{ height: 56, background: "var(--glass-surface)", borderBottom: "1px solid var(--glass-border)", backdropFilter: "blur(12px)" }}>
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 font-bold text-sm"
-            style={{ background: "linear-gradient(135deg,#FF6A00,#cc5500)", color: "white", boxShadow: "0 0 14px rgba(255,106,0,0.45)" }}>
+            style={{ background: "linear-gradient(135deg,#E4002B,#A80021)", color: "white", boxShadow: "0 0 14px rgba(228,0,43,0.45)" }}>
             {empresaNome ? inicial : <Zap size={14} style={{ color: "white" }} />}
           </div>
           <div className="flex flex-col">
@@ -360,7 +360,7 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
         {/* Brand header */}
         <div className="px-4 py-4 flex items-center gap-3" style={{ borderBottom: "1px solid var(--border-1)" }}>
           <div className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 font-bold text-base"
-            style={{ background: "linear-gradient(135deg,#FF6A00,#cc5500)", color: "white", boxShadow: "0 0 20px rgba(255,106,0,0.35)" }}>
+            style={{ background: "linear-gradient(135deg,#E4002B,#A80021)", color: "white", boxShadow: "0 0 20px rgba(228,0,43,0.35)" }}>
             {empresaNome ? inicial : <Zap size={18} style={{ color: "white" }} />}
           </div>
           <div className="flex flex-col min-w-0 flex-1">
@@ -424,7 +424,7 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
           <button onClick={handleLogout}
             className="flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all"
             style={{ color: "var(--text-4)" }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,106,0,0.08)"; (e.currentTarget as HTMLElement).style.color = "#FF6A00"; }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(228,0,43,0.08)"; (e.currentTarget as HTMLElement).style.color = "#E4002B"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-4)"; }}>
             <div className="w-8 h-8 rounded-lg flex items-center justify-center"><LogOut size={17} /></div>
             <span>Sair</span>
@@ -437,13 +437,13 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
         style={{ background: "var(--glass-surface)", borderTop: "1px solid var(--glass-border)", backdropFilter: "blur(16px)", paddingBottom: "env(safe-area-inset-bottom)" }}>
         {(plano === "ktl"
           ? [
-              { href: "/pedidos",    label: "Pedidos",    icon: Package,    color: "#FF8C1A" },
+              { href: "/pedidos",    label: "Pedidos",    icon: Package,    color: "#FFC72C" },
               { href: "/motoboys",   label: "Motoboys",   icon: Users,      color: "#60a5fa" },
               { href: "/financeiro", label: "Financeiro", icon: DollarSign, color: "#34d399" },
               { href: "/catalogo",   label: "Catálogo",   icon: ShoppingBag, color: "#f59e0b" },
             ]
           : [
-              { href: "/dashboard", label: "Início",   icon: LayoutDashboard, color: "#FF6A00" },
+              { href: "/dashboard", label: "Início",   icon: LayoutDashboard, color: "#E4002B" },
               { href: "/pedidos",   label: "Pedidos",  icon: Package,         color: "#fb923c" },
               { href: "/motoboys",  label: "Motoboys", icon: Users,           color: "#60a5fa" },
               { href: "/monitor",   label: "Monitor",  icon: Monitor,         color: "#a78bfa" },
@@ -469,12 +469,12 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
         {plano !== "ktl" && (
           <button onClick={() => setMenuOpen(true)}
             className="flex flex-col items-center justify-center gap-1 flex-1 py-2.5 relative"
-            style={{ background: "transparent", border: "none", cursor: "pointer", color: menuOpen ? "#FF6A00" : "var(--text-4)" }}>
-            <div className="flex items-center justify-center rounded-xl relative" style={{ width: 36, height: 30, background: menuOpen ? "rgba(255,106,0,0.12)" : "transparent" }}>
+            style={{ background: "transparent", border: "none", cursor: "pointer", color: menuOpen ? "#E4002B" : "var(--text-4)" }}>
+            <div className="flex items-center justify-center rounded-xl relative" style={{ width: 36, height: 30, background: menuOpen ? "rgba(228,0,43,0.12)" : "transparent" }}>
               <Menu size={20} strokeWidth={1.8} />
               {naoLidas > 0 && (
                 <span className="absolute -top-1 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center"
-                  style={{ background: "#FF6A00", color: "white", fontSize: 8, fontWeight: 900, lineHeight: 1 }}>
+                  style={{ background: "#E4002B", color: "white", fontSize: 8, fontWeight: 900, lineHeight: 1 }}>
                   {naoLidas > 9 ? "9+" : naoLidas}
                 </span>
               )}
@@ -505,7 +505,7 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
             <div className="flex items-center justify-between px-5 pt-4 pb-3">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm"
-                  style={{ background: "linear-gradient(135deg,#FF6A00,#cc5500)", color: "white" }}>
+                  style={{ background: "linear-gradient(135deg,#E4002B,#A80021)", color: "white" }}>
                   {inicial}
                 </div>
                 <div>
@@ -539,16 +539,16 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
                   ? [
                       { href: "/catalogo",   label: "Catálogo",   icon: ShoppingBag, color: "#f59e0b" },
                       { href: "/financeiro", label: "Financeiro", icon: DollarSign,  color: "#22c55e" },
-                      { href: "/automacoes", label: "Automações", icon: Zap,         color: "#FF6A00" },
+                      { href: "/automacoes", label: "Automações", icon: Zap,         color: "#E4002B" },
                     ]
                   : [
                       { href: "/mapa",          label: "Mapa",       icon: Map,         color: "#34d399" },
                       { href: "/catalogo",      label: "Catálogo",   icon: ShoppingBag, color: "#f59e0b" },
                       { href: "/financeiro",    label: "Financeiro", icon: DollarSign,  color: "#22c55e" },
                       { href: "/auditoria",     label: "Auditoria",  icon: Shield,      color: "#a78bfa" },
-                      { href: "/automacoes",    label: "Automações", icon: Zap,         color: "#FF6A00" },
+                      { href: "/automacoes",    label: "Automações", icon: Zap,         color: "#E4002B" },
                       { href: "/configuracoes", label: "Config.",    icon: Settings,    color: "#94a3b8" },
-                      ...(plano === "enterprise" ? [{ href: "/lojas", label: "Lojas", icon: Store, color: "#f97316" }] : []),
+                      ...(plano === "enterprise" ? [{ href: "/lojas", label: "Lojas", icon: Store, color: "#E4002B" }] : []),
                     ]
                 ).map(({ href, label, icon: Icon, color }) => {
                   const isLocked = (href === "/monitor"   && plano === "basic") ||
@@ -585,10 +585,10 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
                     padding: "14px 8px", borderRadius: 18,
                     background: "var(--bg-2)", border: "none", cursor: "pointer", position: "relative",
                   }}>
-                  <div style={{ width: 42, height: 42, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,106,0,0.1)", position: "relative" }}>
-                    <Bell size={20} style={{ color: "#FF6A00" }} />
+                  <div style={{ width: 42, height: 42, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(228,0,43,0.1)", position: "relative" }}>
+                    <Bell size={20} style={{ color: "#E4002B" }} />
                     {naoLidas > 0 && (
-                      <span style={{ position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, borderRadius: 999, background: "#FF6A00", color: "white", fontSize: 8, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>
+                      <span style={{ position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, borderRadius: 999, background: "#E4002B", color: "white", fontSize: 8, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px" }}>
                         {naoLidas > 9 ? "9+" : naoLidas}
                       </span>
                     )}
@@ -600,14 +600,14 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
 
             {/* Upgrade hint (não mostrar para KTL) */}
             {plano === "basic" && (
-              <div style={{ margin: "12px 16px 4px", padding: "12px 14px", borderRadius: 16, background: "rgba(255,106,0,0.06)", border: "1px solid rgba(255,106,0,0.18)" }}>
+              <div style={{ margin: "12px 16px 4px", padding: "12px 14px", borderRadius: 16, background: "rgba(228,0,43,0.06)", border: "1px solid rgba(228,0,43,0.18)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                  <Zap size={12} style={{ color: "#FF6A00" }} />
-                  <span style={{ fontSize: 12, fontWeight: 800, color: "#FF6A00" }}>Faça upgrade para Pro</span>
+                  <Zap size={12} style={{ color: "#E4002B" }} />
+                  <span style={{ fontSize: 12, fontWeight: 800, color: "#E4002B" }}>Faça upgrade para Pro</span>
                 </div>
                 <p style={{ fontSize: 11, color: "var(--text-3)", margin: "0 0 8px", lineHeight: 1.5 }}>Catálogo digital, despacho automático e relatórios financeiros.</p>
                 <Link href="/#planos" target="_blank" onClick={() => setMenuOpen(false)}
-                  style={{ fontSize: 11, fontWeight: 700, color: "#FF6A00", textDecoration: "none" }}>
+                  style={{ fontSize: 11, fontWeight: 700, color: "#E4002B", textDecoration: "none" }}>
                   Ver planos →
                 </Link>
               </div>
@@ -630,8 +630,8 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
               <button onClick={handleLogout}
                 style={{
                   width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                  padding: "13px", borderRadius: 16, background: "rgba(255,106,0,0.08)",
-                  border: "none", cursor: "pointer", color: "#FF6A00", fontSize: 13, fontWeight: 700,
+                  padding: "13px", borderRadius: 16, background: "rgba(228,0,43,0.08)",
+                  border: "none", cursor: "pointer", color: "#E4002B", fontSize: 13, fontWeight: 700,
                 }}>
                 <LogOut size={15} /> Sair da conta
               </button>

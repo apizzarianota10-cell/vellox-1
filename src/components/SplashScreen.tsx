@@ -139,31 +139,31 @@ export default function SplashScreen({ onComplete }: { onComplete: () => void })
           <path ref={pathRef} d={PATH} fill="none" stroke="none" />
 
           {/* glow externo */}
-          <path d={PATH} fill="none" stroke="#FF6A00" strokeWidth="22"
+          <path d={PATH} fill="none" stroke="#E4002B" strokeWidth="22"
             opacity="0.07" filter="url(#sp-glow-lg)"
             strokeDasharray={pathLen} strokeDashoffset={offset} strokeLinecap="round" />
 
           {/* glow médio */}
-          <path d={PATH} fill="none" stroke="#FF6A00" strokeWidth="8"
+          <path d={PATH} fill="none" stroke="#E4002B" strokeWidth="8"
             opacity="0.22" filter="url(#sp-glow-md)"
             strokeDasharray={pathLen} strokeDashoffset={offset} strokeLinecap="round" />
 
           {/* linha principal */}
-          <path d={PATH} fill="none" stroke="#FF6A00" strokeWidth="2.5"
+          <path d={PATH} fill="none" stroke="#E4002B" strokeWidth="2.5"
             filter="url(#sp-glow-sm)"
             strokeDasharray={pathLen} strokeDashoffset={offset} strokeLinecap="round" />
 
           {/* ponto de origem */}
-          <circle cx="100" cy="330" r="6"  fill="#FF6A00" filter="url(#sp-glow-md)" />
-          <circle cx="100" cy="330" r="14" fill="none" stroke="#FF6A00" strokeWidth="1.2" opacity="0.55" />
-          <circle cx="100" cy="330" r="22" fill="none" stroke="#FF6A00" strokeWidth="0.6" opacity="0.25" />
+          <circle cx="100" cy="330" r="6"  fill="#E4002B" filter="url(#sp-glow-md)" />
+          <circle cx="100" cy="330" r="14" fill="none" stroke="#E4002B" strokeWidth="1.2" opacity="0.55" />
+          <circle cx="100" cy="330" r="22" fill="none" stroke="#E4002B" strokeWidth="0.6" opacity="0.25" />
 
           {/* ponto de destino (aparece ao fim) */}
-          <circle cx="740" cy="285" r="6"  fill="#FF6A00" filter="url(#sp-glow-md)"
+          <circle cx="740" cy="285" r="6"  fill="#E4002B" filter="url(#sp-glow-md)"
             opacity={progress > 0.9 ? (progress - 0.9) / 0.1 : 0} />
-          <circle cx="740" cy="285" r="14" fill="none" stroke="#FF6A00" strokeWidth="1.2"
+          <circle cx="740" cy="285" r="14" fill="none" stroke="#E4002B" strokeWidth="1.2"
             opacity={progress > 0.9 ? 0.55 * ((progress - 0.9) / 0.1) : 0} />
-          <circle cx="740" cy="285" r="22" fill="none" stroke="#FF6A00" strokeWidth="0.6"
+          <circle cx="740" cy="285" r="22" fill="none" stroke="#E4002B" strokeWidth="0.6"
             opacity={progress > 0.9 ? 0.25 * ((progress - 0.9) / 0.1) : 0} />
         </svg>
 
@@ -210,19 +210,19 @@ export default function SplashScreen({ onComplete }: { onComplete: () => void })
               fontFamily: "system-ui, sans-serif",
               letterSpacing: "0.22em",
               textShadow:
-                "0 0 24px rgba(255,106,0,0.9), 0 0 50px rgba(255,106,0,0.5), 0 0 90px rgba(255,106,0,0.25)",
+                "0 0 24px rgba(228,0,43,0.9), 0 0 50px rgba(228,0,43,0.5), 0 0 90px rgba(228,0,43,0.25)",
             }}>
               VELLOX
             </h1>
             <div className="sp-line" style={{
               height: 2,
-              background: "linear-gradient(90deg, transparent, #FF6A00, transparent)",
-              boxShadow: "0 0 10px #FF6A00, 0 0 22px rgba(255,106,0,0.45)",
+              background: "linear-gradient(90deg, transparent, #E4002B, transparent)",
+              boxShadow: "0 0 10px #E4002B, 0 0 22px rgba(228,0,43,0.45)",
               borderRadius: 2,
             }} />
             <p className="sp-sub" style={{
               margin: 0, fontSize: 13, letterSpacing: "0.18em",
-              color: "rgba(255,106,0,0.55)",
+              color: "rgba(228,0,43,0.55)",
               textTransform: "uppercase",
               fontWeight: 500,
             }}>

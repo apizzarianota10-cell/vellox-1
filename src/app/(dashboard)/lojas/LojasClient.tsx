@@ -14,7 +14,7 @@ import { useLoja } from "@/contexts/LojaContext";
 import type { Loja } from "@/types";
 import type { LojaComStats, GlobalStats } from "./page";
 
-const CORES_PRESET = ["#FF6A00","#f97316","#f59e0b","#22c55e","#3b82f6","#8b5cf6","#ec4899","#0ea5e9"];
+const CORES_PRESET = ["#E4002B","#E4002B","#f59e0b","#22c55e","#3b82f6","#8b5cf6","#ec4899","#0ea5e9"];
 
 interface Props {
   initialLojas: LojaComStats[];
@@ -31,7 +31,7 @@ export default function LojasClient({ initialLojas, empresaId, globalStats }: Pr
   const [modalOpen, setModalOpen]   = useState(false);
   const [editLoja, setEditLoja]     = useState<Loja | null>(null);
   const [nome, setNome]             = useState("");
-  const [cor, setCor]               = useState("#FF6A00");
+  const [cor, setCor]               = useState("#E4002B");
   const [descricao, setDescricao]   = useState("");
   const [saving, setSaving]         = useState(false);
   const [deleting, setDeleting]     = useState<string | null>(null);
@@ -49,7 +49,7 @@ export default function LojasClient({ initialLojas, empresaId, globalStats }: Pr
   }, [menuAberto]);
 
   function openAdd() {
-    setEditLoja(null); setNome(""); setCor("#FF6A00"); setDescricao(""); setModalOpen(true);
+    setEditLoja(null); setNome(""); setCor("#E4002B"); setDescricao(""); setModalOpen(true);
   }
 
   function openEdit(l: Loja) {
@@ -103,15 +103,15 @@ export default function LojasClient({ initialLojas, empresaId, globalStats }: Pr
   }
 
   const statItems = [
-    { label: "Total de lojas",  value: globalStats.total,                  color: "#FF6A00", icon: <Store size={14} /> },
+    { label: "Total de lojas",  value: globalStats.total,                  color: "#E4002B", icon: <Store size={14} /> },
     { label: "Lojas ativas",    value: globalStats.ativas,                  color: "#22c55e", icon: <CheckCircle size={14} /> },
     { label: "Motoboys livres", value: `${globalStats.motoboys_disponiveis}/${globalStats.motoboys_total}`, color: "#3b82f6", icon: <Users size={14} /> },
-    { label: "Pedidos hoje",    value: globalStats.pedidos_hoje,            color: "#f97316", icon: <Package size={14} /> },
+    { label: "Pedidos hoje",    value: globalStats.pedidos_hoje,            color: "#E4002B", icon: <Package size={14} /> },
     { label: "Faturamento",     value: `R$${globalStats.faturamento_hoje.toFixed(2)}`, color: "#8b5cf6", icon: <DollarSign size={14} /> },
   ];
 
   const quickActions = [
-    { label: "Nova franquia",    icon: <Plus size={18} />,      color: "#FF6A00", bg: "rgba(255,106,0,0.1)",    onClick: openAdd },
+    { label: "Nova franquia",    icon: <Plus size={18} />,      color: "#E4002B", bg: "rgba(228,0,43,0.1)",    onClick: openAdd },
     { label: "Motoboys",         icon: <Users size={18} />,     color: "#3b82f6", bg: "rgba(59,130,246,0.1)",   href: "/motoboys" },
     { label: "Relatório global", icon: <BarChart2 size={18} />, color: "#8b5cf6", bg: "rgba(139,92,246,0.1)",   href: "/financeiro" },
     { label: "Configurações",    icon: <Settings size={18} />,  color: "#64748b", bg: "rgba(100,116,139,0.1)", href: "/configuracoes" },
@@ -137,7 +137,7 @@ export default function LojasClient({ initialLojas, empresaId, globalStats }: Pr
             </h1>
           </div>
           <button onClick={openAdd}
-            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 12, background: "#FF6A00", color: "#fff", border: "none", fontSize: 13, fontWeight: 800, cursor: "pointer", boxShadow: "0 4px 14px rgba(255,106,0,.3)" }}>
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 12, background: "#E4002B", color: "#fff", border: "none", fontSize: 13, fontWeight: 800, cursor: "pointer", boxShadow: "0 4px 14px rgba(228,0,43,.3)" }}>
             <Plus size={15} /> Nova loja
           </button>
         </div>
@@ -197,15 +197,15 @@ export default function LojasClient({ initialLojas, empresaId, globalStats }: Pr
             padding: "80px 24px", gap: 16, background: "var(--bg-1)",
             borderRadius: 22, border: "1px solid var(--border-1)",
           }}>
-            <div style={{ width: 64, height: 64, borderRadius: 20, background: "rgba(255,106,0,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Store size={30} style={{ color: "#FF6A00" }} />
+            <div style={{ width: 64, height: 64, borderRadius: 20, background: "rgba(228,0,43,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Store size={30} style={{ color: "#E4002B" }} />
             </div>
             <p style={{ fontSize: 16, fontWeight: 800, color: "var(--text-2)", margin: 0 }}>Nenhuma franquia criada</p>
             <p style={{ fontSize: 13, color: "var(--text-4)", margin: 0, textAlign: "center", maxWidth: 340, lineHeight: 1.6 }}>
               Crie suas primeiras lojas para separar operações, catálogos e pedidos por unidade.
             </p>
             <button onClick={openAdd}
-              style={{ padding: "10px 24px", borderRadius: 12, background: "#FF6A00", color: "#fff", border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+              style={{ padding: "10px 24px", borderRadius: 12, background: "#E4002B", color: "#fff", border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
               Criar primeira loja
             </button>
           </div>
@@ -280,7 +280,7 @@ export default function LojasClient({ initialLojas, empresaId, globalStats }: Pr
                             {l.ativo ? "Desativar" : "Ativar"}
                           </button>
                           <button onClick={() => handleDelete(l.id)} disabled={deleting === l.id}
-                            style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", background: "transparent", border: "none", borderTop: "1px solid var(--border-1)", cursor: "pointer", color: "#FF6A00", fontSize: 13, fontWeight: 600 }}>
+                            style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", background: "transparent", border: "none", borderTop: "1px solid var(--border-1)", cursor: "pointer", color: "#E4002B", fontSize: 13, fontWeight: 600 }}>
                             <Trash2 size={14} /> {deleting === l.id ? "Excluindo…" : "Excluir loja"}
                           </button>
                         </div>
@@ -298,7 +298,7 @@ export default function LojasClient({ initialLojas, empresaId, globalStats }: Pr
                   {/* Stats row */}
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 14 }}>
                     {[
-                      { label: "Pedidos hoje", value: l.pedidos_hoje,                                  icon: <Package size={12} />,    color: "#f97316", bg: "rgba(249,115,22,0.08)" },
+                      { label: "Pedidos hoje", value: l.pedidos_hoje,                                  icon: <Package size={12} />,    color: "#E4002B", bg: "rgba(228,0,43,0.08)" },
                       { label: "Faturamento",  value: `R$${l.faturamento_hoje.toFixed(0)}`,            icon: <DollarSign size={12} />, color: "#16a34a", bg: "rgba(34,197,94,0.08)" },
                       { label: "Entregues",    value: l.entregues_hoje,                                 icon: <CheckCircle size={12} />, color: "#3b82f6", bg: "rgba(59,130,246,0.08)" },
                     ].map(({ label, value, icon, color, bg }) => (

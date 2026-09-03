@@ -60,8 +60,8 @@ export default function AutomacoesClient({ empresaId, initialConfig, printAgentO
       {/* Header */}
       <div className="mb-2">
         <div className="flex items-center gap-3 mb-1">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(255,106,0,0.1)" }}>
-            <Zap size={17} style={{ color: "#FF6A00" }} />
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(228,0,43,0.1)" }}>
+            <Zap size={17} style={{ color: "#E4002B" }} />
           </div>
           <h1 className="text-xl font-bold" style={{ color: "var(--text-1)" }}>Automações</h1>
         </div>
@@ -73,8 +73,8 @@ export default function AutomacoesClient({ empresaId, initialConfig, printAgentO
         className="rounded-2xl p-4 flex items-center justify-between"
         style={{ background: "var(--bg-2)", border: "1px solid var(--border-1)", textDecoration: "none" }}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(255,106,0,0.1)" }}>
-            <Printer size={17} style={{ color: "#FF6A00" }} />
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(228,0,43,0.1)" }}>
+            <Printer size={17} style={{ color: "#E4002B" }} />
           </div>
           <div>
             <div className="flex items-center gap-2">
@@ -119,7 +119,7 @@ export default function AutomacoesClient({ empresaId, initialConfig, printAgentO
           onClick={salvarWhatsapp}
           disabled={saving}
           className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-bold"
-          style={{ background: saved ? "rgba(34,197,94,0.15)" : "#FF6A00", color: saved ? "#4ade80" : "#fff", border: "none", cursor: "pointer" }}
+          style={{ background: saved ? "rgba(34,197,94,0.15)" : "#E4002B", color: saved ? "#4ade80" : "#fff", border: "none", cursor: "pointer" }}
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <CheckCircle size={14} /> : null}
           {saving ? "Salvando…" : saved ? "Salvo!" : "Salvar"}

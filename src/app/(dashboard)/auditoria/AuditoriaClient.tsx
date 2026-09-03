@@ -17,10 +17,10 @@ interface Props {
 
 const ACAO_CFG: Record<string, { label: string; color: string; bg: string; Icon: React.ElementType }> = {
   pedido_criado:       { label: "Pedido criado",    color: "#22c55e", bg: "rgba(34,197,94,0.1)",   Icon: Package },
-  pedido_excluido:     { label: "Pedido excluído",  color: "#FF6A00", bg: "rgba(255,106,0,0.1)",   Icon: Trash2 },
+  pedido_excluido:     { label: "Pedido excluído",  color: "#E4002B", bg: "rgba(228,0,43,0.1)",   Icon: Trash2 },
   status_atualizado:   { label: "Status atualizado",color: "#60a5fa", bg: "rgba(96,165,250,0.1)",  Icon: RotateCcw },
   motoboy_cadastrado:  { label: "Motoboy cadastrado",color: "#fbbf24", bg: "rgba(251,191,36,0.1)", Icon: Users },
-  motoboy_removido:    { label: "Motoboy removido", color: "#f97316", bg: "rgba(249,115,22,0.1)",  Icon: UserMinus },
+  motoboy_removido:    { label: "Motoboy removido", color: "#E4002B", bg: "rgba(228,0,43,0.1)",  Icon: UserMinus },
 };
 
 const FILTROS = [
@@ -66,7 +66,7 @@ export default function AuditoriaClient({ logs }: Props) {
             <button key={key} onClick={() => { setFiltro(key); setVisivel(30); }}
               className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap"
               style={filtro === key
-                ? { background: "rgba(204,85,0,0.2)", color: "#FF6A00" }
+                ? { background: "rgba(168,0,33,0.2)", color: "#E4002B" }
                 : { color: "#64748b" }}>
               {label}
             </button>
@@ -79,8 +79,8 @@ export default function AuditoriaClient({ logs }: Props) {
         {exibidos.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <div className="w-12 h-12 rounded-2xl flex items-center justify-center"
-              style={{ background: "rgba(255,106,0,0.08)" }}>
-              <Shield size={22} style={{ color: "#FF6A00" }} />
+              style={{ background: "rgba(228,0,43,0.08)" }}>
+              <Shield size={22} style={{ color: "#E4002B" }} />
             </div>
             <p className="text-sm font-medium" style={{ color: "#64748b" }}>Nenhum registro encontrado</p>
           </div>

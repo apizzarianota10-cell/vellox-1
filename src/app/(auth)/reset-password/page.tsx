@@ -37,24 +37,24 @@ export default function ResetPasswordPage() {
           to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes glowPulse {
-          0%, 100% { box-shadow: 0 0 24px rgba(204,85,0,0.5), 0 4px 32px rgba(0,0,0,0.4); }
-          50%       { box-shadow: 0 0 50px rgba(204,85,0,0.85), 0 4px 32px rgba(0,0,0,0.4); }
+          0%, 100% { box-shadow: 0 0 24px rgba(168,0,33,0.5), 0 4px 32px rgba(0,0,0,0.4); }
+          50%       { box-shadow: 0 0 50px rgba(168,0,33,0.85), 0 4px 32px rgba(0,0,0,0.4); }
         }
         .fade-up { animation: fadeUp 0.6s cubic-bezier(0.16,1,0.3,1) forwards; }
         .glow-btn { animation: glowPulse 2.5s ease-in-out infinite; transition: transform 0.2s ease, opacity 0.2s ease; }
         .glow-btn:not(:disabled):hover { transform: translateY(-2px); }
         .input-field { transition: border-color 0.25s, box-shadow 0.25s, background 0.25s; }
         .input-field:focus {
-          border-color: rgba(255,106,0,0.65) !important;
-          box-shadow: 0 0 0 3px rgba(204,85,0,0.14), 0 0 18px rgba(204,85,0,0.08) !important;
-          background: rgba(255,106,0,0.035) !important;
+          border-color: rgba(228,0,43,0.65) !important;
+          box-shadow: 0 0 0 3px rgba(168,0,33,0.14), 0 0 18px rgba(168,0,33,0.08) !important;
+          background: rgba(228,0,43,0.035) !important;
         }
       `}</style>
 
       <div className="min-h-screen flex items-center justify-center px-6 py-10" style={{ background: "var(--bg-base)" }}>
         <div
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] rounded-full pointer-events-none"
-          style={{ background: "radial-gradient(circle, rgba(255,106,0,0.07) 0%, transparent 70%)", filter: "blur(60px)" }}
+          style={{ background: "radial-gradient(circle, rgba(228,0,43,0.07) 0%, transparent 70%)", filter: "blur(60px)" }}
         />
 
         <div
@@ -64,7 +64,7 @@ export default function ResetPasswordPage() {
             border: "1px solid rgba(255,255,255,0.08)",
             backdropFilter: "blur(24px)",
             boxShadow: [
-              "0 0 0 1px rgba(255,106,0,0.05)",
+              "0 0 0 1px rgba(228,0,43,0.05)",
               "0 8px 16px rgba(0,0,0,0.5)",
               "0 32px 80px rgba(0,0,0,0.65)",
               "inset 0 1px 0 rgba(255,255,255,0.06)",
@@ -89,12 +89,12 @@ export default function ResetPasswordPage() {
                 <div
                   className="w-14 h-14 rounded-2xl flex items-center justify-center"
                   style={{
-                    background: "linear-gradient(135deg, rgba(255,106,0,0.2), rgba(255,106,0,0.04))",
-                    border: "1px solid rgba(255,106,0,0.2)",
-                    boxShadow: "0 0 30px rgba(255,106,0,0.18), inset 0 1px 0 rgba(255,106,0,0.08)",
+                    background: "linear-gradient(135deg, rgba(228,0,43,0.2), rgba(228,0,43,0.04))",
+                    border: "1px solid rgba(228,0,43,0.2)",
+                    boxShadow: "0 0 30px rgba(228,0,43,0.18), inset 0 1px 0 rgba(228,0,43,0.08)",
                   }}
                 >
-                  <Zap size={24} style={{ color: "#FF6A00" }} strokeWidth={2.5}/>
+                  <Zap size={24} style={{ color: "#E4002B" }} strokeWidth={2.5}/>
                 </div>
               </div>
 
@@ -160,10 +160,10 @@ export default function ResetPasswordPage() {
                   <div
                     className="flex items-center gap-2 px-4 py-3 rounded-xl text-sm"
                     style={{
-                      background: "rgba(255,106,0,0.08)",
-                      border: "1px solid rgba(255,106,0,0.2)",
-                      color: "#FF8C1A",
-                      boxShadow: "0 0 16px rgba(255,106,0,0.08)",
+                      background: "rgba(228,0,43,0.08)",
+                      border: "1px solid rgba(228,0,43,0.2)",
+                      color: "#FFC72C",
+                      boxShadow: "0 0 16px rgba(228,0,43,0.08)",
                     }}
                   >
                     <span>⚠</span> {error}
@@ -178,7 +178,7 @@ export default function ResetPasswordPage() {
                     height: 48,
                     background: loading
                       ? "#7f1d1d"
-                      : "linear-gradient(135deg, #FF8C1A 0%, #FF6A00 45%, #a84400 100%)",
+                      : "linear-gradient(135deg, #FFC72C 0%, #E4002B 45%, #a84400 100%)",
                     opacity: loading ? 0.7 : 1,
                     letterSpacing: "-0.01em",
                   }}

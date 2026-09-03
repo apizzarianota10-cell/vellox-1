@@ -21,9 +21,9 @@ export default function DashboardError({
     >
       <div
         className="w-14 h-14 rounded-2xl flex items-center justify-center"
-        style={{ background: "rgba(255,106,0,0.1)" }}
+        style={{ background: "rgba(228,0,43,0.1)" }}
       >
-        <AlertTriangle size={24} style={{ color: "#FF6A00" }} />
+        <AlertTriangle size={24} style={{ color: "#E4002B" }} />
       </div>
       <div className="text-center max-w-sm">
         <h2 className="text-lg font-bold text-white mb-2">Erro ao carregar</h2>
@@ -40,7 +40,7 @@ export default function DashboardError({
         <button
           onClick={reset}
           className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
-          style={{ background: "rgba(255,106,0,0.15)", border: "1px solid rgba(255,106,0,0.3)" }}
+          style={{ background: "rgba(228,0,43,0.15)", border: "1px solid rgba(228,0,43,0.3)" }}
         >
           Tentar novamente
         </button>

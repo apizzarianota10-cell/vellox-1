@@ -305,7 +305,7 @@ export default function CompanyLocationPicker({
               className="w-full px-4 rounded-xl text-sm text-white placeholder-gray-700 outline-none transition-all"
               style={IS}
               onFocus={e => {
-                e.target.style.borderColor = "rgba(255,106,0,0.5)";
+                e.target.style.borderColor = "rgba(228,0,43,0.5)";
                 if (suggestions.length > 0) {
                   const rect = inputRef.current?.getBoundingClientRect();
                   if (rect) setDropPos({ top: rect.bottom + 4, left: rect.left, width: rect.width });
@@ -322,7 +322,7 @@ export default function CompanyLocationPicker({
               <div style={{
                 position: "fixed", top: dropPos.top, left: dropPos.left, width: dropPos.width,
                 zIndex: 9999, background: "#141414",
-                border: "1px solid rgba(255,106,0,0.2)", borderRadius: 12,
+                border: "1px solid rgba(228,0,43,0.2)", borderRadius: 12,
                 overflow: "hidden", boxShadow: "0 12px 36px rgba(0,0,0,0.7)",
               }}>
                 {suggestions.map((f, i) => {
@@ -335,10 +335,10 @@ export default function CompanyLocationPicker({
                     <button key={i} onMouseDown={() => selectFeature(f)}
                       className="flex items-center gap-3 w-full px-4 py-3 text-left"
                       style={{ borderBottom: i < suggestions.length - 1 ? "1px solid #1f1f1f" : "none" }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,106,0,0.07)")}
+                      onMouseEnter={e => (e.currentTarget.style.background = "rgba(228,0,43,0.07)")}
                       onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                     >
-                      <MapPin size={13} style={{ color: "#FF6A00", flexShrink: 0, marginTop: 1 }} />
+                      <MapPin size={13} style={{ color: "#E4002B", flexShrink: 0, marginTop: 1 }} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-white truncate leading-snug">{nome}</p>
                         {sub && <p className="text-xs truncate mt-0.5" style={{ color: "#475569" }}>{sub}</p>}
@@ -358,7 +358,7 @@ export default function CompanyLocationPicker({
           <button onClick={() => fetchSuggestions(query, true)}
             disabled={searching || !query.trim()}
             className="shrink-0 flex items-center gap-2 px-4 rounded-xl text-sm font-bold"
-            style={{ height: 48, background: "linear-gradient(135deg,#cc5500,#a84400)", color: "white", opacity: !query.trim() ? 0.5 : 1 }}>
+            style={{ height: 48, background: "linear-gradient(135deg,#A80021,#a84400)", color: "white", opacity: !query.trim() ? 0.5 : 1 }}>
             {searching ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
             Localizar
           </button>
@@ -366,7 +366,7 @@ export default function CompanyLocationPicker({
 
         {noResults && (
           <p className="text-xs mt-2 px-3 py-2 rounded-lg"
-            style={{ background: "rgba(255,106,0,0.08)", color: "#FF8C1A", border: "1px solid rgba(255,106,0,0.2)" }}>
+            style={{ background: "rgba(228,0,43,0.08)", color: "#FFC72C", border: "1px solid rgba(228,0,43,0.2)" }}>
             ⚠ Endereço não encontrado. Tente ser mais específico ou clique no mapa.
           </p>
         )}
@@ -377,7 +377,7 @@ export default function CompanyLocationPicker({
         <p className="text-xs mb-2" style={{ color: "#374151" }}>
           Clique no mapa para posicionar · Arraste o marcador para ajustar
         </p>
-        <div style={{ height: 280, borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,106,0,0.2)" }}>
+        <div style={{ height: 280, borderRadius: 16, overflow: "hidden", border: "1px solid rgba(228,0,43,0.2)" }}>
           <LocationMapPickerInner
             lat={location?.lat ?? null}
             lng={location?.lng ?? null}
@@ -399,7 +399,7 @@ export default function CompanyLocationPicker({
           </div>
         ) : location ? (
           <div className="flex items-start gap-2.5">
-            <MapPin size={13} style={{ color: "#FF6A00", marginTop: 1, flexShrink: 0 }} />
+            <MapPin size={13} style={{ color: "#E4002B", marginTop: 1, flexShrink: 0 }} />
             <div className="flex-1 min-w-0">
               <p className="text-sm text-white leading-snug">{location.endereco}</p>
               {location.cidade && (
@@ -428,16 +428,16 @@ export default function CompanyLocationPicker({
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#4b5563" }}>Raio de geofence</label>
-          <span className="text-xs font-mono font-bold" style={{ color: "#FF6A00" }}>{raio}m</span>
+          <span className="text-xs font-mono font-bold" style={{ color: "#E4002B" }}>{raio}m</span>
         </div>
         <div className="flex gap-2">
           {RADII.map(r => (
             <button key={r} onClick={() => setRaio(r)}
               className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all"
               style={{
-                background: raio === r ? "rgba(255,106,0,0.15)" : "rgba(255,255,255,0.03)",
-                color: raio === r ? "#FF6A00" : "#475569",
-                border: `1px solid ${raio === r ? "rgba(255,106,0,0.4)" : "rgba(255,255,255,0.06)"}`,
+                background: raio === r ? "rgba(228,0,43,0.15)" : "rgba(255,255,255,0.03)",
+                color: raio === r ? "#E4002B" : "#475569",
+                border: `1px solid ${raio === r ? "rgba(228,0,43,0.4)" : "rgba(255,255,255,0.06)"}`,
               }}>
               {r}m
             </button>
@@ -451,7 +451,7 @@ export default function CompanyLocationPicker({
       {/* ── Error ── */}
       {saveError && (
         <p className="text-xs px-3 py-2 rounded-lg"
-          style={{ background: "rgba(255,106,0,0.08)", color: "#FF8C1A", border: "1px solid rgba(255,106,0,0.2)" }}>
+          style={{ background: "rgba(228,0,43,0.08)", color: "#FFC72C", border: "1px solid rgba(228,0,43,0.2)" }}>
           ⚠ {saveError}
         </p>
       )}
@@ -461,7 +461,7 @@ export default function CompanyLocationPicker({
         disabled={!location || saving || geocoding}
         className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-bold transition-all"
         style={{
-          background: savedOk ? "rgba(34,197,94,0.12)" : location ? "linear-gradient(135deg,#cc5500,#a84400)" : "rgba(255,255,255,0.04)",
+          background: savedOk ? "rgba(34,197,94,0.12)" : location ? "linear-gradient(135deg,#A80021,#a84400)" : "rgba(255,255,255,0.04)",
           color: savedOk ? "#4ade80" : "white",
           border: savedOk ? "1px solid rgba(34,197,94,0.3)" : "none",
           opacity: (!location || geocoding) ? 0.5 : 1,

@@ -10,7 +10,7 @@ import "leaflet/dist/leaflet.css";
 const MapLeaflet = dynamic(() => import("./MapLeaflet"), { ssr: false, loading: () => (
   <div className="flex items-center justify-center rounded-3xl" style={{ height: 400, margin: "0 16px", background: "#0d1117", border: "1px solid rgba(255,255,255,0.07)" }}>
     <div className="flex flex-col items-center gap-3">
-      <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "#FF6A00", borderTopColor: "transparent" }} />
+      <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: "#E4002B", borderTopColor: "transparent" }} />
       <p style={{ fontSize: 12, color: "#4b5563" }}>Carregando mapa...</p>
     </div>
   </div>
@@ -87,14 +87,14 @@ const CATEGORIAS_DEFAULT: Categoria[] = [
 ];
 
 const CAT_ACCENTS: Record<string, string> = {
-  "Pizza": "#ef4444", "Hambúrguer": "#f97316", "Churrasco": "#dc2626",
+  "Pizza": "#ef4444", "Hambúrguer": "#E4002B", "Churrasco": "#dc2626",
   "Japonês": "#8b5cf6", "Bebidas": "#06b6d4", "Sobremesas": "#ec4899",
   "Mercados": "#22c55e", "Lanches": "#f59e0b", "Cafeterias": "#a78bfa",
   "Fitness": "#10b981", "Saudáveis": "#84cc16",
 };
 
 const HERO_SLIDES = [
-  { emoji: "🍕", title: "Pizza artesanal", subtitle: "Massa crocante, recheio generoso", glow: "#FF6A00" },
+  { emoji: "🍕", title: "Pizza artesanal", subtitle: "Massa crocante, recheio generoso", glow: "#E4002B" },
   { emoji: "🍔", title: "Smash burger", subtitle: "Carne suculenta, molho especial",   glow: "#f59e0b" },
   { emoji: "🍣", title: "Culinária japonesa", subtitle: "Sashimi fresco todo dia",     glow: "#818cf8" },
 ];
@@ -173,8 +173,8 @@ function LiveStats({ lojas }: { lojas: Loja[] }) {
     <div
       className="flex items-center justify-center gap-4 overflow-x-auto"
       style={{
-        background: "linear-gradient(90deg, rgba(255,106,0,0.08) 0%, rgba(255,106,0,0.04) 100%)",
-        border: "1px solid rgba(255,106,0,0.12)",
+        background: "linear-gradient(90deg, rgba(228,0,43,0.08) 0%, rgba(228,0,43,0.04) 100%)",
+        border: "1px solid rgba(228,0,43,0.12)",
         borderRadius: 14, padding: "10px 20px",
         margin: "0 16px",
       }}
@@ -190,9 +190,9 @@ function LiveStats({ lojas }: { lojas: Loja[] }) {
       </div>
       <div style={{ width: 1, height: 18, background: "rgba(255,255,255,0.08)" }} />
       <div className="flex items-center gap-2 flex-shrink-0">
-        <Zap size={13} style={{ color: "#FF6A00" }} />
+        <Zap size={13} style={{ color: "#E4002B" }} />
         <span style={{ fontSize: 13, color: "#9ca3af" }}>
-          <span className="font-black" style={{ color: "#FF6A00", fontSize: 15 }}>
+          <span className="font-black" style={{ color: "#E4002B", fontSize: 15 }}>
             <AnimatedNumber to={lojas.length} />
           </span>{" "}
           lojas no Vellox
@@ -429,7 +429,7 @@ function HeroBanner({ banners }: { banners: Banner[] }) {
         emoji:    "",
         title:    b.titulo,
         subtitle: b.subtitulo ?? "",
-        glow:     b.cor_fundo ?? "#FF6A00",
+        glow:     b.cor_fundo ?? "#E4002B",
         image:    b.imagem_url ?? null,
         link:     b.link_url ?? null,
       }))
@@ -483,7 +483,7 @@ function HeroBanner({ banners }: { banners: Banner[] }) {
       </div>
       <div className="absolute flex gap-1.5" style={{ bottom: 14, right: 18 }}>
         {slides.map((_, i) => (
-          <button key={i} onClick={() => setIdx(i)} className="rounded-full transition-all duration-300" style={{ width: i === idx ? 18 : 5, height: 5, background: i === idx ? "#FF6A00" : "rgba(255,255,255,0.3)" }} />
+          <button key={i} onClick={() => setIdx(i)} className="rounded-full transition-all duration-300" style={{ width: i === idx ? 18 : 5, height: 5, background: i === idx ? "#E4002B" : "rgba(255,255,255,0.3)" }} />
         ))}
       </div>
     </div>
@@ -568,7 +568,7 @@ function StoreCard({
           </span>
           <span className="flex items-center gap-1" style={{ fontSize: 11, color: "#6b7280" }}><Clock size={10} /> {tempo}</span>
           <span style={{ fontSize: 11, color: taxa === 0 ? "#22c55e" : "#6b7280" }}>🛵 {formatTaxa(taxa)}</span>
-          {(() => { const n = fakePedidosHoje(loja.id); return n >= 20 ? <span style={{ fontSize: 10, color: "#f97316", fontWeight: 700 }}>🔥 {n} hoje</span> : null; })()}
+          {(() => { const n = fakePedidosHoje(loja.id); return n >= 20 ? <span style={{ fontSize: 10, color: "#E4002B", fontWeight: 700 }}>🔥 {n} hoje</span> : null; })()}
         </div>
 
         <button
@@ -729,10 +729,10 @@ function FlashSaleCard({ sale, slug }: { sale: FlashSale; slug: string }) {
     <Link
       href={`/loja/${slug}`}
       className="flex-shrink-0 rounded-2xl overflow-hidden"
-      style={{ width: 200, background: "#111", border: "1px solid rgba(255,106,0,0.25)", boxShadow: "0 4px 20px rgba(255,106,0,0.12)" }}
+      style={{ width: 200, background: "#111", border: "1px solid rgba(228,0,43,0.25)", boxShadow: "0 4px 20px rgba(228,0,43,0.12)" }}
     >
       {/* Imagem */}
-      <div style={{ height: 100, position: "relative", overflow: "hidden", background: sale.imagem_url ? undefined : "linear-gradient(135deg,#FF6A0044,#111)" }}>
+      <div style={{ height: 100, position: "relative", overflow: "hidden", background: sale.imagem_url ? undefined : "linear-gradient(135deg,#E4002B44,#111)" }}>
         {sale.imagem_url
           ? <img src={sale.imagem_url} alt={sale.nome} className="w-full h-full object-cover" />
           : <div className="w-full h-full flex items-center justify-center" style={{ fontSize: 40 }}>⚡</div>}
@@ -753,14 +753,14 @@ function FlashSaleCard({ sale, slug }: { sale: FlashSale; slug: string }) {
               R$ {sale.preco_original.toFixed(2).replace(".", ",")}
             </span>
           )}
-          <span className="font-black" style={{ fontSize: 15, color: "#FF6A00" }}>
+          <span className="font-black" style={{ fontSize: 15, color: "#E4002B" }}>
             R$ {sale.preco_flash.toFixed(2).replace(".", ",")}
           </span>
         </div>
 
-        <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: "rgba(255,106,0,0.1)", border: "1px solid rgba(255,106,0,0.2)" }}>
-          <span style={{ fontSize: 11, color: "#FF6A00" }}>⏱</span>
-          <span className="font-bold" style={{ fontSize: 11, color: "#FF6A00" }}>
+        <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: "rgba(228,0,43,0.1)", border: "1px solid rgba(228,0,43,0.2)" }}>
+          <span style={{ fontSize: 11, color: "#E4002B" }}>⏱</span>
+          <span className="font-bold" style={{ fontSize: 11, color: "#E4002B" }}>
             <CountdownTimer termina_em={sale.termina_em} />
           </span>
         </div>
@@ -809,7 +809,7 @@ function SectionHeader({ icon, title, sub, count, onSeeAll }: { icon: React.Reac
             <span className="px-2 py-0.5 rounded-full text-xs font-bold" style={{ background: "rgba(255,255,255,0.06)", color: "#6b7280" }}>{count}</span>
           )}
           {onSeeAll && (
-            <button onClick={onSeeAll} style={{ fontSize: 12, fontWeight: 700, color: "#FF6A00" }}>
+            <button onClick={onSeeAll} style={{ fontSize: 12, fontWeight: 700, color: "#E4002B" }}>
               Ver todas →
             </button>
           )}
@@ -877,7 +877,7 @@ function Autocomplete({ query, lojas, cats, onSelect }: {
           <div style={{ padding: "8px 14px 4px", fontSize: 10, fontWeight: 700, color: "#4b5563", letterSpacing: "0.08em" }}>LOJAS</div>
           {lMatch.map(l => (
             <Link key={l.id} href={`/loja/${l.slug}`} className="flex items-center gap-3 px-4 py-2.5 transition-colors" onMouseEnter={e => ((e.currentTarget as HTMLElement).style.background = "#1f1f1f")} onMouseLeave={e => ((e.currentTarget as HTMLElement).style.background = "transparent")}>
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center font-black text-white flex-shrink-0" style={{ background: l.config?.cor_principal ?? "#FF6A00", fontSize: 13 }}>
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center font-black text-white flex-shrink-0" style={{ background: l.config?.cor_principal ?? "#E4002B", fontSize: 13 }}>
                 {getInitial(l.nome)}
               </div>
               <div>
@@ -958,7 +958,7 @@ function RestauranteDosDia({ loja, accent, isFav, onToggleFav, onPreview }: {
                   {aberto ? "● Aberto" : "● Fechado"}
                 </span>
                 <span style={{ fontSize: 12, color: "#9ca3af" }}>🛵 {formatTaxa(taxa)}</span>
-                <span style={{ fontSize: 12, color: "#f97316", fontWeight: 700 }}>🔥 {pedidos} pedidos hoje</span>
+                <span style={{ fontSize: 12, color: "#E4002B", fontWeight: 700 }}>🔥 {pedidos} pedidos hoje</span>
               </div>
             </div>
             <Link
@@ -1078,7 +1078,7 @@ const HERO_DEFAULTS: HeroConfig = {
   hero_titulo:    "Peça comida no",
   hero_destaque:  "seu jeito",
   hero_subtitulo: "Descubra restaurantes incríveis e peça com entrega rápida",
-  accent_color:   "#FF6A00",
+  accent_color:   "#E4002B",
 };
 
 export default function ExplorarClient({ lojas, banners, categorias, heroConfig }: Props) {
@@ -1451,7 +1451,7 @@ export default function ExplorarClient({ lojas, banners, categorias, heroConfig 
                       <p className="font-bold text-white truncate" style={{ fontSize: 14 }}>{p.nome}</p>
                       <p style={{ fontSize: 12, color: "#6b7280" }}>{p.empresa.nome}</p>
                     </div>
-                    <span className="font-black flex-shrink-0" style={{ fontSize: 14, color: "#FF6A00" }}>
+                    <span className="font-black flex-shrink-0" style={{ fontSize: 14, color: "#E4002B" }}>
                       R$ {p.preco.toFixed(2).replace(".", ",")}
                     </span>
                   </Link>
@@ -1483,7 +1483,7 @@ export default function ExplorarClient({ lojas, banners, categorias, heroConfig 
             style={{
               position: "relative",
               padding: "36px 20px 32px",
-              background: "linear-gradient(180deg, rgba(255,106,0,0.07) 0%, rgba(11,11,11,0) 100%)",
+              background: "linear-gradient(180deg, rgba(228,0,43,0.07) 0%, rgba(11,11,11,0) 100%)",
               overflow: "hidden",
             }}
           >
@@ -1644,7 +1644,7 @@ export default function ExplorarClient({ lojas, banners, categorias, heroConfig 
           {/* ── BANNER DE CATEGORIA TEMÁTICO ──────────────────────────── */}
           {categoriaAtiva && (() => {
             const cat = cats.find(c => c.nome === categoriaAtiva);
-            const a = CAT_ACCENTS[categoriaAtiva] ?? "#FF6A00";
+            const a = CAT_ACCENTS[categoriaAtiva] ?? "#E4002B";
             return (
               <div style={{ padding: "20px 16px 0" }}>
                 <div className="relative overflow-hidden rounded-3xl" style={{ background: `linear-gradient(135deg, ${a}20, ${a}08)`, border: `1px solid ${a}25`, padding: "22px 24px" }}>
@@ -1740,7 +1740,7 @@ export default function ExplorarClient({ lojas, banners, categorias, heroConfig 
           {/* ── DESTAQUES ─────────────────────────────────────────────── */}
           {destaques.length > 0 && (
             <section style={{ marginTop: 28 }}>
-              <SectionHeader icon={<Flame size={18} style={{ color: "#FF6A00" }} />} title="Em Destaque" sub="Os favoritos da comunidade" onSeeAll={scrollToAll} />
+              <SectionHeader icon={<Flame size={18} style={{ color: "#E4002B" }} />} title="Em Destaque" sub="Os favoritos da comunidade" onSeeAll={scrollToAll} />
               <FeaturedLandscapeCarousel destaques={destaques} favs={favoritos} onToggleFav={toggleFav} accent={accent} />
             </section>
           )}

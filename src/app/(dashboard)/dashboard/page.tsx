@@ -62,11 +62,11 @@ const STATUS_CFG: Record<string, { label: string; color: string; dot: string; bg
   em_fila:                { label: "Na fila",    color: "#64748b", dot: "#94a3b8",  bg: "rgba(148,163,184,0.12)" },
   em_preparo:             { label: "Em preparo", color: "#d97706", dot: "#f59e0b",  bg: "rgba(245,158,11,0.15)" },
   finalizado:             { label: "Finalizado", color: "#2563eb", dot: "#3b82f6",  bg: "rgba(59,130,246,0.12)" },
-  em_coleta:              { label: "Coleta",     color: "#ea580c", dot: "#f97316",  bg: "rgba(249,115,22,0.12)" },
+  em_coleta:              { label: "Coleta",     color: "#A80021", dot: "#E4002B",  bg: "rgba(228,0,43,0.12)" },
   em_rota_de_entrega:     { label: "Em rota",    color: "#7c3aed", dot: "#8b5cf6",  bg: "rgba(139,92,246,0.12)" },
   aguardando_confirmacao: { label: "Confirmar",  color: "#d97706", dot: "#f59e0b",  bg: "rgba(245,158,11,0.15)" },
   entregue:               { label: "Entregue",   color: "#16a34a", dot: "#22c55e",  bg: "rgba(34,197,94,0.12)" },
-  cancelado:              { label: "Cancelado",  color: "#cc5500", dot: "#FF6A00",  bg: "rgba(255,106,0,0.10)" },
+  cancelado:              { label: "Cancelado",  color: "#A80021", dot: "#E4002B",  bg: "rgba(228,0,43,0.10)" },
 };
 
 export default async function DashboardPage() {
@@ -85,8 +85,8 @@ export default async function DashboardPage() {
   const margem = stats.faturamento;
 
   const cards = [
-    { label: "Pedidos",        value: stats.total,                icon: Package,    color: "#FF6A00", iconBg: "linear-gradient(135deg,#FF8C1A,#FF6A00)", sub: `${stats.pendentes} aguardando`,             href: "/pedidos"  },
-    { label: "Em rota",        value: stats.emRota,               icon: Bike,       color: "#f97316", iconBg: "linear-gradient(135deg,#fb923c,#f97316)", sub: `${stats.motoboyEmEntrega} motoboy${stats.motoboyEmEntrega !== 1 ? "s" : ""} ativo${stats.motoboyEmEntrega !== 1 ? "s" : ""}`, href: "/mapa" },
+    { label: "Pedidos",        value: stats.total,                icon: Package,    color: "#E4002B", iconBg: "linear-gradient(135deg,#FFC72C,#E4002B)", sub: `${stats.pendentes} aguardando`,             href: "/pedidos"  },
+    { label: "Em rota",        value: stats.emRota,               icon: Bike,       color: "#E4002B", iconBg: "linear-gradient(135deg,#fb923c,#E4002B)", sub: `${stats.motoboyEmEntrega} motoboy${stats.motoboyEmEntrega !== 1 ? "s" : ""} ativo${stats.motoboyEmEntrega !== 1 ? "s" : ""}`, href: "/mapa" },
     { label: "Entregues",      value: stats.entregues,            icon: CheckCircle,color: "#22c55e", iconBg: "linear-gradient(135deg,#4ade80,#22c55e)",  sub: taxaSucesso > 0 ? `${taxaSucesso}% de sucesso` : "Nenhuma entrega", href: "/pedidos" },
     { label: "Motoboys livres",value: stats.motoboyDisponiveis,   icon: Users,      color: "#3b82f6", iconBg: "linear-gradient(135deg,#60a5fa,#3b82f6)",  sub: `de ${stats.motoboyTotal} cadastrados`,      href: "/motoboys" },
   ];
@@ -175,12 +175,12 @@ export default async function DashboardPage() {
           <div style={{
             display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap",
             padding: "12px 20px", borderRadius: 14,
-            background: "rgba(249,115,22,0.08)", border: "1px solid rgba(249,115,22,0.2)",
+            background: "rgba(228,0,43,0.08)", border: "1px solid rgba(228,0,43,0.2)",
             animation: "fade-slide-up 0.4s ease 0.3s both",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <Flame size={13} color="#f97316" className="animate-pulse" />
-              <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.07em", textTransform: "uppercase", color: "#ea580c" }}>
+              <Flame size={13} color="#E4002B" className="animate-pulse" />
+              <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.07em", textTransform: "uppercase", color: "#A80021" }}>
                 Em andamento
               </span>
             </div>
@@ -230,7 +230,7 @@ export default async function DashboardPage() {
           <div className="grid grid-cols-3 gap-2 md:gap-3">
             {[
               { label: "Faturamento",   value: stats.faturamento,   sub: "receita total",    color: "#16a34a", bg: "rgba(34,197,94,0.08)",  border: "rgba(34,197,94,0.2)",  icon: <TrendingUp size={13} color="#22c55e" /> },
-              { label: "Motoboys",      value: stats.lucroMotoboys, sub: "taxas do cliente", color: "#ea580c", bg: "rgba(249,115,22,0.08)", border: "rgba(249,115,22,0.2)", icon: <Bike size={13} color="#f97316" /> },
+              { label: "Motoboys",      value: stats.lucroMotoboys, sub: "taxas do cliente", color: "#A80021", bg: "rgba(228,0,43,0.08)", border: "rgba(228,0,43,0.2)", icon: <Bike size={13} color="#E4002B" /> },
               { label: "Líquido",       value: margem,              sub: "valor alimentos",  color: "#7c3aed", bg: "rgba(139,92,246,0.08)", border: "rgba(139,92,246,0.2)", icon: <TrendingDown size={13} color="#8b5cf6" /> },
             ].map(({ label, value, sub, color, bg, border, icon }) => (
               <div key={label} className="rounded-xl transition-transform duration-200 hover:-translate-y-0.5 px-3 py-3 md:px-[18px] md:py-4"
@@ -327,9 +327,9 @@ export default async function DashboardPage() {
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{
                   width: 34, height: 34, borderRadius: 10,
-                  background: "linear-gradient(135deg, #FF8C1A, #FF6A00)",
+                  background: "linear-gradient(135deg, #FFC72C, #E4002B)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  boxShadow: "0 4px 12px rgba(255,106,0,0.28)",
+                  boxShadow: "0 4px 12px rgba(228,0,43,0.28)",
                 }}>
                   <Clock size={15} color="#ffffff" />
                 </div>
@@ -348,7 +348,7 @@ export default async function DashboardPage() {
                 </div>
                 <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text-4)", margin: 0 }}>Nenhum pedido ainda</p>
                 <Link href="/pedidos"
-                  style={{ fontSize: 12, fontWeight: 700, padding: "8px 18px", borderRadius: 10, background: "rgba(255,106,0,0.1)", color: "#FF6A00", border: "1px solid rgba(255,106,0,0.2)", textDecoration: "none" }}>
+                  style={{ fontSize: 12, fontWeight: 700, padding: "8px 18px", borderRadius: 10, background: "rgba(228,0,43,0.1)", color: "#E4002B", border: "1px solid rgba(228,0,43,0.2)", textDecoration: "none" }}>
                   Criar primeiro pedido
                 </Link>
               </div>
@@ -434,11 +434,11 @@ export default async function DashboardPage() {
                 {stats.motoboys.slice(0, 6).map((m, i) => {
                   const isDisp = m.status === "disponivel";
                   const isRota = m.status === "em_entrega";
-                  const dotColor = isDisp ? "#22c55e" : isRota ? "#f97316" : "#94a3b8";
-                  const labelColor = isDisp ? "#16a34a" : isRota ? "#ea580c" : "var(--text-3)";
-                  const labelBg = isDisp ? "rgba(34,197,94,0.1)" : isRota ? "rgba(249,115,22,0.1)" : "var(--bg-input)";
+                  const dotColor = isDisp ? "#22c55e" : isRota ? "#E4002B" : "#94a3b8";
+                  const labelColor = isDisp ? "#16a34a" : isRota ? "#A80021" : "var(--text-3)";
+                  const labelBg = isDisp ? "rgba(34,197,94,0.1)" : isRota ? "rgba(228,0,43,0.1)" : "var(--bg-input)";
                   const labelText = isDisp ? "Livre" : isRota ? "Em rota" : "Offline";
-                  const avatarBg = isDisp ? "rgba(34,197,94,0.1)" : isRota ? "rgba(249,115,22,0.1)" : "var(--bg-input)";
+                  const avatarBg = isDisp ? "rgba(34,197,94,0.1)" : isRota ? "rgba(228,0,43,0.1)" : "var(--bg-input)";
                   return (
                     <div key={m.id}
                       className="flex items-center gap-3"

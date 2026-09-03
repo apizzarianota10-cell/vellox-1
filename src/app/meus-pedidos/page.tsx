@@ -32,7 +32,7 @@ const STATUS_COLOR: Record<Status, { bg: string; text: string }> = {
   em_fila:                { bg: "#f1f5f9", text: "#64748b" },
   em_preparo:             { bg: "#fffbeb", text: "#d97706" },
   finalizado:             { bg: "#eff6ff", text: "#3b82f6" },
-  em_coleta:              { bg: "#fff7ed", text: "#f97316" },
+  em_coleta:              { bg: "#fff7ed", text: "#E4002B" },
   em_rota_de_entrega:     { bg: "#f5f3ff", text: "#8b5cf6" },
   aguardando_confirmacao: { bg: "#fffbeb", text: "#f59e0b" },
   entregue:               { bg: "#f0fdf4", text: "#16a34a" },
@@ -75,7 +75,7 @@ export default function MeusPedidosPage() {
       <style>{`@keyframes slideUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
 
       {/* Header */}
-      <div style={{ background: "linear-gradient(135deg,#FF8C1A,#cc5500)", padding: "24px 20px 40px" }}>
+      <div style={{ background: "linear-gradient(135deg,#FFC72C,#A80021)", padding: "24px 20px 40px" }}>
         <div style={{ maxWidth: 480, margin: "0 auto" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
             <Link
@@ -111,13 +111,13 @@ export default function MeusPedidosPage() {
                 onChange={e => setTel(maskPhone(e.target.value))}
                 placeholder="(00) 00000-0000"
                 style={{ flex: 1, padding: "13px 16px", borderRadius: 14, border: "1.5px solid #e2e8f0", fontSize: 16, color: "#0f172a", outline: "none", background: "#f8fafc", boxSizing: "border-box" }}
-                onFocus={e => e.target.style.borderColor = "#FF6A00"}
+                onFocus={e => e.target.style.borderColor = "#E4002B"}
                 onBlur={e  => e.target.style.borderColor = "#e2e8f0"}
               />
               <button
                 type="submit"
                 disabled={loading || tel.replace(/\D/g,"").length < 8}
-                style={{ padding: "0 20px", borderRadius: 14, background: tel.replace(/\D/g,"").length >= 8 ? "#FF6A00" : "#e2e8f0", color: tel.replace(/\D/g,"").length >= 8 ? "#fff" : "#94a3b8", border: "none", fontWeight: 700, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}
+                style={{ padding: "0 20px", borderRadius: 14, background: tel.replace(/\D/g,"").length >= 8 ? "#E4002B" : "#e2e8f0", color: tel.replace(/\D/g,"").length >= 8 ? "#fff" : "#94a3b8", border: "none", fontWeight: 700, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}
               >
                 {loading ? <div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", animation: "spin 0.8s linear infinite" }} /> : <Search size={16} />}
                 Buscar
@@ -144,7 +144,7 @@ export default function MeusPedidosPage() {
                   const total  = p.valor_pedido + p.valor_motoboy;
                   const sc     = STATUS_COLOR[p.status] ?? STATUS_COLOR.em_fila;
                   const active = !["entregue", "cancelado"].includes(p.status);
-                  const cardStyle = { background: "#fff", borderRadius: 18, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", padding: "16px 18px", textDecoration: "none", display: "flex" as const, alignItems: "center" as const, gap: 14, border: active ? "1.5px solid rgba(255,106,0,0.15)" : "1.5px solid transparent" };
+                  const cardStyle = { background: "#fff", borderRadius: 18, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", padding: "16px 18px", textDecoration: "none", display: "flex" as const, alignItems: "center" as const, gap: 14, border: active ? "1.5px solid rgba(228,0,43,0.15)" : "1.5px solid transparent" };
                   const inner = (
                     <>
                       {/* Status icon */}
@@ -171,7 +171,7 @@ export default function MeusPedidosPage() {
                           #{p.id.slice(0, 8).toUpperCase()} · {p.tipo_pedido === "entrega" ? "Delivery" : "Retirada"}
                         </p>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                          <p style={{ fontSize: 13, fontWeight: 700, color: "#FF6A00", margin: 0 }}>
+                          <p style={{ fontSize: 13, fontWeight: 700, color: "#E4002B", margin: 0 }}>
                             R$ {total.toFixed(2).replace(".", ",")}
                           </p>
                           <p style={{ fontSize: 11, color: "#94a3b8", margin: 0 }}>

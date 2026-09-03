@@ -80,7 +80,7 @@ function urgency(ms: number): Urgency {
 const U: Record<Urgency, { hdr: string; bdr: string; time: string; num: string }> = {
   fresh:    { hdr: "#14532d", bdr: "#16a34a", time: "#4ade80", num: "#86efac" },
   warm:     { hdr: "#713f12", bdr: "#d97706", time: "#fbbf24", num: "#fde68a" },
-  hot:      { hdr: "#7c2d12", bdr: "#ea580c", time: "#fb923c", num: "#fdba74" },
+  hot:      { hdr: "#5C0015", bdr: "#A80021", time: "#fb923c", num: "#fdba74" },
   critical: { hdr: "#7f1d1d", bdr: "#dc2626", time: "#f87171", num: "#fca5a5" },
 };
 

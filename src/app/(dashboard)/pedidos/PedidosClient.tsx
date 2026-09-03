@@ -32,14 +32,14 @@ const STATUS_CONFIG: Record<PedidoStatus, { label: string; color: string; bg: st
   em_fila:                 { label: "Na fila",            color: "#94a3b8", bg: "rgba(148,163,184,0.1)", dot: "#64748b", step: 0 },
   em_preparo:              { label: "Em preparo",          color: "#fbbf24", bg: "rgba(251,191,36,0.1)",  dot: "#fbbf24", step: 1 },
   finalizado:              { label: "Finalizado",          color: "#60a5fa", bg: "rgba(96,165,250,0.1)",  dot: "#3b82f6", step: 2 },
-  em_coleta:               { label: "Em coleta",           color: "#fb923c", bg: "rgba(251,146,60,0.1)",  dot: "#f97316", step: 3 },
+  em_coleta:               { label: "Em coleta",           color: "#fb923c", bg: "rgba(251,146,60,0.1)",  dot: "#E4002B", step: 3 },
   em_rota_de_entrega:      { label: "Em rota",             color: "#a78bfa", bg: "rgba(167,139,250,0.1)", dot: "#8b5cf6", step: 4 },
   aguardando_confirmacao:  { label: "Aguard. confirmar",   color: "#f59e0b", bg: "rgba(245,158,11,0.12)", dot: "#d97706", step: 5 },
   entregue:                { label: "Entregue",            color: "#4ade80", bg: "rgba(74,222,128,0.1)",  dot: "#22c55e", step: 6 },
-  cancelado:               { label: "Cancelado",           color: "#FF8C1A", bg: "rgba(248,113,113,0.1)", dot: "#FF6A00", step: -1 },
+  cancelado:               { label: "Cancelado",           color: "#FFC72C", bg: "rgba(248,113,113,0.1)", dot: "#E4002B", step: -1 },
 };
 
-const STEP_COLORS = ["#64748b", "#fbbf24", "#60a5fa", "#f97316", "#8b5cf6", "#f59e0b", "#22c55e"];
+const STEP_COLORS = ["#64748b", "#fbbf24", "#60a5fa", "#E4002B", "#8b5cf6", "#f59e0b", "#22c55e"];
 
 const NEXT_ACTION: Partial<Record<PedidoStatus, { label: string; next: PedidoStatus; color: string; border: string }>> = {
   em_fila:                { label: "Iniciar preparo",     next: "em_preparo", color: "#fbbf24", border: "rgba(251,191,36,0.25)" },
@@ -957,7 +957,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
     border:     "1px solid var(--border-1)",
     color:      "var(--text-1)",
   };
-  const focus = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>, c = "#FF6A00") =>
+  const focus = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>, c = "#E4002B") =>
     (e.target.style.borderColor = c);
   const blur  = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     (e.target.style.borderColor = "var(--border-1)");
@@ -978,10 +978,10 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
           background: "var(--bg-2)",
           border: isNew
             ? "1px solid rgba(34,197,94,0.55)"
-            : isStale ? "1px solid rgba(249,115,22,0.5)" : "1px solid var(--border-1)",
+            : isStale ? "1px solid rgba(228,0,43,0.5)" : "1px solid var(--border-1)",
           boxShadow: isNew
             ? "0 0 0 3px rgba(34,197,94,0.08)"
-            : isStale ? "0 0 0 2px rgba(249,115,22,0.07)" : "none",
+            : isStale ? "0 0 0 2px rgba(228,0,43,0.07)" : "none",
         }}>
         <div className="flex items-start gap-3">
           <div className="mt-1.5 shrink-0 w-2.5 h-2.5 rounded-full" style={{ background: cfg.dot }} />
@@ -998,7 +998,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#374151"; }}
                   title="Editar pedido"><Pencil size={13} /></button>
                 <button onClick={() => abrirDelete(pedido)} className="w-7 h-7 flex items-center justify-center rounded-lg transition-all" style={{ color: "#374151" }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,106,0,0.1)"; (e.currentTarget as HTMLElement).style.color = "#FF6A00"; }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(228,0,43,0.1)"; (e.currentTarget as HTMLElement).style.color = "#E4002B"; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#374151"; }}
                   title="Excluir pedido"><Trash2 size={13} /></button>
               </div>
@@ -1007,7 +1007,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
               <span className="text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
                 style={isRetirada
                   ? { background: "rgba(167,139,250,0.12)", color: "#a78bfa", border: "1px solid rgba(167,139,250,0.25)" }
-                  : { background: "rgba(249,115,22,0.1)", color: "#fb923c", border: "1px solid rgba(249,115,22,0.25)" }}>
+                  : { background: "rgba(228,0,43,0.1)", color: "#fb923c", border: "1px solid rgba(228,0,43,0.25)" }}>
                 {isRetirada ? <ShoppingBag size={10} /> : <Truck size={10} />}
                 {isRetirada ? "Retirada" : "Delivery"}
               </span>
@@ -1016,7 +1016,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
               </span>
               {isStale && (
                 <span className="text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
-                  style={{ background: "rgba(249,115,22,0.15)", color: "#f97316", border: "1px solid rgba(249,115,22,0.3)" }}>
+                  style={{ background: "rgba(228,0,43,0.15)", color: "#E4002B", border: "1px solid rgba(228,0,43,0.3)" }}>
                   <Clock size={10} />{Math.round(ageMin)}min
                 </span>
               )}
@@ -1076,7 +1076,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                   <button onClick={() => handleEnviarMotoboy(pedido.id, motoboysDisp[0].id)} disabled={sendingTo === pedido.id}
                     className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl"
                     title={`Enviar para ${motoboysDisp[0].nome}`}
-                    style={{ background: "rgba(255,106,0,0.12)", color: "#FF6A00", border: "1px solid rgba(255,106,0,0.3)" }}>
+                    style={{ background: "rgba(228,0,43,0.12)", color: "#E4002B", border: "1px solid rgba(228,0,43,0.3)" }}>
                     {sendingTo === pedido.id ? <Loader2 size={11} className="animate-spin" /> : <Zap size={11} />}
                     Da vez
                   </button>
@@ -1165,7 +1165,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                     </div>
                     <button onClick={() => handleDevolverFila(pedido)} disabled={cancelandoDespacho === pedido.id}
                       className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl"
-                      style={{ background: "rgba(255,106,0,0.08)", color: "#FF8C1A", border: "1px solid rgba(255,106,0,0.15)" }}>
+                      style={{ background: "rgba(228,0,43,0.08)", color: "#FFC72C", border: "1px solid rgba(228,0,43,0.15)" }}>
                       {cancelandoDespacho === pedido.id ? <Loader2 size={11} className="animate-spin" /> : <X size={11} />}
                       {pedido.route_id ? "Cancelar rota" : "Devolver à fila"}
                     </button>
@@ -1182,7 +1182,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                 {(pedido.status === "em_fila" || pedido.status === "em_preparo") && (
                   <button onClick={() => handleCancel(pedido)}
                     className="text-xs font-medium px-3 py-2 rounded-xl"
-                    style={{ background: "rgba(255,106,0,0.06)", color: "#FF8C1A" }}>
+                    style={{ background: "rgba(228,0,43,0.06)", color: "#FFC72C" }}>
                     Cancelar
                   </button>
                 )}
@@ -1269,7 +1269,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
         <button
           onClick={() => setShowForm(true)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
-          style={{ background: "linear-gradient(135deg,#cc5500,#a84400)", color: "var(--text-1)", boxShadow: "0 0 20px rgba(204,85,0,0.3)" }}
+          style={{ background: "linear-gradient(135deg,#A80021,#a84400)", color: "var(--text-1)", boxShadow: "0 0 20px rgba(168,0,33,0.3)" }}
         >
           <Plus size={16} /> Novo pedido
         </button>
@@ -1321,13 +1321,13 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium shrink-0"
               style={
                 active
-                  ? { background: "rgba(204,85,0,0.15)", color: "#FF6A00", border: "1px solid rgba(204,85,0,0.3)" }
+                  ? { background: "rgba(168,0,33,0.15)", color: "#E4002B", border: "1px solid rgba(168,0,33,0.3)" }
                   : { background: "var(--bg-2)", color: "#64748b", border: "1px solid var(--border-1)" }
               }
             >
               {label}
               <span className="px-1.5 py-0.5 rounded-full text-xs font-bold"
-                style={{ background: active ? "rgba(204,85,0,0.2)" : "var(--bg-3)", color: active ? "#FF6A00" : "var(--text-4)" }}>
+                style={{ background: active ? "rgba(168,0,33,0.2)" : "var(--bg-3)", color: active ? "#E4002B" : "var(--text-4)" }}>
                 {count}
               </span>
             </button>
@@ -1360,11 +1360,11 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
         {/* ── Coluna CLIENTES ── */}
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2 px-1 py-2 rounded-xl sticky top-0 z-10"
-            style={{ background: "rgba(255,106,0,0.06)", border: "1px solid rgba(255,106,0,0.18)" }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#FF6A00", boxShadow: "0 0 8px #FF6A00", display: "inline-block", flexShrink: 0, marginLeft: 8 }} />
-            <span className="text-sm font-black uppercase tracking-widest" style={{ color: "#FF6A00" }}>Clientes</span>
+            style={{ background: "rgba(228,0,43,0.06)", border: "1px solid rgba(228,0,43,0.18)" }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#E4002B", boxShadow: "0 0 8px #E4002B", display: "inline-block", flexShrink: 0, marginLeft: 8 }} />
+            <span className="text-sm font-black uppercase tracking-widest" style={{ color: "#E4002B" }}>Clientes</span>
             <span className="ml-auto mr-2 text-xs font-bold px-2.5 py-0.5 rounded-full"
-              style={{ background: "rgba(255,106,0,0.12)", color: "#FF6A00", border: "1px solid rgba(255,106,0,0.25)" }}>
+              style={{ background: "rgba(228,0,43,0.12)", color: "#E4002B", border: "1px solid rgba(228,0,43,0.25)" }}>
               {filteredCatalogo.length}
             </span>
           </div>
@@ -1396,10 +1396,10 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                 background: "var(--bg-2)",
                 border: isNew
                   ? "1px solid rgba(34,197,94,0.55)"
-                  : isStale ? "1px solid rgba(249,115,22,0.5)" : "1px solid var(--border-1)",
+                  : isStale ? "1px solid rgba(228,0,43,0.5)" : "1px solid var(--border-1)",
                 boxShadow: isNew
                   ? "0 0 0 3px rgba(34,197,94,0.08)"
-                  : isStale ? "0 0 0 2px rgba(249,115,22,0.07)" : "none",
+                  : isStale ? "0 0 0 2px rgba(228,0,43,0.07)" : "none",
               }}>
               <div className="flex items-start gap-3">
                 {/* Dot */}
@@ -1434,7 +1434,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                         onClick={() => abrirDelete(pedido)}
                         className="w-7 h-7 flex items-center justify-center rounded-lg transition-all"
                         style={{ color: "#374151" }}
-                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,106,0,0.1)"; (e.currentTarget as HTMLElement).style.color = "#FF6A00"; }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(228,0,43,0.1)"; (e.currentTarget as HTMLElement).style.color = "#E4002B"; }}
                         onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#374151"; }}
                         title="Excluir pedido"
                       >
@@ -1447,7 +1447,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                     <span className="text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
                       style={isRetirada
                         ? { background: "rgba(167,139,250,0.12)", color: "#a78bfa", border: "1px solid rgba(167,139,250,0.25)" }
-                        : { background: "rgba(249,115,22,0.1)", color: "#fb923c", border: "1px solid rgba(249,115,22,0.25)" }}>
+                        : { background: "rgba(228,0,43,0.1)", color: "#fb923c", border: "1px solid rgba(228,0,43,0.25)" }}>
                       {isRetirada ? <ShoppingBag size={10} /> : <Truck size={10} />}
                       {isRetirada ? "Retirada" : "Delivery"}
                     </span>
@@ -1457,7 +1457,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                     </span>
                     {isStale && (
                       <span className="text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
-                        style={{ background: "rgba(249,115,22,0.15)", color: "#f97316", border: "1px solid rgba(249,115,22,0.3)" }}>
+                        style={{ background: "rgba(228,0,43,0.15)", color: "#E4002B", border: "1px solid rgba(228,0,43,0.3)" }}>
                         <Clock size={10} />
                         {Math.round(ageMin)}min
                       </span>
@@ -1548,7 +1548,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                           disabled={sendingTo === pedido.id}
                           className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl"
                           title={`Enviar para ${motoboysDisp[0].nome} (${motoboysDisp[0].posicao_fila}º da fila)`}
-                          style={{ background: "rgba(255,106,0,0.12)", color: "#FF6A00", border: "1px solid rgba(255,106,0,0.3)" }}>
+                          style={{ background: "rgba(228,0,43,0.12)", color: "#E4002B", border: "1px solid rgba(228,0,43,0.3)" }}>
                           {sendingTo === pedido.id
                             ? <Loader2 size={11} className="animate-spin" />
                             : <Zap size={11} />}
@@ -1673,7 +1673,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                             onClick={() => handleDevolverFila(pedido)}
                             disabled={cancelandoDespacho === pedido.id}
                             className="flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl"
-                            style={{ background: "rgba(255,106,0,0.08)", color: "#FF8C1A", border: "1px solid rgba(255,106,0,0.15)" }}>
+                            style={{ background: "rgba(228,0,43,0.08)", color: "#FFC72C", border: "1px solid rgba(228,0,43,0.15)" }}>
                             {cancelandoDespacho === pedido.id
                               ? <Loader2 size={11} className="animate-spin" />
                               : <X size={11} />}
@@ -1701,7 +1701,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                         <button
                           onClick={() => handleCancel(pedido)}
                           className="text-xs font-medium px-3 py-2 rounded-xl"
-                          style={{ background: "rgba(255,106,0,0.06)", color: "#FF8C1A" }}
+                          style={{ background: "rgba(228,0,43,0.06)", color: "#FFC72C" }}
                         >
                           Cancelar
                         </button>
@@ -1730,13 +1730,13 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
         >
           <div
             className="w-full max-w-sm rounded-2xl p-6"
-            style={{ background: "var(--bg-1)", border: "1px solid rgba(255,106,0,0.2)" }}
+            style={{ background: "var(--bg-1)", border: "1px solid rgba(228,0,43,0.2)" }}
           >
             {/* Header */}
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: "rgba(255,106,0,0.1)" }}>
-                <AlertTriangle size={18} style={{ color: "#FF6A00" }} />
+                style={{ background: "rgba(228,0,43,0.1)" }}>
+                <AlertTriangle size={18} style={{ color: "#E4002B" }} />
               </div>
               <div>
                 <h2 className="text-base font-bold" style={{ color: "var(--text-1)" }}>Excluir pedido</h2>
@@ -1774,11 +1774,11 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                   className="w-full px-4 pr-10 rounded-xl text-sm placeholder-gray-700 outline-none font-mono tracking-widest"
                   style={{
                     background: "var(--bg-base)",
-                    border: `1px solid ${deleteError ? "rgba(255,106,0,0.6)" : "var(--overlay-lg)"}`,
+                    border: `1px solid ${deleteError ? "rgba(228,0,43,0.6)" : "var(--overlay-lg)"}`,
                     height: 48,
                     letterSpacing: deletePinVisible ? "normal" : "0.2em",
                   }}
-                  onFocus={(e) => !deleteError && (e.target.style.borderColor = "rgba(255,106,0,0.4)")}
+                  onFocus={(e) => !deleteError && (e.target.style.borderColor = "rgba(228,0,43,0.4)")}
                   onBlur={(e) => !deleteError && (e.target.style.borderColor = "var(--overlay-lg)")}
                 />
                 <button
@@ -1791,7 +1791,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                 </button>
               </div>
               {deleteError && (
-                <p className="text-xs mt-1.5" style={{ color: "#FF6A00" }}>
+                <p className="text-xs mt-1.5" style={{ color: "#E4002B" }}>
                   Código incorreto. Verifique em Configurações.
                 </p>
               )}
@@ -1811,7 +1811,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                 disabled={deleting || !deletePin.trim()}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold"
                 style={{
-                  background: "linear-gradient(135deg,#cc5500,#991b1b)",
+                  background: "linear-gradient(135deg,#A80021,#991b1b)",
                   color: "var(--text-1)",
                   opacity: !deletePin.trim() ? 0.5 : 1,
                 }}
@@ -1894,7 +1894,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                       onChange={(e) => setEditForm(f => ({ ...f, valor_pedido: e.target.value }))}
                       placeholder="0,00"
                       className="w-full pl-8 pr-3 py-3 rounded-xl text-sm placeholder-slate-600 outline-none"
-                      style={IS} onFocus={e => (e.target.style.borderColor = "#FF6A00")} onBlur={e => (e.target.style.borderColor = "var(--border-1)")}
+                      style={IS} onFocus={e => (e.target.style.borderColor = "#E4002B")} onBlur={e => (e.target.style.borderColor = "var(--border-1)")}
                     />
                   </div>
                 </div>
@@ -1930,7 +1930,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                       onClick={() => setEditForm(f => ({ ...f, forma_pagamento: f.forma_pagamento === v ? "" : v, troco_para: v !== "dinheiro" ? "" : f.troco_para }))}
                       className="py-2 px-2 rounded-xl text-xs font-semibold transition-all"
                       style={editForm.forma_pagamento === v
-                        ? { background: v === "ja_pago" ? "rgba(34,197,94,0.15)" : "rgba(255,106,0,0.15)", color: v === "ja_pago" ? "#22c55e" : "#FF6A00", border: `1px solid ${v === "ja_pago" ? "rgba(34,197,94,0.35)" : "rgba(255,106,0,0.35)"}` }
+                        ? { background: v === "ja_pago" ? "rgba(34,197,94,0.15)" : "rgba(228,0,43,0.15)", color: v === "ja_pago" ? "#22c55e" : "#E4002B", border: `1px solid ${v === "ja_pago" ? "rgba(34,197,94,0.35)" : "rgba(228,0,43,0.35)"}` }
                         : { background: "var(--overlay-xs)", color: "#475569", border: "1px solid var(--border-1)" }
                       }>
                       {emoji} {label}
@@ -2048,8 +2048,8 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
               style={{ background: "var(--bg-2)", borderBottom: "1px solid var(--border-1)" }}>
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-                  style={{ background: "rgba(255,106,0,0.12)", border: "1px solid rgba(255,106,0,0.2)" }}>
-                  <Package size={16} style={{ color: "#FF6A00" }} />
+                  style={{ background: "rgba(228,0,43,0.12)", border: "1px solid rgba(228,0,43,0.2)" }}>
+                  <Package size={16} style={{ color: "#E4002B" }} />
                 </div>
                 <div>
                   <p className="text-base font-black leading-none" style={{ color: "var(--text-1)" }}>
@@ -2062,7 +2062,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                 {colarStep === "form" && (
                   <button type="button" onClick={() => setColarStep("colar")}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all"
-                    style={{ background: "rgba(255,106,0,0.08)", color: "#FF6A00", border: "1px solid rgba(255,106,0,0.2)" }}>
+                    style={{ background: "rgba(228,0,43,0.08)", color: "#E4002B", border: "1px solid rgba(228,0,43,0.2)" }}>
                     <Clipboard size={11} /> Colar pedido
                   </button>
                 )}
@@ -2091,13 +2091,13 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                     placeholder={"João Silva\nTravessa das Flores, 120\nCentro\n2x X-Burguer\n1x Coca 2L\nSem cebola\nTroco para 50"}
                     className="w-full px-4 py-3 rounded-xl text-sm placeholder-slate-600 outline-none resize-none font-mono"
                     style={{ background: "var(--bg-base)", border: "1px solid var(--border-1)", lineHeight: 1.7, color: "var(--text-1)" }}
-                    onFocus={e => (e.target.style.borderColor = "#FF6A00")}
+                    onFocus={e => (e.target.style.borderColor = "#E4002B")}
                     onBlur={e => (e.target.style.borderColor = "var(--border-1)")}
                   />
 
                   {temDados && (
-                    <div className="rounded-xl p-4 space-y-1.5" style={{ background: "var(--bg-base)", border: "1px solid rgba(255,106,0,0.2)" }}>
-                      <p className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: "#FF6A00" }}>Dados detectados</p>
+                    <div className="rounded-xl p-4 space-y-1.5" style={{ background: "var(--bg-base)", border: "1px solid rgba(228,0,43,0.2)" }}>
+                      <p className="text-xs font-bold uppercase tracking-wide mb-2.5" style={{ color: "#E4002B" }}>Dados detectados</p>
                       {parsed!.nome && (
                         <p className="text-sm flex items-center gap-2" style={{ color: "var(--text-1)" }}>
                           <span style={{ color: "var(--text-4)" }}>👤</span> {parsed!.nome}
@@ -2154,7 +2154,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                       }}
                       className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold"
                       style={{
-                        background: temDados ? "linear-gradient(135deg,#cc5500,#a84400)" : "var(--bg-3)",
+                        background: temDados ? "linear-gradient(135deg,#A80021,#a84400)" : "var(--bg-3)",
                         color: temDados ? "white" : "var(--text-4)",
                       }}>
                       <CheckCircle size={14} />
@@ -2177,7 +2177,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
               {(["entrega", "retirada"] as const).map((tipo) => {
                 const ativo = form.tipo_pedido === tipo;
                 const Icon  = tipo === "entrega" ? Truck : ShoppingBag;
-                const color = tipo === "entrega" ? "#FF6A00" : "#a78bfa";
+                const color = tipo === "entrega" ? "#E4002B" : "#a78bfa";
                 return (
                   <button key={tipo} type="button"
                     onClick={() => {
@@ -2236,10 +2236,10 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                             }}
                             className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors"
                             style={{ borderBottom: i < sugs.length - 1 ? "1px solid var(--border-1)" : "none" }}
-                            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,106,0,0.06)")}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(228,0,43,0.06)")}
                             onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
                             <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                              style={{ background: "rgba(255,106,0,0.1)", color: "#FF6A00" }}>
+                              style={{ background: "rgba(228,0,43,0.1)", color: "#E4002B" }}>
                               {h.nome.charAt(0).toUpperCase()}
                             </div>
                             <div>
@@ -2338,7 +2338,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                   <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--text-4)" }}>Itens do pedido</span>
                   {cartItems.length > 0 && (
                     <span className="ml-auto flex items-center justify-center rounded-full text-xs font-bold px-2 py-0.5"
-                      style={{ background: "rgba(255,106,0,0.15)", color: "#FF6A00" }}>
+                      style={{ background: "rgba(228,0,43,0.15)", color: "#E4002B" }}>
                       {cartItems.reduce((s, i) => s + i.qty, 0)} itens
                     </span>
                   )}
@@ -2368,7 +2368,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                             <span className="w-5 text-center text-sm font-bold" style={{ color: "var(--text-1)" }}>{item.qty}</span>
                             <button type="button" onClick={() => cartHasCustom(item.produto) ? openDetail(item.produto) : cartAdd(item.produto)}
                               className="w-6 h-6 rounded-lg flex items-center justify-center"
-                              style={{ background: "rgba(255,106,0,0.1)", color: "#FF6A00", border: "1px solid rgba(255,106,0,0.2)" }}>
+                              style={{ background: "rgba(228,0,43,0.1)", color: "#E4002B", border: "1px solid rgba(228,0,43,0.2)" }}>
                               <Plus size={10} />
                             </button>
                             <button type="button" onClick={() => cartRemoveAll(item.cartKey)}
@@ -2390,12 +2390,12 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                 {produtos.length > 0 && (
                   <button type="button" onClick={() => setShowCatalogoPicker(true)}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-semibold transition-all"
-                    style={{ color: "#FF6A00", borderBottom: "1px solid var(--border-1)" }}>
+                    style={{ color: "#E4002B", borderBottom: "1px solid var(--border-1)" }}>
                     <Plus size={14} />
                     Adicionar do catálogo
                     {cartItems.length > 0 && (
                       <span className="ml-1 px-2 py-0.5 rounded-full text-xs font-bold"
-                        style={{ background: "rgba(255,106,0,0.12)", color: "#FF6A00" }}>
+                        style={{ background: "rgba(228,0,43,0.12)", color: "#E4002B" }}>
                         {cartItems.reduce((s, i) => s + i.qty, 0)} itens
                       </span>
                     )}
@@ -2517,11 +2517,11 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                       const troco = pago - total;
                       return (
                         <div className="flex items-center justify-between px-3 py-2 rounded-xl"
-                          style={{ background: troco >= 0 ? "rgba(34,197,94,0.08)" : "rgba(255,106,0,0.08)", border: `1px solid ${troco >= 0 ? "rgba(34,197,94,0.2)" : "rgba(255,106,0,0.2)"}` }}>
+                          style={{ background: troco >= 0 ? "rgba(34,197,94,0.08)" : "rgba(228,0,43,0.08)", border: `1px solid ${troco >= 0 ? "rgba(34,197,94,0.2)" : "rgba(228,0,43,0.2)"}` }}>
                           <span className="text-xs font-medium" style={{ color: "var(--text-3)" }}>
                             {troco >= 0 ? "Troco a devolver" : "⚠ Valor insuficiente"}
                           </span>
-                          <span className="text-sm font-black" style={{ color: troco >= 0 ? "#22c55e" : "#FF6A00" }}>
+                          <span className="text-sm font-black" style={{ color: troco >= 0 ? "#22c55e" : "#E4002B" }}>
                             {troco >= 0 ? `R$ ${troco.toFixed(2)}` : `Falta R$ ${Math.abs(troco).toFixed(2)}`}
                           </span>
                         </div>
@@ -2565,7 +2565,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                   </div>
                   <div className="flex justify-between text-sm pt-2" style={{ borderTop: "1px solid var(--border-1)" }}>
                     <span className="font-bold" style={{ color: "var(--text-1)" }}>Total</span>
-                    <span className="font-black" style={{ color: "#FF6A00" }}>
+                    <span className="font-black" style={{ color: "#E4002B" }}>
                       R$ {(
                         (parseFloat(form.valor_pedido) || 0) +
                         (form.tipo_pedido === "entrega" ? parseFloat(form.valor_motoboy) || 0 : 0)
@@ -2579,12 +2579,12 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
               <button type="submit" disabled={saving}
                 className="w-full py-4 rounded-2xl text-base font-black transition-all"
                 style={{
-                  background: saving ? "var(--bg-3)" : "linear-gradient(135deg,#FF6A00,#cc5500)",
+                  background: saving ? "var(--bg-3)" : "linear-gradient(135deg,#E4002B,#A80021)",
                   color: saving ? "var(--text-4)" : "white",
-                  boxShadow: saving ? "none" : "0 0 24px rgba(255,106,0,0.35)",
+                  boxShadow: saving ? "none" : "0 0 24px rgba(228,0,43,0.35)",
                 }}
-                onMouseEnter={(e) => { if (!saving) { (e.currentTarget as HTMLElement).style.transform = "scale(1.02)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 0 36px rgba(255,106,0,0.55)"; } }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; (e.currentTarget as HTMLElement).style.boxShadow = saving ? "none" : "0 0 24px rgba(255,106,0,0.35)"; }}>
+                onMouseEnter={(e) => { if (!saving) { (e.currentTarget as HTMLElement).style.transform = "scale(1.02)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 0 36px rgba(228,0,43,0.55)"; } }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; (e.currentTarget as HTMLElement).style.boxShadow = saving ? "none" : "0 0 24px rgba(228,0,43,0.35)"; }}>
                 {saving ? "Criando pedido..." : "Criar pedido 🚀"}
               </button>
             </div>
@@ -2607,11 +2607,11 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
 
             {/* Header */}
             <div className="flex items-center gap-3 px-5 py-4 shrink-0" style={{ borderBottom: "1px solid var(--border-1)" }}>
-              <Package size={16} style={{ color: "#FF6A00" }} />
+              <Package size={16} style={{ color: "#E4002B" }} />
               <span className="font-bold text-base flex-1" style={{ color: "var(--text-1)" }}>Catálogo</span>
               {cartItems.length > 0 && (
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold"
-                  style={{ background: "rgba(255,106,0,0.12)", color: "#FF6A00" }}>
+                  style={{ background: "rgba(228,0,43,0.12)", color: "#E4002B" }}>
                   {cartItems.reduce((s, i) => s + i.qty, 0)} itens · R$ {cartItems.reduce((s, i) => s + i.precoUnit * i.qty, 0).toFixed(2)}
                 </span>
               )}
@@ -2643,7 +2643,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                     <button key={c} type="button" onClick={() => setCatSel(c)}
                       className="shrink-0 px-3 py-1.5 rounded-full text-xs font-bold transition-all"
                       style={catSel === c
-                        ? { background: "#FF6A00", color: "white" }
+                        ? { background: "#E4002B", color: "white" }
                         : { background: "var(--bg-2)", color: "var(--text-4)", border: "1px solid var(--border-1)" }}>
                       {c}
                     </button>
@@ -2683,7 +2683,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                       <div className="flex-1 min-w-0 py-2">
                         <p className="text-sm font-bold truncate" style={{ color: "var(--text-1)" }}>{p.nome}</p>
                         {p.descricao && <p className="text-xs truncate" style={{ color: "var(--text-4)" }}>{p.descricao}</p>}
-                        <p className="text-sm font-black mt-0.5" style={{ color: "#FF6A00" }}>
+                        <p className="text-sm font-black mt-0.5" style={{ color: "#E4002B" }}>
                           {(p.produto_variacoes?.filter(v => v.ativo).length ?? 0) > 0
                             ? `A partir de R$${cartPrecoMin(p).toFixed(2)}`
                             : `R$${p.preco.toFixed(2)}`}
@@ -2693,7 +2693,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                         {custom ? (
                           <button type="button" onClick={() => openDetail(p)}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold"
-                            style={{ background: "rgba(255,106,0,0.12)", color: "#FF6A00", border: "1px solid rgba(255,106,0,0.25)" }}>
+                            style={{ background: "rgba(228,0,43,0.12)", color: "#E4002B", border: "1px solid rgba(228,0,43,0.25)" }}>
                             <Plus size={11} />{qty > 0 ? `Ver (${qty})` : "Ver opções"}
                           </button>
                         ) : qty > 0 ? (
@@ -2703,17 +2703,17 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                               style={{ background: "var(--bg-3)", border: "1px solid var(--border-1)", color: "var(--text-3)" }}>
                               <Minus size={11} />
                             </button>
-                            <span className="w-6 text-center text-sm font-black" style={{ color: "#FF6A00" }}>{qty}</span>
+                            <span className="w-6 text-center text-sm font-black" style={{ color: "#E4002B" }}>{qty}</span>
                             <button type="button" onClick={() => cartAdd(p)}
                               className="w-7 h-7 rounded-xl flex items-center justify-center"
-                              style={{ background: "rgba(255,106,0,0.12)", color: "#FF6A00", border: "1px solid rgba(255,106,0,0.25)" }}>
+                              style={{ background: "rgba(228,0,43,0.12)", color: "#E4002B", border: "1px solid rgba(228,0,43,0.25)" }}>
                               <Plus size={11} />
                             </button>
                           </div>
                         ) : (
                           <button type="button" onClick={() => cartAdd(p)}
                             className="w-8 h-8 rounded-xl flex items-center justify-center"
-                            style={{ background: "#FF6A00", color: "white", boxShadow: "0 3px 10px rgba(255,106,0,0.35)" }}>
+                            style={{ background: "#E4002B", color: "white", boxShadow: "0 3px 10px rgba(228,0,43,0.35)" }}>
                             <Plus size={14} />
                           </button>
                         )}
@@ -2728,7 +2728,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
             <div className="px-5 py-4 shrink-0" style={{ borderTop: "1px solid var(--border-1)" }}>
               <button type="button" onClick={() => setShowCatalogoPicker(false)}
                 className="w-full py-3.5 rounded-2xl text-sm font-black"
-                style={{ background: "linear-gradient(135deg,#FF6A00,#cc5500)", color: "white", boxShadow: "0 0 20px rgba(255,106,0,0.3)" }}>
+                style={{ background: "linear-gradient(135deg,#E4002B,#A80021)", color: "white", boxShadow: "0 0 20px rgba(228,0,43,0.3)" }}>
                 {cartItems.length > 0
                   ? `Confirmar — ${cartItems.reduce((s, i) => s + i.qty, 0)} itens · R$ ${cartItems.reduce((s, i) => s + i.precoUnit * i.qty, 0).toFixed(2)}`
                   : "Fechar"}

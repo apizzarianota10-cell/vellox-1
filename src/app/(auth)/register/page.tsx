@@ -47,7 +47,7 @@ export default function RegisterPage() {
   const [mf, setMf] = useState({ nome: "", telefone: "", email: "", senha: "" });
 
   const isYellow = step === "motoboy" || step === "ok_motoboy";
-  const accent   = isYellow ? "#fbbf24" : "#FF6A00";
+  const accent   = isYellow ? "#fbbf24" : "#E4002B";
   const progress = STEPS_ORDER[step];
 
   async function registerEmpresa(e: React.FormEvent) {
@@ -137,7 +137,7 @@ export default function RegisterPage() {
         @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
         @keyframes cardIn{from{opacity:0;transform:translateY(28px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
         @keyframes stepIn{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:translateX(0)}}
-        @keyframes pulseRed{0%,100%{box-shadow:0 0 0 1px rgba(255,106,0,.12),0 0 40px rgba(255,106,0,.08),0 32px 96px rgba(0,0,0,.75)}50%{box-shadow:0 0 0 1px rgba(255,106,0,.28),0 0 70px rgba(255,106,0,.18),0 32px 96px rgba(0,0,0,.75)}}
+        @keyframes pulseRed{0%,100%{box-shadow:0 0 0 1px rgba(228,0,43,.12),0 0 40px rgba(228,0,43,.08),0 32px 96px rgba(0,0,0,.75)}50%{box-shadow:0 0 0 1px rgba(228,0,43,.28),0 0 70px rgba(228,0,43,.18),0 32px 96px rgba(0,0,0,.75)}}
         @keyframes pulseYellow{0%,100%{box-shadow:0 0 0 1px rgba(251,191,36,.12),0 0 40px rgba(251,191,36,.08),0 32px 96px rgba(0,0,0,.75)}50%{box-shadow:0 0 0 1px rgba(251,191,36,.28),0 0 70px rgba(251,191,36,.18),0 32px 96px rgba(0,0,0,.75)}}
         @keyframes shimmer{0%{transform:translateX(-130%)}100%{transform:translateX(130%)}}
         @keyframes progressFill{from{width:0}to{width:100%}}
@@ -160,7 +160,7 @@ export default function RegisterPage() {
         .type-card:active{transform:scale(.98)}
 
         .input-field{transition:border-color .2s,box-shadow .2s,background .2s;outline:none}
-        .input-red:focus{border-color:rgba(255,106,0,.5)!important;box-shadow:0 0 0 3px rgba(255,106,0,.1)!important;background:rgba(255,106,0,.03)!important}
+        .input-red:focus{border-color:rgba(228,0,43,.5)!important;box-shadow:0 0 0 3px rgba(228,0,43,.1)!important;background:rgba(228,0,43,.03)!important}
         .input-yellow:focus{border-color:rgba(251,191,36,.5)!important;box-shadow:0 0 0 3px rgba(251,191,36,.1)!important;background:rgba(251,191,36,.03)!important}
 
         .back-btn{transition:background .15s}
@@ -173,12 +173,12 @@ export default function RegisterPage() {
       <div className="fixed inset-0" style={{ background: "var(--bg-base)" }}>
         <div className="absolute pointer-events-none" style={{
           width:720,height:720,top:"-18%",left:"-12%",borderRadius:"50%",
-          background:"radial-gradient(circle,rgba(204,85,0,.22) 0%,transparent 65%)",
+          background:"radial-gradient(circle,rgba(168,0,33,.22) 0%,transparent 65%)",
           animation:"blobA 14s ease-in-out infinite",
         }}/>
         <div className="absolute pointer-events-none" style={{
           width:580,height:580,bottom:"-18%",right:"-10%",borderRadius:"50%",
-          background:"radial-gradient(circle,rgba(255,106,0,.16) 0%,transparent 65%)",
+          background:"radial-gradient(circle,rgba(228,0,43,.16) 0%,transparent 65%)",
           animation:"blobB 18s ease-in-out infinite",
         }}/>
         <div className="absolute pointer-events-none" style={{
@@ -202,8 +202,8 @@ export default function RegisterPage() {
         <div className="flex items-center gap-3 mb-10 card-in" style={{ animationDelay: "0ms" }}>
           <div className="logo-float w-11 h-11 rounded-2xl flex items-center justify-center"
             style={{
-              background:"linear-gradient(135deg,#FF8C1A 0%,#cc5500 100%)",
-              boxShadow:"0 0 28px rgba(255,106,0,.55),0 0 70px rgba(255,106,0,.18)",
+              background:"linear-gradient(135deg,#FFC72C 0%,#A80021 100%)",
+              boxShadow:"0 0 28px rgba(228,0,43,.55),0 0 70px rgba(228,0,43,.18)",
             }}>
             <Zap size={22} className="text-white" strokeWidth={2.5}/>
           </div>
@@ -215,7 +215,7 @@ export default function RegisterPage() {
           {[1,2,3].map((n) => {
             const active  = progress === n;
             const done    = progress > n;
-            const dotAccent = (step === "motoboy" || step === "ok_motoboy") ? "#fbbf24" : "#FF6A00";
+            const dotAccent = (step === "motoboy" || step === "ok_motoboy") ? "#fbbf24" : "#E4002B";
             return (
               <div key={n} className="flex items-center gap-2">
                 <div
@@ -244,7 +244,7 @@ export default function RegisterPage() {
           className={`${isYellow ? "card-yellow" : "card-red"} card-in w-full max-w-[420px] rounded-[28px] p-8`}
           style={{
             background:"rgba(255,255,255,.022)",
-            border:`1px solid ${isYellow ? "rgba(251,191,36,.14)" : "rgba(255,106,0,.14)"}`,
+            border:`1px solid ${isYellow ? "rgba(251,191,36,.14)" : "rgba(228,0,43,.14)"}`,
             backdropFilter:"blur(52px)",
             animationDelay:"120ms",
             transition:"border-color .4s",
@@ -268,18 +268,18 @@ export default function RegisterPage() {
                 <button
                   className="type-card w-full p-5 rounded-2xl text-left"
                   style={{
-                    background:"linear-gradient(135deg,rgba(255,106,0,.09) 0%,rgba(255,106,0,.04) 100%)",
-                    border:"1px solid rgba(255,106,0,.2)",
+                    background:"linear-gradient(135deg,rgba(228,0,43,.09) 0%,rgba(228,0,43,.04) 100%)",
+                    border:"1px solid rgba(228,0,43,.2)",
                   }}
                   onClick={() => { setStep("empresa"); setError(""); }}
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
                       style={{
-                        background:"linear-gradient(135deg,rgba(255,106,0,.28) 0%,rgba(255,106,0,.1) 100%)",
-                        boxShadow:"0 0 20px rgba(255,106,0,.22)",
+                        background:"linear-gradient(135deg,rgba(228,0,43,.28) 0%,rgba(228,0,43,.1) 100%)",
+                        boxShadow:"0 0 20px rgba(228,0,43,.22)",
                       }}>
-                      <Building2 size={20} style={{ color:"#FF6A00" }}/>
+                      <Building2 size={20} style={{ color:"#E4002B" }}/>
                     </div>
                     <div className="flex-1">
                       <p className="font-bold text-white text-sm leading-tight">Empresa</p>
@@ -317,7 +317,7 @@ export default function RegisterPage() {
               <div className="mt-6 pt-5" style={{ borderTop:"1px solid rgba(255,255,255,.06)" }}>
                 <p className="text-center text-xs" style={{ color:"#4b5563" }}>
                   Já tem conta?{" "}
-                  <Link href="/login" className="font-bold" style={{ color:"#FF6A00" }}>
+                  <Link href="/login" className="font-bold" style={{ color:"#E4002B" }}>
                     Entrar
                   </Link>
                 </p>
@@ -361,7 +361,7 @@ export default function RegisterPage() {
                       style={{
                         ...IS,
                         borderColor: ef.cnpj.replace(/\D/g,"").length === 14
-                          ? (validarCNPJ(ef.cnpj) ? "rgba(34,197,94,.4)" : "rgba(255,106,0,.4)")
+                          ? (validarCNPJ(ef.cnpj) ? "rgba(34,197,94,.4)" : "rgba(228,0,43,.4)")
                           : "rgba(255,255,255,.08)",
                       }}
                     />
@@ -369,12 +369,12 @@ export default function RegisterPage() {
                       <span className="absolute right-4 top-1/2 -translate-y-1/2">
                         {validarCNPJ(ef.cnpj)
                           ? <CheckCircle size={13} style={{ color:"#22c55e" }}/>
-                          : <span style={{ color:"#FF6A00",fontSize:13 }}>✕</span>}
+                          : <span style={{ color:"#E4002B",fontSize:13 }}>✕</span>}
                       </span>
                     )}
                   </div>
                   {ef.cnpj.replace(/\D/g,"").length === 14 && !validarCNPJ(ef.cnpj) && (
-                    <p className="text-xs mt-1" style={{ color:"#FF8C1A" }}>CNPJ inválido</p>
+                    <p className="text-xs mt-1" style={{ color:"#FFC72C" }}>CNPJ inválido</p>
                   )}
                 </div>
                 <div>
@@ -404,7 +404,7 @@ export default function RegisterPage() {
                 </div>
 
                 {error && (
-                  <p className="text-xs px-4 py-3 rounded-xl" style={{ background:"rgba(255,106,0,.07)",border:"1px solid rgba(255,106,0,.2)",color:"#FF8C1A" }}>
+                  <p className="text-xs px-4 py-3 rounded-xl" style={{ background:"rgba(228,0,43,.07)",border:"1px solid rgba(228,0,43,.2)",color:"#FFC72C" }}>
                     ⚠ {error}
                   </p>
                 )}
@@ -413,8 +413,8 @@ export default function RegisterPage() {
                   className="btn-primary w-full flex items-center justify-center gap-2 rounded-xl text-sm font-bold text-white"
                   style={{
                     height:50,
-                    background:loading ? "#7f1d1d" : "linear-gradient(135deg,#fca5a5 0%,#FF6A00 45%,#a84400 100%)",
-                    boxShadow:loading ? "none" : "0 4px 24px rgba(255,106,0,.3)",
+                    background:loading ? "#7f1d1d" : "linear-gradient(135deg,#fca5a5 0%,#E4002B 45%,#a84400 100%)",
+                    boxShadow:loading ? "none" : "0 4px 24px rgba(228,0,43,.3)",
                     opacity:loading ? .7 : 1,
                   }}>
                   {loading ? <><Loader2 size={16} className="animate-spin"/> Criando...</> : <>Criar conta <ArrowRight size={15}/></>}
@@ -422,7 +422,7 @@ export default function RegisterPage() {
 
                 <p className="text-center text-xs" style={{ color:"#4b5563" }}>
                   Já tem conta?{" "}
-                  <Link href="/login" className="font-bold" style={{ color:"#FF6A00" }}>Entrar</Link>
+                  <Link href="/login" className="font-bold" style={{ color:"#E4002B" }}>Entrar</Link>
                 </p>
               </form>
             </div>
@@ -492,7 +492,7 @@ export default function RegisterPage() {
                 </div>
 
                 {error && (
-                  <p className="text-xs px-4 py-3 rounded-xl" style={{ background:"rgba(255,106,0,.07)",border:"1px solid rgba(255,106,0,.2)",color:"#FF8C1A" }}>
+                  <p className="text-xs px-4 py-3 rounded-xl" style={{ background:"rgba(228,0,43,.07)",border:"1px solid rgba(228,0,43,.2)",color:"#FFC72C" }}>
                     ⚠ {error}
                   </p>
                 )}
@@ -537,8 +537,8 @@ export default function RegisterPage() {
                     className="btn-primary inline-flex items-center justify-center gap-2 px-8 rounded-xl text-sm font-bold text-white"
                     style={{
                       height:50,
-                      background:"linear-gradient(135deg,#fca5a5 0%,#FF6A00 45%,#a84400 100%)",
-                      boxShadow:"0 4px 24px rgba(255,106,0,.3)",
+                      background:"linear-gradient(135deg,#fca5a5 0%,#E4002B 45%,#a84400 100%)",
+                      boxShadow:"0 4px 24px rgba(228,0,43,.3)",
                     }}>
                     Ir para o login <ArrowRight size={15}/>
                   </Link>
@@ -570,8 +570,8 @@ export default function RegisterPage() {
                     className="btn-primary w-full flex items-center justify-center gap-2 rounded-xl text-sm font-bold text-white"
                     style={{
                       height:50,
-                      background:"linear-gradient(135deg,#fca5a5 0%,#FF6A00 45%,#a84400 100%)",
-                      boxShadow:"0 4px 24px rgba(255,106,0,.3)",
+                      background:"linear-gradient(135deg,#fca5a5 0%,#E4002B 45%,#a84400 100%)",
+                      boxShadow:"0 4px 24px rgba(228,0,43,.3)",
                     }}>
                     Ir para o painel <ArrowRight size={15}/>
                   </button>
