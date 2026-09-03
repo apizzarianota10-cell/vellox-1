@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Users, Package, Map, LogOut,
   Zap, DollarSign, Settings, Monitor,
   Bell, X, CheckCircle, Bike, ShoppingBag,
-  Store, ChevronDown, Check, Crown, Lock, Menu, Shield,
+  Store, ChevronDown, Check, Crown, Lock, Menu,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -24,7 +24,6 @@ const NAV_BASE = [
   { href: "/catalogo",      label: "Catálogo",     icon: ShoppingBag,     color: "#f59e0b" },
   { href: "/monitor",       label: "Monitor",      icon: Monitor,         color: "#a78bfa" },
   { href: "/financeiro",    label: "Financeiro",   icon: DollarSign,      color: "#34d399" },
-  { href: "/auditoria",     label: "Auditoria",    icon: Shield,          color: "#a78bfa" },
   { href: "/automacoes",    label: "Automações",   icon: Zap,             color: "#E4002B" },
   { href: "/configuracoes", label: "Config.",      icon: Settings,        color: "#666666" },
 ];
@@ -545,7 +544,6 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
                       { href: "/mapa",          label: "Mapa",       icon: Map,         color: "#34d399" },
                       { href: "/catalogo",      label: "Catálogo",   icon: ShoppingBag, color: "#f59e0b" },
                       { href: "/financeiro",    label: "Financeiro", icon: DollarSign,  color: "#22c55e" },
-                      { href: "/auditoria",     label: "Auditoria",  icon: Shield,      color: "#a78bfa" },
                       { href: "/automacoes",    label: "Automações", icon: Zap,         color: "#E4002B" },
                       { href: "/configuracoes", label: "Config.",    icon: Settings,    color: "#94a3b8" },
                       ...(plano === "enterprise" ? [{ href: "/lojas", label: "Lojas", icon: Store, color: "#E4002B" }] : []),
