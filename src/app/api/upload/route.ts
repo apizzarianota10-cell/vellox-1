@@ -1,13 +1,10 @@
-import { v2 as cloudinary } from "cloudinary";
+import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+// Bucket público criado no schema_v23 (leitura pública, escrita autenticada).
+const BUCKET = "produtos";
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies();
@@ -25,13 +22,16 @@ export async function POST(req: NextRequest) {
 
   if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
 
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const path = `${folder}/${randomUUID()}.${ext}`;
+
   const buffer = Buffer.from(await file.arrayBuffer());
-  const dataUrl = `data:${file.type};base64,${buffer.toString("base64")}`;
-
-  const result = await cloudinary.uploader.upload(dataUrl, {
-    folder,
-    resource_type: "image",
+  const { error } = await supabase.storage.from(BUCKET).upload(path, buffer, {
+    contentType: file.type || "image/jpeg",
+    upsert: false,
   });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  return NextResponse.json({ url: result.secure_url });
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  return NextResponse.json({ url: data.publicUrl });
 }
