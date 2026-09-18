@@ -81,6 +81,43 @@ const PGTO_LABELS: Record<string, string> = {
   ja_pago:        "Já pago",
 };
 
+// Reconhece uma linha de item no formato "Nx Nome (detalhe · detalhe) — R$valor"
+// (é assim que o catálogo e o pedido manual montam `descricao_itens`).
+// Itens fora desse formato (texto livre, pedidos colados) caem no fallback de cada layout.
+function parseItemLine(line: string): { qtd: string; nome: string; detalhes: string[]; preco: string } | null {
+  const m = line.match(/^(\d+)x\s+(.+?)\s+—\s+R\$\s*([\d.,]+)\s*$/);
+  if (!m) return null;
+  const [, qtd, nomeCompleto, preco] = m;
+  let nome = nomeCompleto;
+  let detalhesRaw = "";
+  const parenIdx = nomeCompleto.indexOf(" (");
+  if (parenIdx !== -1 && nomeCompleto.endsWith(")")) {
+    nome = nomeCompleto.slice(0, parenIdx);
+    detalhesRaw = nomeCompleto.slice(parenIdx + 2, -1);
+  }
+  return { qtd, nome, detalhes: detalhesRaw ? detalhesRaw.split(" · ") : [], preco };
+}
+
+type ItemParsed = { qtd: string; nome: string; detalhes: string[]; preco: string };
+
+// Monta os itens como blocos independentes (nome+preço / detalhes / divisor),
+// para não ficar um produto colado no outro.
+function buildItensBlocks(
+  descricaoItens: string | null | undefined,
+  render: (p: ItemParsed) => string,
+  fallback: (line: string) => string,
+  divider: string,
+): string {
+  const linhas = (descricaoItens ?? "—").split("\n");
+  return linhas
+    .map((l, i) => {
+      const parsed = parseItemLine(l);
+      const block = parsed ? render(parsed) : fallback(l || "&nbsp;");
+      return i < linhas.length - 1 ? block + divider : block;
+    })
+    .join("");
+}
+
 function borderStyle(pedido: Pedido): { borderCss: string; headerText: string; headerBg: string } {
   if (pedido.forma_pagamento === "ja_pago") {
     return { borderCss: "3px double #000", headerText: "★ JÁ PAGO ★", headerBg: "rgba(34,197,94,0.06)" };
@@ -124,9 +161,37 @@ export function formatReceipt(
     ? `<div style="${CTR}margin-bottom:4px"><img src="${logoUrl}" style="max-width:${Math.round(bodyW * 0.65)}px;max-height:64px;object-fit:contain;" /></div>`
     : "";
 
-  const itensClassico = (pedido.descricao_itens ?? "—").split("\n").map(l => `<div style="${VAL}">${l || "&nbsp;"}</div>`).join("");
-  const itensModerno  = (pedido.descricao_itens ?? "—").split("\n").map(l => `<div style="${VAL}">• ${l || "&nbsp;"}</div>`).join("");
-  const itensCompacto = (pedido.descricao_itens ?? "—").split("\n").map(l => `<div style="${LFT}font-size:${Math.max(fs - 1, 8)}px;font-weight:700;">${l}</div>`).join("");
+  const itemDetailStyle = `${LFT}font-size:${fs - 1}px;font-weight:700;padding-left:12px;`;
+
+  const itensClassico = buildItensBlocks(
+    pedido.descricao_itens,
+    p => `
+<div style="${W}display:flex;justify-content:space-between;gap:6px;font-size:${fsBig}px;font-weight:900;"><span>${p.qtd}x ${p.nome}</span><span>R$${p.preco}</span></div>
+${p.detalhes.map(d => `<div style="${itemDetailStyle}">${d}</div>`).join("")}`,
+    line => `<div style="${VAL}">${line}</div>`,
+    `<div style="border-top:1px dotted #000;margin:4px 0;"></div>`,
+  );
+
+  const itensModerno = buildItensBlocks(
+    pedido.descricao_itens,
+    p => `
+<div style="${W}display:flex;justify-content:space-between;gap:6px;font-size:${fsBig}px;font-weight:900;"><span>› ${p.qtd}x ${p.nome}</span><span>R$${p.preco}</span></div>
+${p.detalhes.map(d => `<div style="${itemDetailStyle}">${d}</div>`).join("")}`,
+    line => `<div style="${VAL}">• ${line}</div>`,
+    `<div style="border-top:1px dashed #000;margin:4px 0;"></div>`,
+  );
+
+  const itensCompacto = buildItensBlocks(
+    pedido.descricao_itens,
+    p => {
+      const det = p.detalhes.length
+        ? `<div style="${LFT}font-size:${Math.max(fs - 2, 7)}px;font-weight:700;padding-left:8px;">${p.detalhes.join(" · ")}</div>`
+        : "";
+      return `<div style="${W}display:flex;justify-content:space-between;gap:4px;font-size:${Math.max(fs - 1, 8)}px;font-weight:900;"><span>${p.qtd}x ${p.nome}</span><span>R$${p.preco}</span></div>${det}`;
+    },
+    line => `<div style="${LFT}font-size:${Math.max(fs - 1, 8)}px;font-weight:700;">${line}</div>`,
+    `<div style="height:3px"></div>`,
+  );
 
   // ── Layout bodies ─────────────────────────────────────────────────────────
   let body = "";

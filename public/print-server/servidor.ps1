@@ -1,5 +1,5 @@
 # Vellox Print Server - PowerShell (sem Node.js)
-$Versao = "v6"
+$Versao = "v7"
 
 # Roda oculto (-WindowStyle Hidden) — sem janela pra ver a tela ou pausar
 # num Read-Host, entao tudo vai pro log.txt em vez do console. Reinicia o
@@ -130,6 +130,59 @@ function Build-EscPos($p) {
         xT $linha; xN
     }
 
+    # Quebra uma linha de detalhe (sabor/borda/adicional) recuada 3 espaços,
+    # com o mesmo word-wrap do xWrap.
+    function xWrapIndent { param([string]$s)
+        $cols = [Math]::Max($W - 3, 8)
+        $linha = $s
+        while ($linha.Length -gt $cols) {
+            $corte = $linha.Substring(0, $cols).LastIndexOf(' ')
+            if ($corte -lt 1) { $corte = $cols }
+            xT ("   " + $linha.Substring(0, $corte).TrimEnd()); xN
+            $linha = $linha.Substring($corte).TrimStart()
+        }
+        xT ("   " + $linha); xN
+    }
+
+    # "Nx Nome (detalhe · detalhe) — R$valor" -> nome/preco numa linha
+    # (preco alinhado a direita), detalhes recuados embaixo.
+    function ItemBlock { param([string]$line, [string]$prefixo = "")
+        if ($line -match '^(\d+)x\s+(.+?)\s+—\s+R\$\s*([\d.,]+)\s*$') {
+            $qtd = $Matches[1]; $nomeCompleto = $Matches[2]; $preco = $Matches[3]
+            $nome = $nomeCompleto; $detalhesRaw = ""
+            $parenIdx = $nomeCompleto.IndexOf(" (")
+            if ($parenIdx -ge 0 -and $nomeCompleto.EndsWith(")")) {
+                $nome = $nomeCompleto.Substring(0, $parenIdx)
+                $detalhesRaw = $nomeCompleto.Substring($parenIdx + 2, $nomeCompleto.Length - $parenIdx - 3)
+            }
+            $qtdNome  = "$prefixo$($qtd)x $nome"
+            $precoTxt = "R$" + $preco
+            $pad = $W - $qtdNome.Length - $precoTxt.Length
+            if ($pad -ge 1) {
+                xT ($qtdNome + (" " * $pad) + $precoTxt); xN
+            } else {
+                xWrap $qtdNome
+                xT $precoTxt; xN
+            }
+            if ($detalhesRaw) {
+                foreach ($d in ($detalhesRaw -split ' · ')) { xWrapIndent $d }
+            }
+        } else {
+            xWrap "$prefixo$line"
+        }
+    }
+
+    # Cada item vira um bloco proprio, com uma linha em branco entre eles
+    # para nao ficar um produto colado no outro.
+    function ItemsSection { param([string]$descricaoItens, [string]$prefixo = "")
+        if (-not $descricaoItens) { return }
+        $linhas = @($descricaoItens -split "`n" | Where-Object { $_.Trim() })
+        for ($i = 0; $i -lt $linhas.Count; $i++) {
+            ItemBlock $linhas[$i].Trim() $prefixo
+            if ($i -lt $linhas.Count - 1) { xN }
+        }
+    }
+
     $data = [DateTime]::Parse($p.created_at).ToLocalTime().ToString("dd/MM/yy HH:mm")
     $total = [double]$p.valor_pedido + [double]$p.valor_motoboy
     $pgtoMap = @{dinheiro="Dinheiro";cartao_credito="Cartao de Credito";cartao_debito="Cartao de Debito";pix="PIX";ja_pago="Ja pago"}
@@ -180,7 +233,7 @@ function Build-EscPos($p) {
 
         xT "ITENS"; xN
         if ($p.descricao_itens) {
-            foreach ($l in ($p.descricao_itens -split "`n")) { if ($l.Trim()) { xWrap $l.Trim() } }
+            ItemsSection $p.descricao_itens
         }
         if ($p.observacoes) { xWrap "Obs: $($p.observacoes)" }
         Sep
@@ -221,7 +274,7 @@ function Build-EscPos($p) {
         DSep
 
         if ($p.descricao_itens) {
-            foreach ($l in ($p.descricao_itens -split "`n")) { if ($l.Trim()) { xWrap $l.Trim() } }
+            ItemsSection $p.descricao_itens
         }
         if ($p.observacoes) { xWrap "Obs: $($p.observacoes)" }
         DSep
@@ -274,7 +327,7 @@ function Build-EscPos($p) {
 
         xT "ITENS"; xN
         if ($p.descricao_itens) {
-            foreach ($l in ($p.descricao_itens -split "`n")) { if ($l.Trim()) { xWrap "- $($l.Trim())" } }
+            ItemsSection $p.descricao_itens "- "
         }
         if ($p.observacoes) {
             DSep

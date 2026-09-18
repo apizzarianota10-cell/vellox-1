@@ -32,18 +32,85 @@ function txt(s: string): number[] {
 
 function ln(s = ""): number[] { return [...txt(s), LF]; }
 
-// Quebra texto em linhas de `cols` chars para não transbordar o papel
+// Quebra texto em linhas de `cols` chars sem cortar palavra ao meio
+// (só quebra uma palavra isoladamente se ela sozinha já for maior que `cols`)
+function wrapLines(s: string, cols: number): string[] {
+  const words = s.split(" ");
+  const lines: string[] = [];
+  let cur = "";
+  for (const w of words) {
+    if (w.length > cols) {
+      if (cur) { lines.push(cur); cur = ""; }
+      let rest = w;
+      while (rest.length > cols) { lines.push(rest.slice(0, cols)); rest = rest.slice(cols); }
+      cur = rest;
+      continue;
+    }
+    const tentative = cur ? `${cur} ${w}` : w;
+    if (tentative.length > cols) { lines.push(cur); cur = w; }
+    else cur = tentative;
+  }
+  if (cur) lines.push(cur);
+  return lines.length ? lines : [""];
+}
+
 function wrap(s: string, cols: number): number[] {
   const out: number[] = [];
-  while (s.length > cols) {
-    out.push(...txt(s.slice(0, cols)), LF);
-    s = s.slice(cols);
-  }
-  if (s.length > 0) out.push(...txt(s), LF);
+  for (const l of wrapLines(s, cols)) out.push(...txt(l), LF);
   return out;
 }
 
 function sep(): number[] { return ln("-".repeat(getColumns())); }
+
+// Reconhece uma linha de item no formato "Nx Nome (detalhe · detalhe) — R$valor"
+// (é assim que o catálogo e o pedido manual montam `descricao_itens`).
+// Itens fora desse formato (texto livre, pedidos colados) caem no fallback.
+function parseItemLine(line: string): { qtd: string; nome: string; detalhes: string[]; preco: string } | null {
+  const m = line.match(/^(\d+)x\s+(.+?)\s+—\s+R\$\s*([\d.,]+)\s*$/);
+  if (!m) return null;
+  const [, qtd, nomeCompleto, preco] = m;
+  let nome = nomeCompleto;
+  let detalhesRaw = "";
+  const parenIdx = nomeCompleto.indexOf(" (");
+  if (parenIdx !== -1 && nomeCompleto.endsWith(")")) {
+    nome = nomeCompleto.slice(0, parenIdx);
+    detalhesRaw = nomeCompleto.slice(parenIdx + 2, -1);
+  }
+  return { qtd, nome, detalhes: detalhesRaw ? detalhesRaw.split(" · ") : [], preco };
+}
+
+// Cada item vira um bloco próprio: nome+preço numa linha, detalhes (sabor/borda/
+// adicional) recuados embaixo. `descricao_itens` insere uma linha em branco
+// entre blocos para os produtos não ficarem colados uns nos outros.
+function itemBlock(line: string, cols: number): number[] {
+  const parsed = parseItemLine(line);
+  if (!parsed) return wrap(line || " ", cols);
+
+  const out: number[] = [];
+  const qtdNome  = `${parsed.qtd}x ${parsed.nome}`;
+  const precoTxt = `R$${parsed.preco}`;
+  const pad = cols - qtdNome.length - precoTxt.length;
+  if (pad >= 1) {
+    out.push(...txt(qtdNome + " ".repeat(pad) + precoTxt), LF);
+  } else {
+    for (const l of wrapLines(qtdNome, cols)) out.push(...txt(l), LF);
+    out.push(...txt(precoTxt), LF);
+  }
+  for (const d of parsed.detalhes) {
+    for (const l of wrapLines(d, Math.max(cols - 3, 8))) out.push(...txt("   " + l), LF);
+  }
+  return out;
+}
+
+function itemsSection(descricaoItens: string | null | undefined, cols: number): number[] {
+  const linhas = (descricaoItens ?? "---").split("\n");
+  const out: number[] = [];
+  linhas.forEach((l, i) => {
+    out.push(...itemBlock(l, cols));
+    if (i < linhas.length - 1) out.push(LF);
+  });
+  return out;
+}
 
 function row(label: string, value: string): number[] {
   const W   = getColumns();
@@ -96,8 +163,7 @@ export function buildReceipt(pedido: Pedido, empresaNome = "PEDIDO"): Uint8Array
       : []),
     ...sep(),
     ...BOLD_ON, ...ln("ITENS:"), ...BOLD_OFF,
-    // Itens: cada linha com wrap
-    ...(pedido.descricao_itens ?? "---").split("\n").flatMap(l => wrap(l || " ", W)),
+    ...itemsSection(pedido.descricao_itens, W),
     ...(pedido.observacoes ? wrap("OBS: " + pedido.observacoes, W) : []),
     ...sep(),
     ...row("Subtotal:", "R$ " + pedido.valor_pedido.toFixed(2).replace(".", ",")),
