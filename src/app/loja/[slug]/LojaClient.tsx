@@ -9,6 +9,7 @@ import {
   Search, XCircle,
 } from "lucide-react";
 import type { Produto, ConfiguracaoLoja, Empresa, BairroTaxa, ProdutoVariacao, ProdutoSabor, ProdutoAdicional, PedidoStatus } from "@/types";
+import ImgComFallback from "@/components/ImgComFallback";
 
 interface PedidoBuscado {
   id: string;
@@ -914,11 +915,11 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                     }}
                   >
                     <div style={{ position: "relative", aspectRatio: "1/1", background: p.imagem_url ? "#f0f0f0" : `linear-gradient(135deg, ${cor}18, ${cor}08)`, overflow: "hidden" }}>
-                      {p.imagem_url
-                        // eslint-disable-next-line @next/next/no-img-element
-                        ? <img src={p.imagem_url} alt={p.nome} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                        : <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 38 }}>🍽️</div>
-                      }
+                      <ImgComFallback
+                        src={p.imagem_url} alt={p.nome} loading="lazy"
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        fallback={<div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 38 }}>🍽️</div>}
+                      />
                       {badge && (
                         <span style={{
                           position: "absolute", top: 8, left: 8,
@@ -989,11 +990,11 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
             <div key={p.id} style={{ marginBottom: 28 }}>
               {/* Cabeçalho do grupo */}
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                {p.imagem_url
-                  // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={p.imagem_url} alt={p.nome} loading="lazy" style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
-                  : <div style={{ width: 36, height: 36, borderRadius: 10, background: `${cor}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18 }}>🍕</div>
-                }
+                <ImgComFallback
+                  src={p.imagem_url} alt={p.nome} loading="lazy"
+                  style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover", flexShrink: 0 }}
+                  fallback={<div style={{ width: 36, height: 36, borderRadius: 10, background: `${cor}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18 }}>🍕</div>}
+                />
                 <div>
                   <p style={{ fontSize: 14, fontWeight: 800, color: "#0f172a", margin: 0 }}>{p.nome}</p>
                   <p style={{ fontSize: 11, color: "#94a3b8", margin: 0 }}>{sabores.length} sabor{sabores.length !== 1 ? "es" : ""}</p>
@@ -1017,11 +1018,11 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                       boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
                       cursor: "pointer", transition: "box-shadow 0.15s",
                     }}>
-                    {s.imagem_url
-                      // eslint-disable-next-line @next/next/no-img-element
-                      ? <img src={s.imagem_url} alt={s.nome} loading="lazy" style={{ width: "100%", height: 80, objectFit: "cover", borderRadius: 8, display: "block" }} />
-                      : null
-                    }
+                    <ImgComFallback
+                      src={s.imagem_url} alt={s.nome} loading="lazy"
+                      style={{ width: "100%", height: 80, objectFit: "cover", borderRadius: 8, display: "block" }}
+                      fallback={<div style={{ width: "100%", height: 80, borderRadius: 8, background: "#f8fafc", display: "flex", alignItems: "center", justifyContent: "center" }}><Package size={22} style={{ color: "#e2e8f0" }} /></div>}
+                    />
                     <p style={{ fontSize: 13, fontWeight: 800, color: "#0f172a", margin: 0, lineHeight: 1.3 }}>{s.nome}</p>
                     {s.descricao && (
                       <p style={{
@@ -1126,13 +1127,11 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                     </div>
                   </div>
                   <div style={{ width: 88, height: 88, flexShrink: 0, background: "#f8fafc", position: "relative", alignSelf: "center", borderRadius: 10, overflow: "hidden" }}>
-                    {p.imagem_url
-                      // eslint-disable-next-line @next/next/no-img-element
-                      ? <img src={p.imagem_url} alt={p.nome} loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                      : <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <Package size={24} style={{ color: "#e2e8f0" }} />
-                        </div>
-                    }
+                    <ImgComFallback
+                      src={p.imagem_url} alt={p.nome} loading="lazy"
+                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                      fallback={<div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}><Package size={24} style={{ color: "#e2e8f0" }} /></div>}
+                    />
                   </div>
                 </div>
               );
@@ -1193,11 +1192,11 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                     return (
                       <div key={item.cartKey} style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
                         <div style={{ width: 56, height: 56, borderRadius: 12, overflow: "hidden", flexShrink: 0, background: "#f8fafc" }}>
-                          {item.produto.imagem_url
-                            // eslint-disable-next-line @next/next/no-img-element
-                            ? <img src={item.produto.imagem_url} alt={item.produto.nome} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                            : <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}><Package size={20} style={{ color: "#e2e8f0" }} /></div>
-                          }
+                          <ImgComFallback
+                            src={item.produto.imagem_url} alt={item.produto.nome}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            fallback={<div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}><Package size={20} style={{ color: "#e2e8f0" }} /></div>}
+                          />
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ fontSize: 13, fontWeight: 700, color: "#0f172a", margin: "0 0 2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.produto.nome}</p>
@@ -1502,11 +1501,11 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
           }}>
             {/* Image */}
             <div style={{ position: "relative", aspectRatio: "1/1", background: "#f8fafc", overflow: "hidden" }}>
-              {detailProduto.imagem_url
-                // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={detailProduto.imagem_url} alt={detailProduto.nome} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                : <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}><Package size={40} style={{ color: "#e2e8f0" }} /></div>
-              }
+              <ImgComFallback
+                src={detailProduto.imagem_url} alt={detailProduto.nome}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                fallback={<div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}><Package size={40} style={{ color: "#e2e8f0" }} /></div>}
+              />
               <button onClick={() => setDetailProduto(null)}
                 style={{ position: "absolute", top: 12, right: 12, width: 32, height: 32, borderRadius: 10, background: "rgba(0,0,0,0.5)", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <X size={16} />

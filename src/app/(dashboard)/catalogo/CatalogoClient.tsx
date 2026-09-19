@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { uploadImage } from "@/lib/uploadImage";
+import ImgComFallback from "@/components/ImgComFallback";
 import {
   Plus, Pencil, Trash2, ToggleLeft, ToggleRight,
   Upload, X, Link2, Check, ShoppingBag, Settings2,
@@ -1364,11 +1365,11 @@ export default function CatalogoClient({
                     <div
                       onClick={() => toggleSaborGrupo(p.id)}
                       style={{ padding: "14px 16px", borderBottom: grupoAberto ? "1px solid var(--border-1)" : "none", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-                      {p.imagem_url
-                        // eslint-disable-next-line @next/next/no-img-element
-                        ? <img src={p.imagem_url} alt={p.nome} style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover", flexShrink: 0 }} />
-                        : <div style={{ width: 36, height: 36, borderRadius: 10, background: `${cor}12`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18 }}>🍕</div>
-                      }
+                      <ImgComFallback
+                        src={p.imagem_url} alt={p.nome}
+                        style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover", flexShrink: 0 }}
+                        fallback={<div style={{ width: 36, height: 36, borderRadius: 10, background: `${cor}12`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18 }}>🍕</div>}
+                      />
                       <div style={{ flex: 1 }}>
                         <p style={{ fontSize: 14, fontWeight: 800, color: "var(--text-1)", margin: 0 }}>{p.nome}</p>
                         <p style={{ fontSize: 11, color: "var(--text-4)", margin: 0 }}>{sabores.length} sabor{sabores.length !== 1 ? "es" : ""}</p>
@@ -1412,11 +1413,11 @@ export default function CatalogoClient({
                           background: s.ativo ? "transparent" : "var(--bg-input)",
                           opacity: s.ativo ? 1 : 0.55,
                         }}>
-                          {s.imagem_url
-                            // eslint-disable-next-line @next/next/no-img-element
-                            ? <img src={s.imagem_url} alt={s.nome} style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover", flexShrink: 0 }} />
-                            : <div style={{ width: 40, height: 40, borderRadius: 8, background: "#f5f3ff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 20 }}>🍕</div>
-                          }
+                          <ImgComFallback
+                            src={s.imagem_url} alt={s.nome}
+                            style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover", flexShrink: 0 }}
+                            fallback={<div style={{ width: 40, height: 40, borderRadius: 8, background: "#f5f3ff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 20 }}>🍕</div>}
+                          />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)", margin: 0 }}>{s.nome}</p>
                             {s.descricao && <p style={{ fontSize: 11, color: "var(--text-4)", margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.descricao}</p>}
@@ -1497,11 +1498,11 @@ export default function CatalogoClient({
                       overflow: "hidden", opacity: p.ativo ? 1 : 0.55, transition: "opacity 0.2s",
                     }}>
                     <div style={{ height: 140, background: "var(--bg-input)", position: "relative", overflow: "hidden" }}>
-                      {p.imagem_url
-                        // eslint-disable-next-line @next/next/no-img-element
-                        ? <img src={p.imagem_url} alt={p.nome} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                        : <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}><ImageIcon size={32} style={{ color: "var(--text-5)" }} /></div>
-                      }
+                      <ImgComFallback
+                        src={p.imagem_url} alt={p.nome}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        fallback={<div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}><ImageIcon size={32} style={{ color: "var(--text-5)" }} /></div>}
+                      />
                       <span style={{
                         position: "absolute", top: 8, left: 8,
                         background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)",
@@ -3371,10 +3372,11 @@ export default function CatalogoClient({
                                     }}>
                                     {editingSaborForm.uploadingSaborImg
                                       ? <Loader2 size={14} style={{ color: cor, animation: "spin 1s linear infinite" }} />
-                                      : s.imagem_url
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        ? <img src={s.imagem_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.8 }} />
-                                        : <ImageIcon size={18} style={{ color: "var(--text-5)" }} />
+                                      : <ImgComFallback
+                                          src={s.imagem_url} alt=""
+                                          style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.8 }}
+                                          fallback={<ImageIcon size={18} style={{ color: "var(--text-5)" }} />}
+                                        />
                                     }
                                   </div>
                                   <input ref={saborImgRef} type="file" accept="image/*" style={{ display: "none" }}
@@ -3452,10 +3454,11 @@ export default function CatalogoClient({
                             ) : (
                               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px" }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => { setEditingSaborId(s.id); setEditingSaborForm({ nome: s.nome, descricao: s.descricao ?? "", preco: s.preco_adicional ? String(s.preco_adicional) : "", categoria_sabor_id: s.categoria_sabor_id ?? "", uploadingSaborImg: false }); }}>
-                                  {s.imagem_url && (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img src={s.imagem_url} alt={s.nome} style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover", flexShrink: 0, border: "1px solid var(--border-1)" }} />
-                                  )}
+                                  <ImgComFallback
+                                    src={s.imagem_url} alt={s.nome}
+                                    style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover", flexShrink: 0, border: "1px solid var(--border-1)" }}
+                                    fallback={<div style={{ width: 36, height: 36, borderRadius: 8, background: "var(--bg-input)", border: "1px solid var(--border-1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><ImageIcon size={16} style={{ color: "var(--text-5)" }} /></div>}
+                                  />
                                   <div style={{ flex: 1, minWidth: 0 }}>
                                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                                       <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)", margin: 0 }}>{s.nome}</p>
