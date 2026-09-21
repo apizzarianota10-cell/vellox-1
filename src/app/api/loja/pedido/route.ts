@@ -69,6 +69,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (empErr || !empresa) {
+      if (empErr) console.error("Erro ao verificar empresa (loja/pedido):", empErr);
       return NextResponse.json({ error: "Empresa não encontrada" }, { status: 404 });
     }
 
