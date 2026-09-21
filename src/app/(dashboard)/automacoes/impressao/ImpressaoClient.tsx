@@ -13,9 +13,10 @@ import {
   saveLayout,
   saveLogo,      getSavedLogo,
   printOrder,
+  buildTestPedido,
 } from "@/lib/printService";
 import type { FontSizeOpt, LayoutOpt } from "@/lib/printService";
-import type { Pedido } from "@/types";
+import { LAYOUT_PREVIEWS } from "@/lib/printLayoutPreviews";
 
 interface Props {
   empresa: { id: string; nome: string; cnpj: string | null };
@@ -226,28 +227,7 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
     setTesting(true);
     setTestResult(null);
 
-    const fakePedido: Pedido = {
-      id:               "00000000-0000-0000-0000-000000000001",
-      empresa_id:       empresa.id,
-      loja_id:          null, motoboy_id: null, route_id: null, route_address: null,
-      tipo_pedido:      "entrega",
-      cliente_nome:     "João da Silva (TESTE)",
-      cliente_telefone: "(11) 99999-9999",
-      endereco_entrega: "Rua Exemplo, 123 — Centro",
-      endereco_lat:     null, endereco_lng: null,
-      descricao_itens:  "1x Pizza Margherita\n1x Coca-Cola 2L",
-      valor_pedido:     44.90, valor_motoboy: 5.00,
-      forma_pagamento:  "pix", troco_para: null,
-      status:           "em_fila",
-      observacoes:      "Cupom de teste — Vellox",
-      bairro:           "Centro", distancia_km: null,
-      origem:           "manual", tracking_token: null,
-      created_at:       new Date().toISOString(),
-      updated_at:       new Date().toISOString(),
-      printed_at:       null, print_count: 0, auto_printed: false,
-    };
-
-    const ok = printOrder(fakePedido, empresa.nome);
+    const ok = printOrder(buildTestPedido(empresa.id), empresa.nome);
     setTimeout(() => {
       setTesting(false);
       setTestResult({
@@ -489,60 +469,7 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
         <p className="text-xs font-semibold mb-3" style={{ color: "#64748b" }}>LAYOUT DO CUPOM</p>
 
         <div className="grid grid-cols-3 gap-2 mb-4">
-          {([
-            {
-              id: "classico" as LayoutOpt,
-              label: "Clássico",
-              preview: (
-                <div style={{ fontSize: 8, lineHeight: 1.4, color: "#000", fontFamily: "monospace", padding: "6px 4px" }}>
-                  <div style={{ textAlign: "center", fontWeight: 900 }}>EMPRESA</div>
-                  <div style={{ borderTop: "1px dashed #000", margin: "2px 0" }} />
-                  <div style={{ fontSize: 7 }}>CLIENTE</div>
-                  <div style={{ fontWeight: 700 }}>João Silva</div>
-                  <div style={{ borderTop: "1px dashed #000", margin: "2px 0" }} />
-                  <div style={{ fontSize: 7 }}>ITENS</div>
-                  <div>1x Pizza</div>
-                  <div style={{ borderTop: "1px dashed #000", margin: "2px 0" }} />
-                  <div style={{ textAlign: "center", fontWeight: 900 }}>TOTAL R$44,90</div>
-                </div>
-              ),
-            },
-            {
-              id: "moderno" as LayoutOpt,
-              label: "Moderno",
-              preview: (
-                <div style={{ fontSize: 8, lineHeight: 1.4, color: "#000", fontFamily: "monospace", padding: "6px 4px" }}>
-                  <div style={{ border: "1px solid #000", textAlign: "center", fontWeight: 900, padding: "2px" }}>EMPRESA</div>
-                  <div style={{ borderTop: "2px solid #000", margin: "2px 0" }} />
-                  <div style={{ fontWeight: 900 }}>[DELIVERY]</div>
-                  <div style={{ borderTop: "1px dashed #000", margin: "2px 0" }} />
-                  <div>{">"} João Silva</div>
-                  <div style={{ borderTop: "2px solid #000", margin: "2px 0" }} />
-                  <div>• 1x Pizza</div>
-                  <div style={{ borderTop: "2px solid #000", margin: "2px 0" }} />
-                  <div style={{ fontWeight: 900 }}>{">>"} R$44,90 {"<<"}</div>
-                </div>
-              ),
-            },
-            {
-              id: "compacto" as LayoutOpt,
-              label: "Compacto",
-              preview: (
-                <div style={{ fontSize: 7.5, lineHeight: 1.3, color: "#000", fontFamily: "monospace", padding: "6px 4px" }}>
-                  <div style={{ textAlign: "center", fontWeight: 900, fontSize: 8 }}>EMPRESA</div>
-                  <div style={{ fontSize: 6.5 }}>01/01/25 10:30 | #ABC123</div>
-                  <div style={{ borderTop: "1px solid #000", margin: "2px 0" }} />
-                  <div>[DELIVERY] João</div>
-                  <div>Rua Exemplo, 123</div>
-                  <div style={{ borderTop: "1px solid #000", margin: "2px 0" }} />
-                  <div>1x Pizza</div>
-                  <div style={{ borderTop: "1px solid #000", margin: "2px 0" }} />
-                  <div style={{ fontWeight: 900, fontSize: 8 }}>TOTAL: R$44,90</div>
-                  <div style={{ fontSize: 6.5 }}>Pgto: PIX</div>
-                </div>
-              ),
-            },
-          ]).map(opt => (
+          {LAYOUT_PREVIEWS.map(opt => (
             <button
               key={opt.id}
               onClick={() => setLayout(opt.id)}

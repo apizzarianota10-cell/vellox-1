@@ -58,6 +58,31 @@ export function saveLogo(url: string): void {
   try { localStorage.setItem(LOGO_KEY, url); } catch {}
 }
 
+// Pedido fictício usado pelo "Imprimir cupom de teste" (configurações e
+// popup de novidades) — mesmo formato em ambos os lugares.
+export function buildTestPedido(empresaId: string): Pedido {
+  return {
+    id:               "00000000-0000-0000-0000-000000000001",
+    empresa_id:       empresaId,
+    loja_id:          null, motoboy_id: null, route_id: null, route_address: null,
+    tipo_pedido:      "entrega",
+    cliente_nome:     "João da Silva (TESTE)",
+    cliente_telefone: "(11) 99999-9999",
+    endereco_entrega: "Rua Exemplo, 123 — Centro",
+    endereco_lat:     null, endereco_lng: null,
+    descricao_itens:  "1x Pizza Margherita\n1x Coca-Cola 2L",
+    valor_pedido:     44.90, valor_motoboy: 5.00,
+    forma_pagamento:  "pix", troco_para: null,
+    status:           "em_fila",
+    observacoes:      "Cupom de teste — Vellox",
+    bairro:           "Centro", distancia_km: null,
+    origem:           "manual", tracking_token: null,
+    created_at:       new Date().toISOString(),
+    updated_at:       new Date().toISOString(),
+    printed_at:       null, print_count: 0, auto_printed: false,
+  };
+}
+
 function getTracked(): Set<string> {
   try {
     const raw = localStorage.getItem(PRINTED_KEY);
