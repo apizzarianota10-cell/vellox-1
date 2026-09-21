@@ -1,10 +1,21 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
-// Bucket público criado no schema_v23 (leitura pública, escrita autenticada).
+// Bucket público, criado no projeto Supabase dedicado a imagens (separado do
+// banco principal - ver IMAGES_SUPABASE_URL/IMAGES_SUPABASE_SERVICE_ROLE_KEY).
 const BUCKET = "produtos";
+
+// Admin client do projeto de imagens - usa a service_role key porque esse
+// projeto não compartilha auth.users com o banco principal, então não dá pra
+// validar a sessão do usuário lá. A checagem de "quem pode subir imagem"
+// continua sendo feita contra o banco principal, abaixo.
+const imagesAdmin = createClient(
+  process.env.IMAGES_SUPABASE_URL!,
+  process.env.IMAGES_SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies();
@@ -26,12 +37,12 @@ export async function POST(req: NextRequest) {
   const path = `${folder}/${randomUUID()}.${ext}`;
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const { error } = await supabase.storage.from(BUCKET).upload(path, buffer, {
+  const { error } = await imagesAdmin.storage.from(BUCKET).upload(path, buffer, {
     contentType: file.type || "image/jpeg",
     upsert: false,
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  const { data } = imagesAdmin.storage.from(BUCKET).getPublicUrl(path);
   return NextResponse.json({ url: data.publicUrl });
 }
