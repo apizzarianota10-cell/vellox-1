@@ -13,12 +13,24 @@ const BIG       = [ESC, 0x21, 0x30]; // double width + height
 const NORMAL    = [ESC, 0x21, 0x00];
 const CUT       = [GS,  0x56, 0x41, 0x03];
 
+type LayoutOpt = "classico" | "moderno" | "compacto";
+
 function getColumns(): number {
   try {
     return localStorage.getItem("vellox-paper-size") === "58mm" ? 32 : 48;
   } catch {
     return 48;
   }
+}
+
+// Lê direto do localStorage (não importa de printService.ts pra evitar
+// import circular - printService já importa buildReceipt daqui).
+function getLayout(): LayoutOpt {
+  try {
+    const v = localStorage.getItem("vellox-receipt-layout");
+    if (v === "classico" || v === "moderno" || v === "compacto") return v;
+  } catch {}
+  return "classico";
 }
 
 function txt(s: string): number[] {
@@ -60,7 +72,7 @@ function wrap(s: string, cols: number): number[] {
   return out;
 }
 
-function sep(): number[] { return ln("-".repeat(getColumns())); }
+function sep(char = "-"): number[] { return ln(char.repeat(getColumns())); }
 
 // Reconhece uma linha de item no formato "Nx Nome (detalhe · detalhe) — R$valor"
 // (é assim que o catálogo e o pedido manual montam `descricao_itens`).
@@ -81,13 +93,14 @@ function parseItemLine(line: string): { qtd: string; nome: string; detalhes: str
 
 // Cada item vira um bloco próprio: nome+preço numa linha, detalhes (sabor/borda/
 // adicional) recuados embaixo. `descricao_itens` insere uma linha em branco
-// entre blocos para os produtos não ficarem colados uns nos outros.
-function itemBlock(line: string, cols: number): number[] {
+// entre blocos para os produtos não ficarem colados uns nos outros (exceto no
+// compacto, que fica sem respiro entre eles pra caber mais no rolo).
+function itemBlock(line: string, cols: number, prefix: string): number[] {
   const parsed = parseItemLine(line);
-  if (!parsed) return wrap(line || " ", cols);
+  if (!parsed) return wrap((prefix ? "• " : "") + (line || " "), cols);
 
   const out: number[] = [];
-  const qtdNome  = `${parsed.qtd}x ${parsed.nome}`;
+  const qtdNome  = `${prefix}${parsed.qtd}x ${parsed.nome}`;
   const precoTxt = `R$${parsed.preco}`;
   const pad = cols - qtdNome.length - precoTxt.length;
   if (pad >= 1) {
@@ -102,12 +115,13 @@ function itemBlock(line: string, cols: number): number[] {
   return out;
 }
 
-function itemsSection(descricaoItens: string | null | undefined, cols: number): number[] {
+function itemsSection(descricaoItens: string | null | undefined, cols: number, layout: LayoutOpt): number[] {
+  const prefix = layout === "moderno" ? "› " : "";
   const linhas = (descricaoItens ?? "---").split("\n");
   const out: number[] = [];
   linhas.forEach((l, i) => {
-    out.push(...itemBlock(l, cols));
-    if (i < linhas.length - 1) out.push(LF);
+    out.push(...itemBlock(l, cols, prefix));
+    if (layout !== "compacto" && i < linhas.length - 1) out.push(LF);
   });
   return out;
 }
@@ -126,19 +140,14 @@ const PGTO_LABELS: Record<string, string> = {
   ja_pago:       "Ja pago",
 };
 
-export function buildReceipt(pedido: Pedido, empresaNome = "PEDIDO"): Uint8Array {
+function buildClassico(pedido: Pedido, empresaNome: string, W: number, bigW: number): number[] {
   const data  = new Date(pedido.created_at).toLocaleString("pt-BR");
   const total = pedido.valor_pedido + pedido.valor_motoboy;
   const pgto  = pedido.forma_pagamento
     ? (PGTO_LABELS[pedido.forma_pagamento] ?? pedido.forma_pagamento)
     : "---";
 
-  const W    = getColumns();
-  const bigW = Math.floor(W / 2); // colunas em double-width mode
-
-  const buf: number[] = [
-    ...INIT,
-    // Nome da empresa em BIG (double-width): limite bigW chars
+  return [
     ...CENTER, ...BIG, ...BOLD_ON,
     ...ln(empresaNome.toUpperCase().slice(0, bigW)),
     ...NORMAL, ...BOLD_OFF,
@@ -148,7 +157,6 @@ export function buildReceipt(pedido: Pedido, empresaNome = "PEDIDO"): Uint8Array
     ...ln("PEDIDO #" + pedido.id.slice(0, 8).toUpperCase()),
     ...BOLD_OFF,
     ...sep(),
-    // Cliente e telefone com wrap automatico
     ...wrap("CLIENTE: " + pedido.cliente_nome, W),
     ...(pedido.cliente_telefone ? wrap("TEL: " + pedido.cliente_telefone, W) : []),
     ...sep(),
@@ -163,7 +171,7 @@ export function buildReceipt(pedido: Pedido, empresaNome = "PEDIDO"): Uint8Array
       : []),
     ...sep(),
     ...BOLD_ON, ...ln("ITENS:"), ...BOLD_OFF,
-    ...itemsSection(pedido.descricao_itens, W),
+    ...itemsSection(pedido.descricao_itens, W, "classico"),
     ...(pedido.observacoes ? wrap("OBS: " + pedido.observacoes, W) : []),
     ...sep(),
     ...row("Subtotal:", "R$ " + pedido.valor_pedido.toFixed(2).replace(".", ",")),
@@ -181,9 +189,103 @@ export function buildReceipt(pedido: Pedido, empresaNome = "PEDIDO"): Uint8Array
     ...sep(),
     ...CENTER,
     ...ln("Vellox - appvellox.online"),
-    LF, LF,
-    ...CUT,
   ];
+}
 
+function buildModerno(pedido: Pedido, empresaNome: string, W: number, bigW: number): number[] {
+  const data  = new Date(pedido.created_at).toLocaleString("pt-BR");
+  const total = pedido.valor_pedido + pedido.valor_motoboy;
+  const pgto  = pedido.forma_pagamento
+    ? (PGTO_LABELS[pedido.forma_pagamento] ?? pedido.forma_pagamento)
+    : "---";
+  const tipo = pedido.tipo_pedido === "retirada" ? "RETIRADA" : pedido.forma_pagamento === "ja_pago" ? "JA PAGO" : "DELIVERY";
+
+  return [
+    ...sep("="),
+    ...CENTER, ...BIG, ...BOLD_ON,
+    ...ln(empresaNome.toUpperCase().slice(0, bigW)),
+    ...NORMAL, ...BOLD_OFF,
+    ...ln(data),
+    ...sep("="),
+    ...BOLD_ON,
+    ...ln(`[ ${tipo} ]`),
+    ...BOLD_OFF,
+    ...ln("PEDIDO #" + pedido.id.slice(0, 8).toUpperCase()),
+    ...sep("="),
+    ...LEFT, ...BOLD_ON,
+    ...wrap("> " + pedido.cliente_nome, W),
+    ...BOLD_OFF,
+    ...(pedido.cliente_telefone ? wrap("Tel: " + pedido.cliente_telefone, W) : []),
+    ...sep(),
+    ...(pedido.tipo_pedido === "entrega"
+      ? wrap("End: " + pedido.endereco_entrega + (pedido.bairro ? `, ${pedido.bairro}` : ""), W)
+      : [...BOLD_ON, ...CENTER, ...ln("*** RETIRADA NO LOCAL ***"), ...LEFT, ...BOLD_OFF]),
+    ...sep("="),
+    ...BOLD_ON, ...ln("ITENS"), ...BOLD_OFF,
+    ...itemsSection(pedido.descricao_itens, W, "moderno"),
+    ...(pedido.observacoes ? [...sep(), ...BOLD_ON, ...ln("Obs:"), ...BOLD_OFF, ...wrap(pedido.observacoes, W)] : []),
+    ...sep("="),
+    ...row("Subtotal:", "R$ " + pedido.valor_pedido.toFixed(2).replace(".", ",")),
+    ...(pedido.valor_motoboy > 0
+      ? row("Entrega:", "R$ " + pedido.valor_motoboy.toFixed(2).replace(".", ","))
+      : []),
+    ...sep("="),
+    ...CENTER, ...BIG, ...BOLD_ON,
+    ...ln(`>> TOTAL: R$ ${total.toFixed(2).replace(".", ",")} <<`),
+    ...NORMAL, ...BOLD_OFF,
+    ...sep("="),
+    ...LEFT,
+    ...wrap("Pgto: " + pgto, W),
+    ...(pedido.troco_para ? wrap("Troco p/ R$ " + pedido.troco_para.toFixed(2).replace(".", ","), W) : []),
+    ...sep("="),
+    ...CENTER,
+    ...ln("appvellox.online"),
+  ];
+}
+
+function buildCompacto(pedido: Pedido, empresaNome: string, W: number, bigW: number): number[] {
+  const total = pedido.valor_pedido + pedido.valor_motoboy;
+  const pgto  = pedido.forma_pagamento
+    ? (PGTO_LABELS[pedido.forma_pagamento] ?? pedido.forma_pagamento)
+    : "---";
+  const dataC = new Date(pedido.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const tipo  = pedido.tipo_pedido === "retirada" ? "[RETIRADA]" : pedido.forma_pagamento === "ja_pago" ? "[JA PAGO]" : "[DELIVERY]";
+
+  return [
+    ...CENTER, ...BIG, ...BOLD_ON,
+    ...ln(empresaNome.toUpperCase().slice(0, bigW)),
+    ...NORMAL, ...BOLD_OFF,
+    ...ln(`${dataC} | #${pedido.id.slice(0, 8).toUpperCase()}`),
+    ...sep(),
+    ...LEFT, ...BOLD_ON,
+    ...wrap(`${tipo} ${pedido.cliente_nome}`, W),
+    ...BOLD_OFF,
+    ...(pedido.cliente_telefone ? wrap(pedido.cliente_telefone, W) : []),
+    ...(pedido.tipo_pedido === "entrega" ? wrap(pedido.endereco_entrega + (pedido.bairro ? `, ${pedido.bairro}` : ""), W) : []),
+    ...sep(),
+    ...itemsSection(pedido.descricao_itens, W, "compacto"),
+    ...(pedido.observacoes ? wrap("Obs: " + pedido.observacoes, W) : []),
+    ...sep(),
+    ...wrap(`Sub: R$ ${pedido.valor_pedido.toFixed(2).replace(".", ",")}` + (pedido.valor_motoboy > 0 ? ` | Entr: R$ ${pedido.valor_motoboy.toFixed(2).replace(".", ",")}` : ""), W),
+    ...BOLD_ON,
+    ...ln(`TOTAL: R$ ${total.toFixed(2).replace(".", ",")}`),
+    ...BOLD_OFF,
+    ...wrap(`Pgto: ${pgto}` + (pedido.troco_para ? ` | Troco p/ R$ ${pedido.troco_para.toFixed(2).replace(".", ",")}` : ""), W),
+    ...sep(),
+    ...CENTER,
+    ...ln("appvellox.online"),
+  ];
+}
+
+export function buildReceipt(pedido: Pedido, empresaNome = "PEDIDO"): Uint8Array {
+  const W    = getColumns();
+  const bigW = Math.floor(W / 2); // colunas em double-width mode
+  const layout = getLayout();
+
+  const body = layout === "moderno" ? buildModerno(pedido, empresaNome, W, bigW)
+    : layout === "compacto" ? buildCompacto(pedido, empresaNome, W, bigW)
+    : buildClassico(pedido, empresaNome, W, bigW);
+
+  const buf: number[] = [...INIT, ...body, LF, LF, ...CUT];
   return new Uint8Array(buf);
 }
