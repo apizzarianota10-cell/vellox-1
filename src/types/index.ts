@@ -26,6 +26,13 @@ export interface Empresa {
   despacho_automatico: boolean;
   plano: Plano;
   verificado: boolean;
+  senha_financeiro: string | null;
+}
+
+export interface ProdutoMaisVendido {
+  nome: string;
+  qtd_total: number;
+  qtd_hoje: number;
 }
 
 export interface Loja {

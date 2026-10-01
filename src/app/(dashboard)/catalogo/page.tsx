@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import CatalogoClient from "./CatalogoClient";
 import DbError from "@/components/DbError";
-import type { Produto, ConfiguracaoLoja, BairroTaxa, CategoriaPreco } from "@/types";
+import type { Produto, ConfiguracaoLoja, BairroTaxa, CategoriaPreco, ProdutoMaisVendido } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,7 @@ export default async function CatalogoPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const [produtosRes, { data: config }, { data: empresa }, { data: bairros }, { data: categoriasPreco }] = await Promise.all([
+  const [produtosRes, { data: config }, { data: empresa }, { data: bairros }, { data: categoriasPreco }, { data: maisVendidos }] = await Promise.all([
     supabase
       .from("produtos")
       .select("*, produto_variacoes(*), produto_sabores(*), produto_adicionais(*), produto_categorias_sabor(*)")
@@ -39,6 +39,7 @@ export default async function CatalogoPage() {
       .select("*, tamanhos:categorias_preco_tamanhos(*)")
       .eq("empresa_id", user.id)
       .order("ordem"),
+    supabase.rpc("get_produtos_mais_vendidos", { p_empresa_id: user.id, p_limit: 8 }),
   ]);
 
   if (produtosRes.error) return <DbError message="Erro ao carregar o catálogo. Tente novamente." />;
@@ -49,6 +50,7 @@ export default async function CatalogoPage() {
       initialConfig={config as ConfiguracaoLoja | null}
       initialBairros={(bairros ?? []) as BairroTaxa[]}
       initialCategoriasPreco={(categoriasPreco ?? []) as CategoriaPreco[]}
+      initialMaisVendidos={(maisVendidos ?? []) as ProdutoMaisVendido[]}
       empresaId={user.id}
       empresaNome={empresa?.nome ?? ""}
       empresaCodigo={empresa?.codigo ?? ""}

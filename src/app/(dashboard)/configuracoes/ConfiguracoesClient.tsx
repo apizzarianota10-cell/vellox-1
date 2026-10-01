@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Save, Copy, CheckCircle, Power, Loader2, MapPin, Zap, Printer, Volume2, X, ChevronRight, ExternalLink } from "lucide-react";
+import { Save, Copy, CheckCircle, Power, Loader2, MapPin, Zap, Printer, Volume2, X, ChevronRight, ExternalLink, Lock } from "lucide-react";
 import Link from "next/link";
 // USB removido: WebUSB bloqueado pelo usbprint.sys no Windows
 import CompanyLocationPicker from "@/components/company/CompanyLocationPicker";
@@ -92,6 +92,49 @@ export default function ConfiguracoesClient({ empresa }: Props) {
     navigator.clipboard.writeText(text);
     set(true);
     setTimeout(() => set(false), 2000);
+  }
+
+  // ── Senha do financeiro (protege /financeiro, opt-in) ──────────────
+  const [temSenhaFinanceiro, setTemSenhaFinanceiro] = useState(!!empresa.senha_financeiro);
+  const [showSenhaFinForm,  setShowSenhaFinForm]  = useState(false);
+  const [senhaFin1,         setSenhaFin1]         = useState("");
+  const [senhaFin2,         setSenhaFin2]         = useState("");
+  const [savingSenhaFin,    setSavingSenhaFin]    = useState(false);
+  const [senhaFinError,     setSenhaFinError]     = useState("");
+  const [senhaFinSaved,     setSenhaFinSaved]     = useState(false);
+
+  async function salvarSenhaFinanceiro(e: React.FormEvent) {
+    e.preventDefault();
+    setSenhaFinError("");
+    if (senhaFin1.length < 4) { setSenhaFinError("Mínimo 4 caracteres"); return; }
+    if (senhaFin1 !== senhaFin2) { setSenhaFinError("As senhas não coincidem"); return; }
+    setSavingSenhaFin(true);
+    try {
+      const res = await fetch("/api/financeiro/senha", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ senha: senhaFin1 }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Erro ao salvar");
+      setTemSenhaFinanceiro(true);
+      setShowSenhaFinForm(false);
+      setSenhaFin1(""); setSenhaFin2("");
+      setSenhaFinSaved(true);
+      setTimeout(() => setSenhaFinSaved(false), 2500);
+    } catch (err) {
+      setSenhaFinError(err instanceof Error ? err.message : "Erro ao salvar");
+    } finally {
+      setSavingSenhaFin(false);
+    }
+  }
+
+  async function desativarSenhaFinanceiro() {
+    if (!confirm("Desativar a proteção por senha do financeiro?")) return;
+    setSavingSenhaFin(true);
+    await fetch("/api/financeiro/senha", { method: "DELETE" });
+    setTemSenhaFinanceiro(false);
+    setSavingSenhaFin(false);
   }
 
   const IS = {
@@ -398,6 +441,92 @@ export default function ConfiguracoesClient({ empresa }: Props) {
             )}
           </button>
         </form>
+      </div>
+
+      {/* ── Senha do financeiro ── */}
+      <div
+        className="rounded-2xl p-5"
+        style={{ background: "var(--bg-2)", border: "1px solid var(--border-1)" }}
+      >
+        <div className="flex items-center gap-2.5 mb-1">
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: "var(--bg-1)", border: "1px solid var(--border-1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Lock size={15} style={{ color: "#E4002B" }} />
+          </div>
+          <h2 className="text-sm font-semibold" style={{ color: "var(--text-1)" }}>Senha do financeiro</h2>
+        </div>
+        <p className="text-xs mb-4" style={{ color: "#64748b" }}>
+          {temSenhaFinanceiro
+            ? "Ativada — quem abrir o painel Financeiro precisa digitar essa senha."
+            : "Opcional: peça uma senha extra pra ver o Financeiro, útil se o painel é acessado num computador compartilhado da loja."}
+        </p>
+
+        {!showSenhaFinForm && (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => { setShowSenhaFinForm(true); setSenhaFinError(""); }}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
+              style={{ background: senhaFinSaved ? "rgba(34,197,94,0.15)" : "var(--overlay-sm)", border: "1px solid var(--border-1)", color: senhaFinSaved ? "#4ade80" : "var(--text-1)" }}
+            >
+              {senhaFinSaved ? <CheckCircle size={14} /> : <Lock size={14} />}
+              {senhaFinSaved ? "Salvo!" : temSenhaFinanceiro ? "Trocar senha" : "Ativar senha"}
+            </button>
+            {temSenhaFinanceiro && (
+              <button
+                type="button"
+                onClick={desativarSenhaFinanceiro}
+                disabled={savingSenhaFin}
+                className="px-4 py-2.5 rounded-xl text-sm font-bold"
+                style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444", opacity: savingSenhaFin ? 0.6 : 1 }}
+              >
+                Desativar
+              </button>
+            )}
+          </div>
+        )}
+
+        {showSenhaFinForm && (
+          <form onSubmit={salvarSenhaFinanceiro} className="space-y-3">
+            <input
+              type="password"
+              required
+              value={senhaFin1}
+              onChange={e => setSenhaFin1(e.target.value)}
+              placeholder="Nova senha"
+              className="w-full px-4 rounded-xl text-sm placeholder-gray-700 outline-none transition-all"
+              style={IS}
+            />
+            <input
+              type="password"
+              required
+              value={senhaFin2}
+              onChange={e => setSenhaFin2(e.target.value)}
+              placeholder="Confirmar senha"
+              className="w-full px-4 rounded-xl text-sm placeholder-gray-700 outline-none transition-all"
+              style={IS}
+            />
+            {senhaFinError && <p className="text-xs" style={{ color: "#ef4444" }}>{senhaFinError}</p>}
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={savingSenhaFin}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold"
+                style={{ background: "#E4002B", color: "#fff", opacity: savingSenhaFin ? 0.7 : 1 }}
+              >
+                {savingSenhaFin ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                {savingSenhaFin ? "Salvando..." : "Salvar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowSenhaFinForm(false); setSenhaFin1(""); setSenhaFin2(""); setSenhaFinError(""); }}
+                className="px-5 py-2.5 rounded-xl text-sm font-bold"
+                style={{ background: "var(--overlay-sm)", border: "1px solid var(--border-1)", color: "var(--text-1)" }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        )}
       </div>
 
       {/* ── Endereço da empresa ── */}

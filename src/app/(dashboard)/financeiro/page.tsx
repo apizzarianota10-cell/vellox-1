@@ -1,12 +1,25 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Pedido, Motoboy } from "@/types";
 import FinanceiroClient from "./FinanceiroClient";
+import FinanceiroGate from "./FinanceiroGate";
 import DbError from "@/components/DbError";
 
 export default async function FinanceiroPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
+
+  const { data: empresa } = await supabase
+    .from("empresas")
+    .select("senha_financeiro")
+    .eq("id", user.id)
+    .single();
+
+  // Proteção por senha é opt-in (configurada em Configurações) — se a
+  // empresa nunca ativou, segue exatamente como sempre foi.
+  if (empresa?.senha_financeiro) {
+    return <FinanceiroGate />;
+  }
 
   const [pedidosRes, motoboysRes] = await Promise.all([
     supabase

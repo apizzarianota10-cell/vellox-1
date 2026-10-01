@@ -9,9 +9,9 @@ import {
   Upload, X, Link2, Check, ShoppingBag, Settings2,
   Image as ImageIcon, Tag, DollarSign, AlignLeft,
   ExternalLink, Clock, Truck, MapPin, BadgeCheck, User,
-  ScanLine, Loader2, ChevronRight, ChevronDown,
+  ScanLine, Loader2, ChevronRight, ChevronDown, Trophy,
 } from "lucide-react";
-import type { Produto, ConfiguracaoLoja, BairroTaxa, ProdutoVariacao, ProdutoSabor, ProdutoAdicional, CategoriaSabor, CategoriaPreco, CategoriaPrecoTamanho } from "@/types";
+import type { Produto, ConfiguracaoLoja, BairroTaxa, ProdutoVariacao, ProdutoSabor, ProdutoAdicional, CategoriaSabor, CategoriaPreco, CategoriaPrecoTamanho, ProdutoMaisVendido } from "@/types";
 
 const CATEGORIAS_PADRAO = ["Lanches", "Bebidas", "Combos", "Sobremesas", "Entradas", "Outros"];
 
@@ -20,6 +20,7 @@ interface Props {
   initialConfig: ConfiguracaoLoja | null;
   initialBairros: BairroTaxa[];
   initialCategoriasPreco: CategoriaPreco[];
+  initialMaisVendidos: ProdutoMaisVendido[];
   initialVerificado: boolean;
   empresaId: string;
   empresaNome: string;
@@ -64,7 +65,7 @@ const EMPTY_FORM: ProdutoForm = {
 };
 
 export default function CatalogoClient({
-  initialProdutos, initialConfig, initialBairros, initialCategoriasPreco, initialVerificado,
+  initialProdutos, initialConfig, initialBairros, initialCategoriasPreco, initialMaisVendidos, initialVerificado,
   empresaId, empresaNome, empresaCodigo, empresaSlug,
 }: Props) {
   const supabase = createClient();
@@ -1243,6 +1244,34 @@ export default function CatalogoClient({
         ══════════════════════════════════════════════════════════ */}
         {tab === "produtos" && (
           <>
+            {initialMaisVendidos.length > 0 && (
+              <div className="rounded-2xl p-4" style={{ background: "var(--bg-2)", border: "1px solid var(--border-1)" }}>
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div style={{ width: 30, height: 30, borderRadius: 9, background: "var(--bg-1)", border: "1px solid var(--border-1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Trophy size={14} style={{ color: "#E4002B" }} />
+                  </div>
+                  <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>Mais vendidos</p>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {initialMaisVendidos.slice(0, 8).map((item, i) => (
+                    <div key={item.nome} className="rounded-xl px-3 py-2.5" style={{ background: "var(--bg-1)", border: "1px solid var(--border-1)", minWidth: 0 }}>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span style={{ fontSize: 10, fontWeight: 800, color: "var(--text-4)" }}>#{i + 1}</span>
+                        <span className="truncate" style={{ fontSize: 12, fontWeight: 700, color: "var(--text-1)" }} title={item.nome}>{item.nome}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span style={{ fontSize: 15, fontWeight: 900, color: "#E4002B" }}>{item.qtd_total}</span>
+                        <span style={{ fontSize: 10, color: "var(--text-4)" }}>vendidos</span>
+                        {item.qtd_hoje > 0 && (
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "#16a34a", marginLeft: "auto" }}>+{item.qtd_hoje} hoje</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {categorias.map(c => (
