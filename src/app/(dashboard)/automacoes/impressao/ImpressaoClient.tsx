@@ -41,7 +41,7 @@ const DESTAQUE_OPTS: { id: Destaque; label: string }[] = [
 // Versão atual do servidor.ps1 (public/print-server/servidor.ps1, variável
 // $Versao no topo do arquivo) — mantenha os dois em sincronia a cada mudança
 // no script, pra esse aviso ficar confiável.
-const VERSAO_AGENTE_ATUAL = "v7";
+const VERSAO_AGENTE_ATUAL = "v8";
 
 export default function ImpressaoClient({ empresa, initialConfig }: Props) {
   const supabase = createClient();

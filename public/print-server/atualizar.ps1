@@ -51,10 +51,18 @@ if (-not (Test-Path "$dir\iniciar.bat")) {
 Write-Host "Reiniciando o servidor (escondido, do jeito de sempre)..." -ForegroundColor Yellow
 Start-Process -FilePath "$dir\iniciar.bat" -WindowStyle Hidden
 
+Start-Sleep -Seconds 5
+Write-Host ""
+Write-Host "----------------------------------------" -ForegroundColor Cyan
+Write-Host "  Ultimas linhas do servidor (log.txt):" -ForegroundColor Cyan
+Write-Host "----------------------------------------" -ForegroundColor Cyan
+if (Test-Path "$dir\log.txt") { Get-Content "$dir\log.txt" -Tail 12 } else { Write-Host "(log.txt ainda nao foi criado)" }
+Write-Host "----------------------------------------" -ForegroundColor Cyan
+
 Write-Host ""
 Write-Host "=====================================" -ForegroundColor Green
 Write-Host "  Pronto! Servidor atualizado." -ForegroundColor Green
-Write-Host "  Duvidas: confira C:\VelloxPrint\log.txt" -ForegroundColor Green
+Write-Host "  Se aparecer ERRO/AVISO acima, resolva antes de continuar." -ForegroundColor Green
 Write-Host "=====================================" -ForegroundColor Green
 Write-Host ""
 Read-Host "Pressione ENTER para fechar"

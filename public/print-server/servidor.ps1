@@ -1,5 +1,5 @@
 # Vellox Print Server - PowerShell (sem Node.js)
-$Versao = "v7"
+$Versao = "v8"
 
 # Roda oculto (-WindowStyle Hidden) — sem janela pra ver a tela ou pausar
 # num Read-Host, entao tudo vai pro log.txt em vez do console. Reinicia o
@@ -564,9 +564,19 @@ while ($true) {
             $prefsUri  = "$supabaseUrl/rest/v1/rpc/get_print_agent_prefs"
             $prefsBody = @{ p_empresa_id = $empresaId; p_agent_token = $agentToken } | ConvertTo-Json
             $prefs = Invoke-RestMethod -Uri $prefsUri -Headers $headers -Method POST -Body $prefsBody -TimeoutSec 15 -ErrorAction Stop
-            if ($prefs -and $prefs.Count -gt 0 -and $prefs[0].layout) { $layout = $prefs[0].layout }
-            if ($prefs -and $prefs.Count -gt 0 -and $prefs[0].fonte) { $fonte = $prefs[0].fonte }
-        } catch {}
+            if ($prefs -and $prefs.Count -gt 0) {
+                if ($prefs[0].layout) { $layout = $prefs[0].layout }
+                if ($prefs[0].fonte)  { $fonte  = $prefs[0].fonte }
+            } else {
+                # Resposta vazia = token/empresa_id nao validou no servidor (ver
+                # get_print_agent_prefs) — fica nisso silenciosamente era o motivo
+                # do layout escolhido no painel nunca "pegar" pra quem tinha
+                # credencial errada. Agora pelo menos fica no log.txt.
+                Write-Host "  [AVISO] get_print_agent_prefs voltou vazio — confira o ID da empresa e o token em config.json." -ForegroundColor Yellow
+            }
+        } catch {
+            Write-Host "  [AVISO] Falha ao buscar layout/fonte do painel: $_" -ForegroundColor Yellow
+        }
         $layoutRefreshAt = (Get-Date).AddSeconds(60)
     }
 

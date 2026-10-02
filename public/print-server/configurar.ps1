@@ -1,5 +1,5 @@
 # Vellox Print Server - Configuracao (copiar/colar, sem depender de download de arquivo)
-$Versao = "v2"
+$Versao = "v3"
 $ErrorActionPreference = "Stop"
 $dir = "C:\VelloxPrint"
 if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir | Out-Null }
@@ -50,21 +50,61 @@ function Read-Validated {
     }
 }
 
-$empresaId = Read-Validated -Label "Cole o ID da empresa" `
-    -Pattern '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' `
-    -Hint "Deve ser um UUID (ex: 1a2b3c4d-5e6f-7890-abcd-ef1234567890)."
+# 3b. Testa a credencial contra o servidor ANTES de seguir pro resto das
+# perguntas — antes disso, um ID ou token colado errado (ex: trocados entre
+# si, ou faltando um caractere no copiar/colar) só aparecia depois, com o
+# agente ficando "offline" sem nenhuma explicacao. Essa chamada (mesma RPC
+# que o servidor.ps1 usa pra buscar layout/fonte) devolve vazio se o par
+# nao bater com nenhuma linha no banco — e a linha sempre existe antes
+# disso, porque so chega aqui depois de abrir a tela de Credenciais, que ja
+# cria o token.
+function Test-Credencial($empId, $token) {
+    try {
+        $uri  = "$($pub.supabase_url)/rest/v1/rpc/get_print_agent_prefs"
+        $hdrs = @{ "apikey" = $pub.supabase_anon_key; "Authorization" = "Bearer $($pub.supabase_anon_key)"; "Content-Type" = "application/json" }
+        $body = @{ p_empresa_id = $empId; p_agent_token = $token } | ConvertTo-Json
+        $resp = Invoke-RestMethod -Uri $uri -Headers $hdrs -Method POST -Body $body -TimeoutSec 15 -ErrorAction Stop
+        return ($resp -and $resp.Count -gt 0)
+    } catch {
+        return $false
+    }
+}
 
-$agentToken = Read-Validated -Label "Cole o token do agente" `
-    -Pattern '^[0-9a-f]{32,64}$' `
-    -Hint "Deve ser o token hexadecimal mostrado na tela, sem espacos."
+while ($true) {
+    $empresaId = Read-Validated -Label "Cole o ID da empresa" `
+        -Pattern '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' `
+        -Hint "Deve ser um UUID (ex: 1a2b3c4d-5e6f-7890-abcd-ef1234567890)."
+
+    $agentToken = Read-Validated -Label "Cole o token do agente" `
+        -Pattern '^[0-9a-f]{32,64}$' `
+        -Hint "Deve ser o token hexadecimal mostrado na tela, sem espacos."
+
+    Write-Host "Validando com o servidor..." -ForegroundColor Yellow -NoNewline
+    if (Test-Credencial $empresaId $agentToken) {
+        Write-Host " OK!" -ForegroundColor Green
+        break
+    }
+    Write-Host " FALHOU." -ForegroundColor Red
+    Write-Host "  O ID e/ou o token nao bateram com nenhuma loja. Confira se copiou certinho" -ForegroundColor Red
+    Write-Host "  (sem espaco extra, sem trocar os dois campos) e tente de novo." -ForegroundColor Red
+    Write-Host ""
+}
 
 $empresaNome = (Read-Host "Nome da loja para o topo do cupom (ENTER para deixar em branco)").Trim()
 
 Write-Host ""
 Write-Host "Impressoras instaladas neste computador:" -ForegroundColor Yellow
-Get-Printer | Select-Object -ExpandProperty Name | ForEach-Object { Write-Host "  -> $_" }
+$printers = @(Get-Printer | Select-Object -ExpandProperty Name)
+$printers | ForEach-Object { Write-Host "  -> $_" }
 Write-Host ""
-$printerName = (Read-Host "Nome exato da impressora termica (ENTER = padrao do sistema)").Trim()
+while ($true) {
+    $printerName = (Read-Host "Nome exato da impressora termica (ENTER = padrao do sistema)").Trim()
+    if (-not $printerName) { break }
+    $match = $printers | Where-Object { $_ -ieq $printerName }
+    if ($match) { $printerName = $match; break }
+    Write-Host "  Nao achei '$printerName' na lista acima. Copie o nome EXATO de uma das linhas," -ForegroundColor Red
+    Write-Host "  ou deixe em branco pra usar a impressora padrao do Windows." -ForegroundColor Red
+}
 
 Write-Host ""
 Write-Host "Tamanho da bobina de papel da impressora termica:" -ForegroundColor Yellow

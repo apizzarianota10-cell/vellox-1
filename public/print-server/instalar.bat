@@ -1,5 +1,5 @@
 @echo off
-set "INSTALADOR_VERSAO=v3"
+set "INSTALADOR_VERSAO=v4"
 title Vellox - Instalador de Impressao %INSTALADOR_VERSAO%
 color 0A
 echo.
@@ -57,11 +57,23 @@ echo   Iniciando servidor (oculto, sem janela)...
 echo  =========================================
 echo.
 start "" "%DIR%\iniciar.bat"
+
+:: Espera o servidor subir e mostra as ultimas linhas do log aqui mesmo —
+:: antes disso, um erro logo na largada (impressora errada, config
+:: corrompido etc.) so aparecia pra quem sabia abrir o log.txt sozinho.
+echo  Aguardando o servidor iniciar...
+timeout /t 5 /nobreak >nul
 echo.
-echo  Servidor rodando escondido em segundo plano — nao tem janela pra
-echo  fechar sem querer. Pra ver o que ele esta fazendo (ou algum erro),
-echo  abra o arquivo: %DIR%\log.txt
+echo  ----------------------------------------
+echo   Ultimas linhas do servidor (log.txt):
+echo  ----------------------------------------
+powershell -NoProfile -Command "if (Test-Path '%DIR%\log.txt') { Get-Content '%DIR%\log.txt' -Tail 12 } else { Write-Host '(log.txt ainda nao foi criado)' }"
+echo  ----------------------------------------
 echo.
-echo  Faca um pedido de teste no Vellox.
+echo  Se aparecer algum "ERRO" ou "AVISO" em vermelho/amarelo acima, resolva
+echo  antes de continuar. Se nao, pode fazer um pedido de teste no Vellox.
+echo.
+echo  O servidor continua rodando escondido em segundo plano. Pra conferir
+echo  de novo mais tarde, abra: %DIR%\log.txt
 echo.
 pause
