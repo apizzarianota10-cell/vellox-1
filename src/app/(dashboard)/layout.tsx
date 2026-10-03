@@ -11,6 +11,7 @@ import LayoutUpdateModal from "@/components/dashboard/LayoutUpdateModal";
 import { PlanoProvider } from "@/contexts/PlanoContext";
 import { LojaProvider } from "@/contexts/LojaContext";
 import type { Plano, Loja } from "@/types";
+import type { LayoutOpt } from "@/lib/printService";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   try {
@@ -46,14 +47,24 @@ export default async function DashboardLayout({ children }: { children: React.Re
       .order("ordem")
       .order("created_at");
 
+    // Layout do cupom, direto do banco — a mesma fonte que o agente de
+    // impressão (servidor.ps1) usa, pra impressão automática/popup de novo
+    // pedido no navegador nunca mais sair com um layout diferente do que
+    // está configurado (antes dependia do localStorage de cada navegador).
+    const { data: printPrefs } = await supabase
+      .from("configuracoes_print_agent")
+      .select("layout")
+      .eq("empresa_id", user.id)
+      .maybeSingle();
+
     const lojas: Loja[] = (lojasRaw ?? []) as Loja[];
     const plano: Plano  = (empresa?.plano ?? "basic") as Plano;
 
     return (
       <PlanoProvider plano={plano} assinaturaAtiva={empresa?.assinatura_ativa ?? false}>
         <LojaProvider initialLojas={lojas} empresaId={user.id}>
-          <PrintListener empresaId={empresa.id} empresaNome={empresa.nome} empresaCnpj={empresa.cnpj} />
-          <NewOrderPopup empresaId={empresa.id} empresaNome={empresa.nome} empresaCnpj={empresa.cnpj} />
+          <PrintListener empresaId={empresa.id} empresaNome={empresa.nome} empresaCnpj={empresa.cnpj} layout={printPrefs?.layout as LayoutOpt | undefined} />
+          <NewOrderPopup empresaId={empresa.id} empresaNome={empresa.nome} empresaCnpj={empresa.cnpj} layout={printPrefs?.layout as LayoutOpt | undefined} />
           <LayoutUpdateModal empresaId={empresa.id} empresaNome={empresa.nome} />
           <div className="flex flex-col h-full">
             <VersionChecker />

@@ -8,9 +8,10 @@ import { saveLayout, printOrder, buildTestPedido } from "@/lib/printService";
 import type { LayoutOpt } from "@/lib/printService";
 import { LAYOUT_PREVIEWS } from "@/lib/printLayoutPreviews";
 
-// Bump esse sufixo (_v1 -> _v2) se um novo aviso de layout precisar
-// reaparecer pra quem já viu este.
-const SEEN_KEY = "vellox_layout_update_v1_seen";
+// Bump esse sufixo (_v1 -> _v2 -> ...) se um novo aviso de layout precisar
+// reaparecer pra quem já viu este. v2: corrigida a divergência entre
+// impressão automática e reimpressão (liam fontes diferentes).
+const SEEN_KEY = "vellox_layout_update_v2_seen";
 
 interface Props {
   empresaId: string;
@@ -83,8 +84,8 @@ export default function LayoutUpdateModal({ empresaId, empresaNome }: Props) {
               <Printer size={16} style={{ color: "#E4002B" }} />
             </div>
             <div>
-              <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>Layouts de impressão atualizados</p>
-              <p className="text-xs" style={{ color: "var(--text-4)" }}>Escolha o que fica melhor no seu cupom</p>
+              <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>Correção: impressão automática</p>
+              <p className="text-xs" style={{ color: "var(--text-4)" }}>Agora sai com o mesmo layout da reimpressão</p>
             </div>
           </div>
           <button onClick={fechar} style={{ color: "var(--text-4)", flexShrink: 0 }}>
@@ -93,7 +94,7 @@ export default function LayoutUpdateModal({ empresaId, empresaNome }: Props) {
         </div>
 
         <p className="text-xs mt-3 mb-4" style={{ color: "var(--text-3)" }}>
-          Deixamos os 3 modelos de cupom mais limpos. Imprima um teste em cada um pra ver como sai na sua impressora, e depois selecione o que você quer usar.
+          Corrigimos um bug: a impressão automática às vezes saía com um layout diferente do escolhido aqui. Confirme (ou troque) o layout agora pra garantir que ficou certo — imprima um teste em cada um pra ver como sai na sua impressora.
         </p>
 
         <div className="grid grid-cols-3 gap-2 mb-4">

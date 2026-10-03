@@ -277,10 +277,10 @@ function buildCompacto(pedido: Pedido, empresaNome: string, W: number, bigW: num
   ];
 }
 
-export function buildReceipt(pedido: Pedido, empresaNome = "PEDIDO"): Uint8Array {
+export function buildReceipt(pedido: Pedido, empresaNome = "PEDIDO", layoutOverride?: LayoutOpt): Uint8Array {
   const W    = getColumns();
   const bigW = Math.floor(W / 2); // colunas em double-width mode
-  const layout = getLayout();
+  const layout = layoutOverride ?? getLayout();
 
   const body = layout === "moderno" ? buildModerno(pedido, empresaNome, W, bigW)
     : layout === "compacto" ? buildCompacto(pedido, empresaNome, W, bigW)

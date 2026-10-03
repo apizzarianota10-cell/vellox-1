@@ -327,11 +327,19 @@ ${body}
 </body></html>`;
 }
 
-export function printOrder(pedido: Pedido, empresaNome?: string, _empresaCnpj?: string): boolean {
+// `layoutOverride` vem do banco (configuracoes_print_agent.layout, buscado
+// no servidor) quando o chamador tem acesso a isso — é a mesma fonte que o
+// agente de impressão (servidor.ps1) usa. Sem isso, cada navegador podia
+// ficar com um layout "preso" no localStorage diferente do que está
+// configurado, enquanto o agente (que só lê do banco) imprimia outro —
+// reimpressão e impressão automática saindo com layouts diferentes. Sem
+// override (ex: teste em Automações, que já salva no localStorage antes de
+// imprimir), continua usando o que está salvo neste navegador.
+export function printOrder(pedido: Pedido, empresaNome?: string, _empresaCnpj?: string, layoutOverride?: LayoutOpt): boolean {
   try {
     const paperSize   = getSavedPaperSize();
     const fontSizeOpt = getSavedFontSize();
-    const layout      = getSavedLayout();
+    const layout      = layoutOverride ?? getSavedLayout();
     const logoUrl     = getSavedLogo();
     const html        = formatReceipt(pedido, empresaNome ?? "PEDIDO", paperSize, fontSizeOpt, layout, logoUrl);
 
@@ -371,6 +379,7 @@ export function printOrder(pedido: Pedido, empresaNome?: string, _empresaCnpj?: 
 export async function autoPrint(
   pedido: Pedido,
   empresaNome?: string,
+  layoutOverride?: LayoutOpt,
 ): Promise<{ ok: boolean; method: "usb" | "dialog" | "skip" | "error" }> {
   const tracked = getTracked();
   if (tracked.has(pedido.id)) return { ok: false, method: "skip" };
@@ -378,7 +387,7 @@ export async function autoPrint(
   // Tenta USB primeiro (100% silencioso, sem diálogo)
   if (getSavedPrinterName()) {
     try {
-      const bytes = buildReceipt(pedido, empresaNome);
+      const bytes = buildReceipt(pedido, empresaNome, layoutOverride);
       await printViaUsb(bytes);
       trackPrinted(pedido.id);
       return { ok: true, method: "usb" };
@@ -397,7 +406,7 @@ export async function autoPrint(
   // Com Chrome --kiosk-printing: imprime silenciosamente
   // Sem --kiosk-printing: abre diálogo de impressão
   try {
-    const ok = printOrder(pedido, empresaNome);
+    const ok = printOrder(pedido, empresaNome, undefined, layoutOverride);
     if (ok) trackPrinted(pedido.id);
     return { ok, method: ok ? "dialog" : "error" };
   } catch {

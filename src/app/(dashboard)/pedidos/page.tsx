@@ -2,12 +2,13 @@
 import PedidosClient from "./PedidosClient";
 import DbError from "@/components/DbError";
 import type { Pedido, Produto } from "@/types";
+import type { LayoutOpt } from "@/lib/printService";
 
 export default async function PedidosPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const [pedidosRes, empresaRes, produtosRes, configRes] = await Promise.all([
+  const [pedidosRes, empresaRes, produtosRes, configRes, printPrefsRes] = await Promise.all([
     supabase
       .from("pedidos")
       .select("*, motoboy:motoboys(*)")
@@ -31,6 +32,11 @@ export default async function PedidosPage() {
       .select("cor_principal, modo_calculo_pizza")
       .eq("empresa_id", user!.id)
       .single(),
+    supabase
+      .from("configuracoes_print_agent")
+      .select("layout")
+      .eq("empresa_id", user!.id)
+      .maybeSingle(),
   ]);
 
   if (pedidosRes.error) return <DbError message="Erro ao carregar pedidos. Verifique sua conexão e tente novamente." />;
@@ -51,6 +57,7 @@ export default async function PedidosPage() {
       produtos={(produtosRes.data ?? []) as Produto[]}
       modoCalculo={(configRes.data?.modo_calculo_pizza ?? "maior_valor") as "maior_valor" | "proporcional"}
       corPrincipal={configRes.data?.cor_principal ?? "#E4002B"}
+      layoutImpressao={printPrefsRes.data?.layout as LayoutOpt | undefined}
     />
   );
 }

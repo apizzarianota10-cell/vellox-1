@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { printOrder } from "@/lib/printService";
+import type { LayoutOpt } from "@/lib/printService";
 import type { Pedido } from "@/types";
 import {
   X, Printer, ChevronLeft, ChevronRight,
@@ -21,9 +22,10 @@ interface Props {
   empresaId:    string;
   empresaNome:  string;
   empresaCnpj?: string | null;
+  layout?:      LayoutOpt;
 }
 
-export default function NewOrderPopup({ empresaId, empresaNome, empresaCnpj }: Props) {
+export default function NewOrderPopup({ empresaId, empresaNome, empresaCnpj, layout }: Props) {
   const [orders,      setOrders]      = useState<Pedido[]>([]);
   const [idx,         setIdx]         = useState(0);
   const [printed,     setPrinted]     = useState<Set<string>>(new Set());
@@ -77,7 +79,7 @@ export default function NewOrderPopup({ empresaId, empresaNome, empresaCnpj }: P
   }
 
   function handlePrint(p: Pedido) {
-    printOrder(p, empresaNome, empresaCnpj ?? undefined);
+    printOrder(p, empresaNome, empresaCnpj ?? undefined, layout);
     setPrinted(prev => new Set([...prev, p.id]));
   }
 
@@ -86,7 +88,7 @@ export default function NewOrderPopup({ empresaId, empresaNome, empresaCnpj }: P
     for (let i = 0; i < orders.length; i++) {
       setIdx(i);
       setPrintingIdx(i);
-      printOrder(orders[i], empresaNome, empresaCnpj ?? undefined);
+      printOrder(orders[i], empresaNome, empresaCnpj ?? undefined, layout);
       setPrinted(prev => new Set([...prev, orders[i].id]));
       if (i < orders.length - 1) {
         await new Promise(r => setTimeout(r, 3500));
