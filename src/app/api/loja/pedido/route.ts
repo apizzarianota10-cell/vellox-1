@@ -50,6 +50,11 @@ export async function POST(req: NextRequest) {
     } = body as Record<string, string | number | null | undefined>;
 
     if (!empresa_id || !cliente_nome || !cliente_telefone) {
+      console.error("Campos obrigatórios ausentes (loja/pedido):", {
+        tem_empresa_id: !!empresa_id,
+        tem_cliente_nome: !!cliente_nome,
+        tem_cliente_telefone: !!cliente_telefone,
+      });
       return NextResponse.json({ error: "Campos obrigatórios ausentes" }, { status: 400 });
     }
     if (status !== "em_fila") {
