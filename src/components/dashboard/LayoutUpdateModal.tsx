@@ -10,8 +10,10 @@ import { LAYOUT_PREVIEWS } from "@/lib/printLayoutPreviews";
 
 // Bump esse sufixo (_v1 -> _v2 -> ...) se um novo aviso de layout precisar
 // reaparecer pra quem já viu este. v2: corrigida a divergência entre
-// impressão automática e reimpressão (liam fontes diferentes).
-const SEEN_KEY = "vellox_layout_update_v2_seen";
+// impressão automática e reimpressão (liam fontes diferentes). v3: corrigido
+// o agente de impressão desktop (servidor.ps1) cortando valores e trocando
+// acento por caractere errado — precisa rodar o atualizador pra pegar isso.
+const SEEN_KEY = "vellox_layout_update_v3_seen";
 
 interface Props {
   empresaId: string;
@@ -84,8 +86,8 @@ export default function LayoutUpdateModal({ empresaId, empresaNome }: Props) {
               <Printer size={16} style={{ color: "#E4002B" }} />
             </div>
             <div>
-              <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>Correção: impressão automática</p>
-              <p className="text-xs" style={{ color: "var(--text-4)" }}>Agora sai com o mesmo layout da reimpressão</p>
+              <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>Correção no cupom impresso</p>
+              <p className="text-xs" style={{ color: "var(--text-4)" }}>Acentos errados e valor cortado — corrigido</p>
             </div>
           </div>
           <button onClick={fechar} style={{ color: "var(--text-4)", flexShrink: 0 }}>
@@ -94,7 +96,7 @@ export default function LayoutUpdateModal({ empresaId, empresaNome }: Props) {
         </div>
 
         <p className="text-xs mt-3 mb-4" style={{ color: "var(--text-3)" }}>
-          Corrigimos um bug: a impressão automática às vezes saía com um layout diferente do escolhido aqui. Confirme (ou troque) o layout agora pra garantir que ficou certo — imprima um teste em cada um pra ver como sai na sua impressora.
+          Corrigimos bugs no cupom impresso pelo agente desktop: palavras com acento saindo erradas (ex: "SÓ" virando "Sª") e valores cortados (ex: "R$ 49,00" saindo "R$ 4900"). <strong>Pra isso valer no seu PC, baixe o atualizador abaixo</strong> — a correção não se aplica sozinha. Aproveite e confirme o layout também.
         </p>
 
         <div className="grid grid-cols-3 gap-2 mb-4">
@@ -146,10 +148,10 @@ export default function LayoutUpdateModal({ empresaId, empresaNome }: Props) {
           <Link
             href="/automacoes/impressao"
             onClick={fechar}
-            className="flex items-center gap-1 text-xs font-semibold"
-            style={{ color: "var(--text-4)" }}
+            className="flex items-center gap-1 text-xs font-bold"
+            style={{ color: "#E4002B" }}
           >
-            Mais opções (fonte, papel, logo) <ArrowRight size={11} />
+            Baixar atualizador do agente <ArrowRight size={11} />
           </Link>
         </div>
       </div>

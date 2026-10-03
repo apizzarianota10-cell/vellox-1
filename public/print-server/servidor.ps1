@@ -1,5 +1,28 @@
 # Vellox Print Server - PowerShell (sem Node.js)
-$Versao = "v8"
+$Versao = "v9"
+
+# Impressora termica usa a propria codepage (normalmente CP850/CP860), que
+# NAO bate com os bytes que [int][char] produz pra acentos - "O" (211)
+# por exemplo sai como "a" (ordinal feminino) em vez de "O" na pagina de
+# codigo real da impressora, e caracteres tipograficos (travessao —) saiam
+# como "?". Em vez de apostar na codepage certa pra cada impressora, troca
+# acento/pontuacao especial pelo equivalente ASCII antes de imprimir -
+# funciona igual em qualquer impressora, nao fica refem de configuracao.
+$script:AccentMap = @{
+    [char]0x00E1='a'; [char]0x00E0='a'; [char]0x00E2='a'; [char]0x00E3='a'; [char]0x00E4='a'
+    [char]0x00C1='A'; [char]0x00C0='A'; [char]0x00C2='A'; [char]0x00C3='A'; [char]0x00C4='A'
+    [char]0x00E9='e'; [char]0x00E8='e'; [char]0x00EA='e'; [char]0x00EB='e'
+    [char]0x00C9='E'; [char]0x00C8='E'; [char]0x00CA='E'; [char]0x00CB='E'
+    [char]0x00ED='i'; [char]0x00EC='i'; [char]0x00EE='i'; [char]0x00EF='i'
+    [char]0x00CD='I'; [char]0x00CC='I'; [char]0x00CE='I'; [char]0x00CF='I'
+    [char]0x00F3='o'; [char]0x00F2='o'; [char]0x00F4='o'; [char]0x00F5='o'; [char]0x00F6='o'
+    [char]0x00D3='O'; [char]0x00D2='O'; [char]0x00D4='O'; [char]0x00D5='O'; [char]0x00D6='O'
+    [char]0x00FA='u'; [char]0x00F9='u'; [char]0x00FB='u'; [char]0x00FC='u'
+    [char]0x00DA='U'; [char]0x00D9='U'; [char]0x00DB='U'; [char]0x00DC='U'
+    [char]0x00E7='c'; [char]0x00C7='C'; [char]0x00F1='n'; [char]0x00D1='N'
+    [char]0x2014='-'; [char]0x2013='-'; [char]0x2018="'"; [char]0x2019="'"
+    [char]0x201C='"'; [char]0x201D='"'; [char]0x2026='...'
+}
 
 # Roda oculto (-WindowStyle Hidden) — sem janela pra ver a tela ou pausar
 # num Read-Host, entao tudo vai pro log.txt em vez do console. Reinicia o
@@ -91,7 +114,16 @@ function Build-EscPos($p) {
     $b = New-Object System.Collections.Generic.List[byte]
     $W = if ($tamanhoPapel -eq "58mm") { 32 } else { 48 }
     function xB { param([byte[]]$v) foreach ($x in $v) { $b.Add($x) } }
-    function xT { param([string]$s) foreach ($c in $s.ToCharArray()) { $n=[int][char]$c; $b.Add([byte]$(if($n -lt 256){$n}else{63})) } }
+    function xT { param([string]$s)
+        foreach ($c in $s.ToCharArray()) {
+            if ($script:AccentMap.ContainsKey($c)) {
+                foreach ($mc in $script:AccentMap[$c].ToCharArray()) { $b.Add([byte][int]$mc) }
+                continue
+            }
+            $n=[int][char]$c
+            $b.Add([byte]$(if($n -lt 128){$n}else{63}))
+        }
+    }
     function xN { param([int]$n=1) for($i=0;$i -lt $n;$i++){$b.Add([byte]10)} }
     function Init  { xB @(27,64) }
     function Bold  { param([bool]$on) xB @(27,69,$(if($on){1}else{0})) }
@@ -111,8 +143,21 @@ function Build-EscPos($p) {
     function Sep   { xT ("="*$W); xN }
     function DSep  { xT ("-"*$W); xN }
     function Cut   { xB @(29,86,65,5) }
+    # Se L+R não couberem juntos na largura do papel, forcava os dois na
+    # mesma linha mesmo assim e a impressora cortava/quebrava do jeito dela
+    # (foi o que cortou o "R$ 49,00" pra "R$ 4900" num pedido de teste) -
+    # agora quebra de propósito em duas linhas, rótulo e valor alinhado à
+    # direita, nunca manda uma linha maior que $W.
     function Cols  { param([string]$L,[string]$R)
-        $sp=$W-$L.Length-$R.Length; xT ($L+$(if($sp -gt 0){" "*$sp}else{" "})+$R); xN }
+        $sp = $W - $L.Length - $R.Length
+        if ($sp -gt 0) {
+            xT ($L + (" " * $sp) + $R); xN
+        } else {
+            xT $L; xN
+            $pad = $W - $R.Length
+            xT ($(if ($pad -gt 0) { " " * $pad } else { "" }) + $R); xN
+        }
+    }
     # Impressora térmica não sabe quebrar por palavra — sem isso, uma linha
     # comprida (ex: "1x Pizza G (Calabresa/Mussarela) - R$45,00", comum com
     # 2+ sabores no mesmo item) é cortada no meio de qualquer caractere onde
@@ -565,8 +610,16 @@ while ($true) {
             $prefsBody = @{ p_empresa_id = $empresaId; p_agent_token = $agentToken } | ConvertTo-Json
             $prefs = Invoke-RestMethod -Uri $prefsUri -Headers $headers -Method POST -Body $prefsBody -TimeoutSec 15 -ErrorAction Stop
             if ($prefs -and $prefs.Count -gt 0) {
-                if ($prefs[0].layout) { $layout = $prefs[0].layout }
-                if ($prefs[0].fonte)  { $fonte  = $prefs[0].fonte }
+                if ($prefs[0].layout)       { $layout       = $prefs[0].layout }
+                if ($prefs[0].fonte)        { $fonte        = $prefs[0].fonte }
+                # Nome da loja: sincroniza do banco (empresas.nome) em vez de
+                # depender só do que foi digitado na hora de parear - isso
+                # ficava em branco sempre que a pessoa so apertava ENTER no
+                # configurar.ps1, e o cupom automatico saia com "PEDIDO" no
+                # lugar do nome real. So pisa em cima do valor local se o
+                # banco realmente devolveu algo (campo so existe a partir da
+                # migracao schema_v64 — RPC antiga simplesmente nao manda).
+                if ($prefs[0].empresa_nome) { $empresaNome  = $prefs[0].empresa_nome }
             } else {
                 # Resposta vazia = token/empresa_id nao validou no servidor (ver
                 # get_print_agent_prefs) — fica nisso silenciosamente era o motivo
