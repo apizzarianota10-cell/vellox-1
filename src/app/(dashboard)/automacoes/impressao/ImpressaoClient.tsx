@@ -74,6 +74,25 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
   const [baixandoInstalador, setBaixandoInstalador] = useState(false);
   const [baixandoAtualizador, setBaixandoAtualizador] = useState(false);
 
+  // O link precisa estar no DOM antes do .click() (em alguns navegadores,
+  // um <a download> solto na memória não dispara o download de jeito
+  // nenhum) e a URL do blob só pode ser revogada DEPOIS que o navegador
+  // realmente começou a salvar o arquivo — revogar na hora é uma corrida
+  // que às vezes ganha do download, fazendo o clique parecer que "não fez
+  // nada". Era esse o bug do botão "Baixar atualizador".
+  function downloadBlob(conteudo: string, nomeArquivo: string) {
+    const blob = new Blob([conteudo], { type: "text/plain" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = nomeArquivo; a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 1000);
+  }
+
   // Baixa o instalador com o número da versão já no nome do arquivo (lido do
   // próprio conteúdo, ex: "INSTALADOR_VERSAO=v3"), pra dar pra saber qual
   // versão você tem só de olhar a pasta de Downloads, sem precisar abrir.
@@ -84,13 +103,7 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
       const texto = await res.text();
       const m = texto.match(/INSTALADOR_VERSAO=([^\r\n]+)/);
       const versao = m ? m[1].trim() : "";
-      const nomeArquivo = `vellox-instalador${versao ? `-${versao}` : ""}.bat`;
-
-      const blob = new Blob([texto], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = nomeArquivo; a.click();
-      URL.revokeObjectURL(url);
+      downloadBlob(texto, `vellox-instalador${versao ? `-${versao}` : ""}.bat`);
     } finally {
       setBaixandoInstalador(false);
     }
@@ -104,11 +117,7 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
     try {
       const res = await fetch("/print-server/atualizar.bat", { cache: "no-store" });
       const texto = await res.text();
-      const blob = new Blob([texto], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = "vellox-atualizar.bat"; a.click();
-      URL.revokeObjectURL(url);
+      downloadBlob(texto, "vellox-atualizar.bat");
     } finally {
       setBaixandoAtualizador(false);
     }
@@ -179,11 +188,7 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
       "if exist \"%C1%\" start \"\" \"%C1%\" --kiosk-printing --app=https://appvellox.online/dashboard --disable-popup-blocking",
       "if exist \"%C2%\" start \"\" \"%C2%\" --kiosk-printing --app=https://appvellox.online/dashboard --disable-popup-blocking",
     ];
-    const blob = new Blob([lines.join("\r\n")], { type: "text/plain" });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href = url; a.download = "vellox-instalar-startup.bat"; a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(lines.join("\r\n"), "vellox-instalar-startup.bat");
   }
 
   async function handleSavePaper() {
