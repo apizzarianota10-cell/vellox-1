@@ -1,5 +1,5 @@
 @echo off
-set "INSTALADOR_VERSAO=v4"
+set "INSTALADOR_VERSAO=v5"
 title Vellox - Instalador de Impressao %INSTALADOR_VERSAO%
 color 0A
 echo.
@@ -50,7 +50,24 @@ powershell -NoProfile -Command ^
   "$s.Save();" ^
   "Write-Host 'Atalho de inicializacao criado.' -ForegroundColor Green;"
 
+:: Mata qualquer servidor.ps1 antigo rodando antes de subir o novo — se
+:: ficar um processo velho travando o mutex (trava-contra-duplicidade), o
+:: novo abre e se fecha sozinho na hora sem avisar nada, parecendo que a
+:: instalacao "nao fez nada". So reinstala por cima quando ja tinha algo
+:: rodando (reinstalacao), mas nao custa garantir sempre.
+echo  Garantindo que nao tem servidor antigo rodando...
+powershell -NoProfile -Command ^
+  "$p=@(Get-CimInstance Win32_Process -EA SilentlyContinue | Where-Object { $_.CommandLine -like '*servidor.ps1*' });" ^
+  "if($p.Count -gt 0){" ^
+  "  $p | ForEach-Object { try{Stop-Process -Id $_.ProcessId -Force -EA Stop}catch{} };" ^
+  "  Start-Sleep -Seconds 1;" ^
+  "  $r=@(Get-CimInstance Win32_Process -EA SilentlyContinue | Where-Object { $_.CommandLine -like '*servidor.ps1*' });" ^
+  "  foreach($x in $r){ try{ & taskkill /F /T /PID $x.ProcessId 2>$null | Out-Null }catch{} };" ^
+  "  Start-Sleep -Seconds 1;" ^
+  "  Write-Host 'Processo(s) antigo(s) encerrado(s).' -ForegroundColor Green" ^
+  "} else { Write-Host 'Nenhum servidor antigo rodando.' -ForegroundColor Green }"
 echo.
+
 echo  =========================================
 echo   Instalacao concluida!
 echo   Iniciando servidor (oculto, sem janela)...

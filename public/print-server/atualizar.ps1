@@ -33,12 +33,47 @@ try {
 }
 
 Write-Host "Download OK. Parando o servidor atual (se estiver rodando)..." -ForegroundColor Yellow
-Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe'" -ErrorAction SilentlyContinue |
-    Where-Object { $_.CommandLine -like "*servidor.ps1*" } |
-    ForEach-Object {
-        try { Stop-Process -Id $_.ProcessId -Force -ErrorAction Stop } catch {}
+# Antes filtrava só por Name='powershell.exe' e nunca conferia se matou de
+# verdade — se falhasse (nome diferente tipo pwsh.exe, processo preso,
+# permissao), o script seguia em frente do mesmo jeito e subia a versao
+# nova, que trombava com o mutex do processo antigo ainda vivo e se fechava
+# sozinha sem avisar nada. Parecia que a atualizacao "nao tinha feito
+# nada". Agora: pega qualquer processo com servidor.ps1 na linha de
+# comando (sem travar no nome do executavel), mata, CONFERE que morreu de
+# verdade (reconsultando), escala pra taskkill se precisar, e só segue
+# adiante depois de confirmar — se não conseguir, avisa bem alto em vez de
+# seguir calado.
+function Get-ServidorProcs {
+    Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -like "*servidor.ps1*" }
+}
+
+$tentativas = 0
+$restantes = @(Get-ServidorProcs)
+while ($restantes.Count -gt 0 -and $tentativas -lt 5) {
+    foreach ($proc in $restantes) {
+        if ($tentativas -eq 0) {
+            try { Stop-Process -Id $proc.ProcessId -Force -ErrorAction Stop } catch {}
+        } else {
+            # Escalada: Stop-Process não bastou, tenta taskkill /T (mata a
+            # arvore de processos toda, inclusive filhos presos).
+            try { & taskkill /F /T /PID $proc.ProcessId 2>$null | Out-Null } catch {}
+        }
     }
-Start-Sleep -Seconds 2
+    Start-Sleep -Seconds 1
+    $tentativas++
+    $restantes = @(Get-ServidorProcs)
+}
+
+if ($restantes.Count -gt 0) {
+    Write-Host ""
+    Write-Host "ERRO: nao consegui encerrar o servidor antigo (PID $($restantes[0].ProcessId)) depois de $tentativas tentativas." -ForegroundColor Red
+    Write-Host "A versao nova NAO foi iniciada pra evitar os dois rodando ao mesmo tempo." -ForegroundColor Red
+    Write-Host "Abra o Gerenciador de Tarefas, encerre manualmente o processo acima e rode este atualizador de novo." -ForegroundColor Yellow
+    Read-Host "Pressione ENTER para sair"
+    exit 1
+}
+Write-Host "Servidor antigo encerrado (confirmado)." -ForegroundColor Green
 
 Move-Item -Path $tmpFile -Destination "$dir\servidor.ps1" -Force
 
