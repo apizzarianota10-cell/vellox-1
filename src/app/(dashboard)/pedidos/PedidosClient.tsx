@@ -7,7 +7,7 @@ import {
   Calendar, Loader2, Clock, CheckCircle, Bike, Navigation,
   Trash2, AlertTriangle, Eye, EyeOff, Send, ShoppingBag, Truck, Pencil,
   Clipboard, Banknote, CreditCard, Zap, Phone, User, FileText, Image as ImageIcon, Printer,
-  Bell, VolumeX,
+  Bell, VolumeX, Star,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { log } from "@/lib/auditoria";
@@ -1195,6 +1195,18 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                 <span className="text-xs" style={{ color: "#22c55e" }}>Entregue com sucesso</span>
               </div>
             )}
+            {pedido.avaliacao_nota && (
+              <div className="flex items-start gap-1.5 mt-2 px-2.5 py-2 rounded-lg" style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)" }}>
+                <div className="flex gap-0.5 flex-shrink-0 mt-0.5">
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <Star key={i} size={11} fill={i <= pedido.avaliacao_nota! ? "#f59e0b" : "none"} style={{ color: "#f59e0b" }} />
+                  ))}
+                </div>
+                {pedido.avaliacao_comentario && (
+                  <span className="text-xs" style={{ color: "#78350f" }}>{pedido.avaliacao_comentario}</span>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1714,6 +1726,18 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                     <div className="flex items-center gap-1.5 mt-3">
                       <CheckCircle size={12} style={{ color: "#22c55e" }} />
                       <span className="text-xs" style={{ color: "#22c55e" }}>Entregue com sucesso</span>
+                    </div>
+                  )}
+                  {pedido.avaliacao_nota && (
+                    <div className="flex items-start gap-1.5 mt-2 px-2.5 py-2 rounded-lg" style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.2)" }}>
+                      <div className="flex gap-0.5 flex-shrink-0 mt-0.5">
+                        {[1, 2, 3, 4, 5].map(i => (
+                          <Star key={i} size={11} fill={i <= pedido.avaliacao_nota! ? "#f59e0b" : "none"} style={{ color: "#f59e0b" }} />
+                        ))}
+                      </div>
+                      {pedido.avaliacao_comentario && (
+                        <span className="text-xs" style={{ color: "#78350f" }}>{pedido.avaliacao_comentario}</span>
+                      )}
                     </div>
                   )}
                 </div>

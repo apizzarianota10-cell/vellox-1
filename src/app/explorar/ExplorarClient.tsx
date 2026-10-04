@@ -41,6 +41,7 @@ interface Loja {
   verificado: boolean; lat: number | null; lng: number | null;
   config: LojaConfig | null; destaque: boolean; categoria: string | null;
   created_at: string;
+  avaliacaoMedia: number | null; avaliacaoTotal: number;
 }
 
 interface Produto {
@@ -126,16 +127,6 @@ function haversine(lat1: number, lng1: number, lat2: number, lng2: number): numb
   return R * 2 * Math.asin(Math.sqrt(a));
 }
 
-function fakeRating(id: string): number {
-  const s = id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  return Math.round((3.8 + (s % 12) / 10) * 10) / 10;
-}
-
-function fakeReviews(id: string): number {
-  const s = id.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  return 50 + (s % 480);
-}
-
 function fakePedidosHoje(id: string): number {
   const dateStr = new Date().toDateString();
   const s = [...id, ...dateStr].reduce((a, c) => a + c.charCodeAt(0), 0);
@@ -218,8 +209,8 @@ function StorePreviewModal({ loja, isFav, onToggleFav, onClose, accent }: {
   const aberto = loja.config?.aberto !== false;
   const taxa   = loja.config?.taxa_entrega ?? null;
   const tempo  = loja.config?.tempo_entrega ?? "30-45 min";
-  const rating = fakeRating(loja.id);
-  const reviews = fakeReviews(loja.id);
+  const rating = loja.avaliacaoMedia;
+  const reviews = loja.avaliacaoTotal;
 
   function share() {
     const url = `${window.location.origin}/loja/${loja.slug}`;
@@ -307,15 +298,17 @@ function StorePreviewModal({ loja, isFav, onToggleFav, onClose, accent }: {
           </div>
 
           {/* Rating */}
-          <div className="flex items-center gap-2 mb-3">
-            <div className="flex gap-0.5">
-              {[1,2,3,4,5].map(i => (
-                <Star key={i} size={13} fill={i <= Math.round(rating) ? "#fbbf24" : "none"} style={{ color: "#fbbf24" }} />
-              ))}
+          {reviews > 0 && (
+            <div className="flex items-center gap-2 mb-3">
+              <div className="flex gap-0.5">
+                {[1,2,3,4,5].map(i => (
+                  <Star key={i} size={13} fill={i <= Math.round(rating!) ? "#fbbf24" : "none"} style={{ color: "#fbbf24" }} />
+                ))}
+              </div>
+              <span className="font-bold" style={{ fontSize: 13, color: "#fbbf24" }}>{rating}</span>
+              <span style={{ fontSize: 12, color: "#6b7280" }}>({reviews} avaliações)</span>
             </div>
-            <span className="font-bold" style={{ fontSize: 13, color: "#fbbf24" }}>{rating}</span>
-            <span style={{ fontSize: 12, color: "#6b7280" }}>({reviews} avaliações)</span>
-          </div>
+          )}
 
           {loja.config?.descricao && (
             <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 16, lineHeight: 1.6 }}>
@@ -503,7 +496,7 @@ function StoreCard({
   const aberto = loja.config?.aberto !== false;
   const taxa   = loja.config?.taxa_entrega ?? null;
   const tempo  = loja.config?.tempo_entrega ?? "30-45 min";
-  const rating = fakeRating(loja.id);
+  const rating = loja.avaliacaoMedia;
   const [hov, setHov] = useState(false);
 
   return (
@@ -555,11 +548,13 @@ function StoreCard({
         </div>
 
         {/* Rating */}
-        <div className="flex items-center gap-1 mb-2">
-          <Star size={11} fill="#fbbf24" style={{ color: "#fbbf24" }} />
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#fbbf24" }}>{rating}</span>
-          <span style={{ fontSize: 11, color: "#4b5563" }}>({fakeReviews(loja.id)})</span>
-        </div>
+        {loja.avaliacaoTotal > 0 && (
+          <div className="flex items-center gap-1 mb-2">
+            <Star size={11} fill="#fbbf24" style={{ color: "#fbbf24" }} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#fbbf24" }}>{rating}</span>
+            <span style={{ fontSize: 11, color: "#4b5563" }}>({loja.avaliacaoTotal})</span>
+          </div>
+        )}
 
         <div className="flex items-center gap-2 flex-wrap mb-3">
           <span className="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: aberto ? "rgba(34,197,94,0.1)" : "rgba(100,116,139,0.1)", color: aberto ? "#22c55e" : "#64748b", border: `1px solid ${aberto ? "rgba(34,197,94,0.2)" : "rgba(100,116,139,0.15)"}` }}>
@@ -601,7 +596,7 @@ function FeaturedLandscapeCarousel({ destaques, favs, onToggleFav, accent }: {
   const aberto = loja.config?.aberto !== false;
   const taxa   = loja.config?.taxa_entrega ?? null;
   const tempo  = loja.config?.tempo_entrega ?? "30-45 min";
-  const rating = fakeRating(loja.id);
+  const rating = loja.avaliacaoMedia;
   const fav    = favs.has(loja.id);
 
   function prev() { setIdx(p => (p - 1 + destaques.length) % destaques.length); }
@@ -663,9 +658,11 @@ function FeaturedLandscapeCarousel({ destaques, favs, onToggleFav, accent }: {
                 </div>
               </div>
               <div className="flex items-center gap-3 flex-wrap">
-                <span className="flex items-center gap-1" style={{ fontSize: 12, color: "#fbbf24", fontWeight: 700 }}>
-                  <Star size={11} fill="#fbbf24" /> {rating}
-                </span>
+                {loja.avaliacaoTotal > 0 && (
+                  <span className="flex items-center gap-1" style={{ fontSize: 12, color: "#fbbf24", fontWeight: 700 }}>
+                    <Star size={11} fill="#fbbf24" /> {rating}
+                  </span>
+                )}
                 <span style={{ fontSize: 12, fontWeight: 700, color: aberto ? "#4ade80" : "#f87171" }}>
                   {aberto ? "● Aberto" : "● Fechado"}
                 </span>
@@ -904,7 +901,7 @@ function RestauranteDosDia({ loja, accent, isFav, onToggleFav, onPreview }: {
   const aberto = loja.config?.aberto !== false;
   const taxa   = loja.config?.taxa_entrega ?? null;
   const tempo  = loja.config?.tempo_entrega ?? "30-45 min";
-  const rating = fakeRating(loja.id);
+  const rating = loja.avaliacaoMedia;
   const pedidos = fakePedidosHoje(loja.id);
 
   return (
@@ -951,9 +948,11 @@ function RestauranteDosDia({ loja, accent, isFav, onToggleFav, onPreview }: {
                 {loja.verificado && <BadgeCheck size={14} style={{ color: "#60a5fa", flexShrink: 0 }} />}
               </div>
               <div className="flex items-center gap-3 flex-wrap">
-                <span className="flex items-center gap-1" style={{ fontSize: 12, color: "#fbbf24", fontWeight: 700 }}>
-                  <Star size={10} fill="#fbbf24" /> {rating}
-                </span>
+                {loja.avaliacaoTotal > 0 && (
+                  <span className="flex items-center gap-1" style={{ fontSize: 12, color: "#fbbf24", fontWeight: 700 }}>
+                    <Star size={10} fill="#fbbf24" /> {rating}
+                  </span>
+                )}
                 <span style={{ fontSize: 12, fontWeight: 700, color: aberto ? "#4ade80" : "#f87171" }}>
                   {aberto ? "● Aberto" : "● Fechado"}
                 </span>
@@ -1242,7 +1241,7 @@ export default function ExplorarClient({ lojas, banners, categorias, heroConfig 
       const aOpen = a.config?.aberto !== false ? 1 : 0;
       const bOpen = b.config?.aberto !== false ? 1 : 0;
       if (sortMode === "avaliacao") {
-        const r = fakeRating(b.id) - fakeRating(a.id);
+        const r = (b.avaliacaoMedia ?? 0) - (a.avaliacaoMedia ?? 0);
         return r !== 0 ? r : bOpen - aOpen;
       }
       if (sortMode === "tempo") {

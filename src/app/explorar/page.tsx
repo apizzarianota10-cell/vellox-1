@@ -86,9 +86,22 @@ export default async function ExplorarPage() {
     if (data) config = { ...CONFIG_DEFAULTS, ...data };
   } catch { /* tabela ainda não criada */ }
 
+  // Avaliações reais (média + total) por loja — RPC opcional, degrada pra
+  // "sem avaliação" se a migração ainda não rodou.
+  let avaliacoesMap = new Map<string, { media: number; total: number }>();
+  try {
+    const { data: avaliacoes } = empresaIds.length
+      ? await supabase.rpc("get_avaliacoes_publicas", { p_empresa_ids: empresaIds })
+      : { data: [] };
+    avaliacoesMap = new Map(
+      (avaliacoes ?? []).map((a: { empresa_id: string; media: number; total: number }) => [a.empresa_id, { media: a.media, total: a.total }])
+    );
+  } catch { /* ainda não migrado */ }
+
   const lojas = (empresas ?? []).map(e => {
     const cfg   = configMap.get(e.id) ?? null;
     const extra = extrasMap.get(e.id);
+    const aval  = avaliacoesMap.get(e.id);
     return {
       id:         e.id,
       nome:       e.nome,
@@ -109,6 +122,8 @@ export default async function ExplorarPage() {
       destaque:    extra?.destaque  ?? false,
       categoria:   extra?.categoria ?? null,
       created_at:  e.created_at as string,
+      avaliacaoMedia: aval?.media ?? null,
+      avaliacaoTotal: aval?.total ?? 0,
     };
   });
 

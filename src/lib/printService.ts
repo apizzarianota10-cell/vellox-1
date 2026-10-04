@@ -80,6 +80,7 @@ export function buildTestPedido(empresaId: string): Pedido {
     created_at:       new Date().toISOString(),
     updated_at:       new Date().toISOString(),
     printed_at:       null, print_count: 0, auto_printed: false,
+    avaliacao_nota: null, avaliacao_comentario: null,
   };
 }
 

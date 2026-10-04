@@ -27,6 +27,7 @@ export interface Empresa {
   plano: Plano;
   verificado: boolean;
   senha_financeiro: string | null;
+  mostrar_dashboard_menu: boolean;
 }
 
 export interface ProdutoMaisVendido {
@@ -99,6 +100,8 @@ export interface Pedido {
   print_count: number;
   auto_printed: boolean;
   motoboy?: Motoboy;
+  avaliacao_nota: number | null;
+  avaliacao_comentario: string | null;
 }
 
 export interface ConfiguracaoPrintAgent {

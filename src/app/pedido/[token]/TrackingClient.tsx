@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { CheckCircle, Clock, ChevronRight, Package, Bike, Home, MapPin, Phone, RefreshCw, Zap, Bell, BellRing, X, MessageCircle } from "lucide-react";
+import { CheckCircle, Clock, ChevronRight, Package, Bike, Home, MapPin, Phone, RefreshCw, Zap, Bell, BellRing, X, MessageCircle, Star, Loader2 } from "lucide-react";
 
 type Status =
   | "em_fila" | "em_preparo" | "finalizado"
@@ -61,6 +61,8 @@ interface Pedido {
   troco_para: number | null;
   motoboy: { nome: string; telefone: string; latitude: number | null; longitude: number | null } | null;
   empresa: { nome: string; configuracao_loja: { telefone_contato: string | null } | { telefone_contato: string | null }[] | null } | null;
+  avaliacao_nota: number | null;
+  avaliacao_comentario: string | null;
 }
 
 function linkWhatsappLoja(pedido: Pedido): string | null {
@@ -105,6 +107,101 @@ function getStepIndex(steps: Step[], status: Status): number {
     if (steps[i].statuses.includes(status)) return i;
   }
   return 0;
+}
+
+interface AvaliacaoCardProps {
+  token: string;
+  notaAtual: number | null;
+  comentarioAtual: string | null;
+  onEnviada: (nota: number, comentario: string | null) => void;
+}
+
+function AvaliacaoCard({ token, notaAtual, comentarioAtual, onEnviada }: AvaliacaoCardProps) {
+  const [nota, setNota]           = useState(0);
+  const [hoverNota, setHoverNota] = useState(0);
+  const [comentario, setComentario] = useState("");
+  const [enviando, setEnviando]   = useState(false);
+  const [erro, setErro]           = useState("");
+
+  if (notaAtual !== null) {
+    return (
+      <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 2px 20px rgba(0,0,0,0.08)", padding: "18px 20px", marginBottom: 16, animation: "slideUp 0.4s ease" }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 10px" }}>
+          Sua avaliação
+        </p>
+        <div className="flex gap-1 mb-2">
+          {[1, 2, 3, 4, 5].map(i => (
+            <Star key={i} size={20} fill={i <= notaAtual ? "#fbbf24" : "none"} style={{ color: "#fbbf24" }} />
+          ))}
+        </div>
+        {comentarioAtual && <p style={{ fontSize: 13, color: "#475569", margin: 0 }}>{comentarioAtual}</p>}
+        <p style={{ fontSize: 12, color: "#94a3b8", margin: comentarioAtual ? "8px 0 0" : "4px 0 0" }}>Obrigado pelo feedback! 🙌</p>
+      </div>
+    );
+  }
+
+  async function enviar() {
+    if (nota < 1) return;
+    setEnviando(true);
+    setErro("");
+    try {
+      const res = await fetch(`/api/pedido/${token}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nota, comentario: comentario.trim() || undefined }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Erro ao enviar avaliação");
+      onEnviada(nota, comentario.trim() || null);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao enviar avaliação");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 2px 20px rgba(0,0,0,0.08)", padding: "18px 20px", marginBottom: 16, animation: "slideUp 0.4s ease" }}>
+      <p style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", margin: "0 0 2px" }}>Como foi seu pedido?</p>
+      <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 12px" }}>Sua avaliação ajuda outros clientes e a loja.</p>
+
+      <div className="flex gap-1.5 mb-3">
+        {[1, 2, 3, 4, 5].map(i => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => setNota(i)}
+            onMouseEnter={() => setHoverNota(i)}
+            onMouseLeave={() => setHoverNota(0)}
+            style={{ background: "none", border: "none", padding: 2, cursor: "pointer" }}
+          >
+            <Star size={28} fill={i <= (hoverNota || nota) ? "#fbbf24" : "none"} style={{ color: "#fbbf24" }} />
+          </button>
+        ))}
+      </div>
+
+      {nota > 0 && (
+        <>
+          <textarea
+            value={comentario}
+            onChange={e => setComentario(e.target.value.slice(0, 1000))}
+            placeholder="Conte como foi (opcional)"
+            rows={3}
+            style={{ width: "100%", borderRadius: 12, border: "1px solid #e2e8f0", padding: "10px 12px", fontSize: 13, fontFamily: "inherit", resize: "none", marginBottom: 10, boxSizing: "border-box" }}
+          />
+          {erro && <p style={{ fontSize: 12, color: "#dc2626", margin: "0 0 8px" }}>{erro}</p>}
+          <button
+            onClick={enviar}
+            disabled={enviando}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "11px", borderRadius: 12, background: "#E4002B", color: "#fff", border: "none", fontWeight: 700, fontSize: 14, cursor: "pointer", opacity: enviando ? 0.7 : 1 }}
+          >
+            {enviando && <Loader2 size={15} className="animate-spin" />}
+            {enviando ? "Enviando..." : "Enviar avaliação"}
+          </button>
+        </>
+      )}
+    </div>
+  );
 }
 
 export default function TrackingClient({ token }: { token: string }) {
@@ -320,6 +417,16 @@ export default function TrackingClient({ token }: { token: string }) {
             </div>
           )}
         </div>
+
+        {/* Avaliação — só depois de entregue */}
+        {isEntregue && (
+          <AvaliacaoCard
+            token={token}
+            notaAtual={pedido.avaliacao_nota}
+            comentarioAtual={pedido.avaliacao_comentario}
+            onEnviada={(nota, comentario) => setPedido(p => p ? { ...p, avaliacao_nota: nota, avaliacao_comentario: comentario } : p)}
+          />
+        )}
 
         {/* Motoboy card — quando em rota */}
         {pedido.motoboy && (pedido.status === "em_coleta" || pedido.status === "em_rota_de_entrega" || pedido.status === "aguardando_confirmacao") && (
