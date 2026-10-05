@@ -2,13 +2,16 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import {
   Zap, Package, Truck, MapPin, Bell, BarChart3, Store,
   Users, CheckCircle2, ArrowRight, Star, Navigation,
   Menu, X, Monitor, Shield, Clock, Smartphone,
   MessageCircle, ChevronRight, Headphones,
 } from "lucide-react";
+import Logo from "@/components/landing/Logo";
+import Marquee from "@/components/landing/Marquee";
+import FacilidadesCarousel from "@/components/landing/FacilidadesCarousel";
+import { useScrollReveal } from "@/components/landing/useScrollReveal";
 
 const WA_BASE = "https://wa.me/5581973014080?text=";
 
@@ -140,6 +143,7 @@ const STATUS_MAP: Record<string, { bg: string; dot: string; label: string }> = {
 };
 
 export default function LandingPage() {
+  useScrollReveal();
   const [scrolled,   setScrolled]   = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [demoOpen,   setDemoOpen]   = useState(false);
@@ -253,6 +257,14 @@ export default function LandingPage() {
         @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
         @keyframes ping { 0%{transform:scale(1);opacity:.8} 75%,100%{transform:scale(2.2);opacity:0} }
         @keyframes waPulse { 0%{box-shadow:0 8px 28px rgba(37,211,102,0.45),0 0 0 0 rgba(37,211,102,0.4)} 70%{box-shadow:0 8px 28px rgba(37,211,102,0.45),0 0 0 12px rgba(37,211,102,0)} 100%{box-shadow:0 8px 28px rgba(37,211,102,0.45),0 0 0 0 rgba(37,211,102,0)} }
+        @keyframes marqueeScroll { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+        .land-marquee-track { animation: marqueeScroll 28s linear infinite; }
+        .land-marquee-track:hover { animation-play-state: paused; }
+        .land-reveal { opacity: 0; transform: translateY(28px); transition: opacity .7s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1); }
+        .land-reveal.is-visible { opacity: 1; transform: none; }
+        .land-carousel-track::-webkit-scrollbar { display: none; }
+        .land-carousel-arrows { display: none; }
+        @media(min-width:769px){ .land-carousel-arrows { display: flex !important; } }
         .land-float { animation: float 4s ease-in-out infinite; }
         .land-fade-up { animation: fadeUp .6s cubic-bezier(.16,1,.3,1) both; }
         .land-new-card { animation: newCard .4s cubic-bezier(.16,1,.3,1) both; }
@@ -308,9 +320,7 @@ export default function LandingPage() {
       }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", height: 64, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           {/* Logo */}
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <Image src="/vllx.png" alt="Vellox" width={120} height={40} style={{ objectFit: "contain" }} priority />
-          </div>
+          <Logo size={32} textSize={19} />
 
           {/* Desktop links */}
           <div className="nav-links-desktop" style={{ display: "flex", alignItems: "center", gap: 32 }}>
@@ -478,7 +488,7 @@ export default function LandingPage() {
 
       {/* ══ STATS BAR ═══════════════════════════════════════════════ */}
       <section style={{ background: "#0f172a", padding: "28px 24px" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 48 }}>
+        <div data-reveal className="land-reveal" style={{ maxWidth: 1100, margin: "0 auto", display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 48 }}>
           {[
             { n: "< 30s",  l: "Para despachar um motoboy" },
             { n: "1 link", l: "Catálogo digital próprio" },
@@ -493,9 +503,12 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ══ MARQUEE (loop) ═════════════════════════════════════════ */}
+      <Marquee />
+
       {/* ══ HOW IT WORKS ════════════════════════════════════════════ */}
       <section id="como-funciona" style={{ padding: "96px 24px", background: "#f8fafc" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+        <div data-reveal className="land-reveal" style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 64 }}>
             <div style={{ display: "inline-block", background: "rgba(228,0,43,.08)", border: "1px solid rgba(228,0,43,.15)", borderRadius: 999, padding: "5px 16px", marginBottom: 16 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: "#E4002B" }}>Como funciona</span>
@@ -536,7 +549,7 @@ export default function LandingPage() {
 
       {/* ══ FEATURES ════════════════════════════════════════════════ */}
       <section id="recursos" style={{ padding: "96px 24px", background: "#fff" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+        <div data-reveal className="land-reveal" style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 64 }}>
             <div style={{ display: "inline-block", background: "rgba(228,0,43,.08)", border: "1px solid rgba(228,0,43,.15)", borderRadius: 999, padding: "5px 16px", marginBottom: 16 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: "#E4002B" }}>Recursos</span>
@@ -563,9 +576,24 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ══ FACILIDADES (carrossel horizontal) ═══════════════════════ */}
+      <section style={{ padding: "80px 0", background: "#f8fafc" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px" }}>
+          <div data-reveal className="land-reveal" style={{ textAlign: "center", marginBottom: 48 }}>
+            <h2 style={{ fontSize: "clamp(26px,3vw,38px)", fontWeight: 900, letterSpacing: "-0.04em", margin: "0 0 10px", color: "#0f172a" }}>
+              E tem muito mais facilidade
+            </h2>
+            <p style={{ fontSize: 16, color: "#64748b", maxWidth: 440, margin: "0 auto", lineHeight: 1.6 }}>
+              Arraste pro lado pra ver os módulos que já vêm junto, sem custo extra.
+            </p>
+          </div>
+          <FacilidadesCarousel />
+        </div>
+      </section>
+
       {/* ══ CATÁLOGO DIGITAL ════════════════════════════════════════ */}
       <section style={{ padding: "96px 24px", background: "#f8fafc" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 64 }}>
+        <div data-reveal className="land-reveal" style={{ maxWidth: 1100, margin: "0 auto", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 64 }}>
           {/* Text */}
           <div style={{ flex: 1, minWidth: 280 }}>
             <div style={{ display: "inline-block", background: "rgba(34,197,94,.1)", border: "1px solid rgba(34,197,94,.2)", borderRadius: 999, padding: "5px 16px", marginBottom: 20 }}>
@@ -628,7 +656,7 @@ export default function LandingPage() {
 
       {/* ══ PRICING ══════════════════════════════════════════════════ */}
       <section id="planos" style={{ padding: "96px 24px", background: "#fff" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+        <div data-reveal className="land-reveal" style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 64 }}>
             <div style={{ display: "inline-block", background: "rgba(228,0,43,.08)", border: "1px solid rgba(228,0,43,.15)", borderRadius: 999, padding: "5px 16px", marginBottom: 16 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: "#E4002B" }}>Planos e preços</span>
@@ -741,7 +769,7 @@ export default function LandingPage() {
 
       {/* ══ TESTIMONIALS ════════════════════════════════════════════ */}
       <section style={{ padding: "80px 24px", background: "#f8fafc" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+        <div data-reveal className="land-reveal" style={{ maxWidth: 1100, margin: "0 auto" }}>
           <h2 style={{ fontSize: "clamp(24px,3vw,36px)", fontWeight: 900, letterSpacing: "-0.04em", textAlign: "center", margin: "0 0 48px", color: "#0f172a" }}>
             O que dizem quem já usa
           </h2>
@@ -769,7 +797,7 @@ export default function LandingPage() {
 
       {/* ══ FAQ ═════════════════════════════════════════════════════ */}
       <section id="faq" style={{ padding: "96px 24px", background: "#fff" }}>
-        <div style={{ maxWidth: 720, margin: "0 auto" }}>
+        <div data-reveal className="land-reveal" style={{ maxWidth: 720, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 56 }}>
             <div style={{ display: "inline-block", background: "rgba(228,0,43,.08)", border: "1px solid rgba(228,0,43,.15)", borderRadius: 999, padding: "5px 16px", marginBottom: 16 }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: "#E4002B" }}>Dúvidas frequentes</span>
@@ -804,7 +832,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══ FINAL CTA ═══════════════════════════════════════════════ */}
-      <section style={{ padding: "96px 24px", background: "linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%)", position: "relative", overflow: "hidden" }}>
+      <section data-reveal className="land-reveal" style={{ padding: "96px 24px", background: "linear-gradient(135deg,#0f172a 0%,#2b0a10 100%)", position: "relative", overflow: "hidden" }}>
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse 70% 70% at 50% 50%,rgba(228,0,43,.12),transparent)", pointerEvents: "none" }} />
         <div style={{ maxWidth: 700, margin: "0 auto", textAlign: "center", position: "relative", zIndex: 1 }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(228,0,43,.15)", border: "1px solid rgba(228,0,43,.25)", borderRadius: 999, padding: "6px 16px", marginBottom: 24 }}>
@@ -834,12 +862,7 @@ export default function LandingPage() {
       <footer style={{ background: "#0a0a0a", padding: "40px 24px" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div className="footer-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28, paddingBottom: 28, borderBottom: "1px solid rgba(255,255,255,.06)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 9, background: "linear-gradient(135deg,#E4002B,#A80021)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Zap size={16} color="#fff" strokeWidth={2.5} />
-              </div>
-              <span style={{ fontWeight: 900, fontSize: 18, letterSpacing: "-0.04em", color: "#fff" }}>Vellox</span>
-            </div>
+            <Logo size={32} textSize={18} textColor="#fff" />
             <div style={{ display: "flex", gap: 28 }}>
               {[["#como-funciona","Como funciona"],["#recursos","Recursos"],["#planos","Planos"],["#faq","FAQ"],["/login","Entrar"],["/register","Cadastrar"]].map(([h, l]) => (
                 <a key={h} href={h} style={{ fontSize: 13, color: "#6b7280", textDecoration: "none", transition: "color .15s" }}
