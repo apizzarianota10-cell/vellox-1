@@ -260,7 +260,7 @@ export default function LandingPage() {
         @keyframes marqueeScroll { from{transform:translateX(0)} to{transform:translateX(-50%)} }
         .land-marquee-track { animation: marqueeScroll 28s linear infinite; }
         .land-marquee-track:hover { animation-play-state: paused; }
-        .land-reveal { opacity: 0; transform: translateY(28px); transition: opacity .7s cubic-bezier(.16,1,.3,1), transform .7s cubic-bezier(.16,1,.3,1); }
+        .land-reveal { opacity: 0; transform: translateY(56px) scale(.98); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1); will-change: opacity, transform; }
         .land-reveal.is-visible { opacity: 1; transform: none; }
         .land-carousel-track::-webkit-scrollbar { display: none; }
         .land-carousel-arrows { display: none; }
