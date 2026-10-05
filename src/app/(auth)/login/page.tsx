@@ -5,11 +5,16 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import {
   Eye, EyeOff, Loader2, ArrowRight, ChevronLeft,
-  Zap, Building2, Bike, LogOut,
+  Zap, Building2, Bike, LogOut, Sparkles,
 } from "lucide-react";
 import SplashScreen from "@/components/SplashScreen";
 
 type Step = "select" | "empresa" | "motoboy" | "forgot";
+
+// Conta de demonstração pública — dados fictícios, qualquer visitante pode
+// entrar e usar o painel real sem precisar criar conta.
+const DEMO_EMAIL = "demo@appvellox.online";
+const DEMO_SENHA = "VelloxDemo2026!";
 
 export default function LoginPage() {
   const [splashDone, setSplashDone]   = useState(false);
@@ -55,6 +60,17 @@ export default function LoginPage() {
     setStep(s);
     setError("");
     if (s === "select") { setEmail(""); setPassword(""); }
+  }
+
+  const [demoLoading, setDemoLoading] = useState(false);
+
+  async function handleDemoLogin() {
+    setDemoLoading(true);
+    setError("");
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword({ email: DEMO_EMAIL, password: DEMO_SENHA });
+    if (error) { setError("Não foi possível entrar no modo demo agora. Tente de novo em alguns instantes."); setDemoLoading(false); return; }
+    window.location.href = "/pedidos";
   }
 
   async function handleLogin(e: React.FormEvent) {
@@ -334,6 +350,31 @@ export default function LoginPage() {
                   </div>
                 </button>
               </div>
+
+              <button
+                type="button"
+                disabled={demoLoading}
+                onClick={handleDemoLogin}
+                className="w-full mt-3 p-4 rounded-2xl text-left flex items-center gap-3 transition-opacity"
+                style={{
+                  background: "rgba(255,255,255,.03)",
+                  border: "1px dashed rgba(255,255,255,.14)",
+                  opacity: demoLoading ? .6 : 1,
+                }}
+              >
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                  style={{ background: "rgba(255,255,255,.06)" }}>
+                  {demoLoading
+                    ? <Loader2 size={16} className="animate-spin" style={{ color: "#9ca3af" }} />
+                    : <Sparkles size={16} style={{ color: "#9ca3af" }} />}
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-white text-sm leading-tight">
+                    {demoLoading ? "Entrando..." : "Ver o painel em modo demo"}
+                  </p>
+                  <p className="text-xs mt-0.5" style={{ color: "#6b7280" }}>Sem precisar criar conta</p>
+                </div>
+              </button>
 
               <div className="mt-6 pt-5" style={{ borderTop: "1px solid rgba(255,255,255,.06)" }}>
                 <p className="text-center text-xs" style={{ color: "#4b5563" }}>
