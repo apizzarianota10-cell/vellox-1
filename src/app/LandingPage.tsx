@@ -136,6 +136,17 @@ const TESTIMONIALS = [
   { name: "Açaí & Cia",            city: "Fortaleza, CE",     text: "O catálogo digital aumentou nossos pedidos em 40%. Vale muito o investimento.", avatar: "A", stars: 5 },
 ];
 
+const PRODUTOS_DEMO: { emoji: string; nome: string; preco: number; bg: [string, string] }[] = [
+  { emoji: "🍕", nome: "Pizza Calabresa GG", preco: 58.00, bg: ["#fde68a", "#f59e0b"] },
+  { emoji: "🍔", nome: "X-Burguer Duplo",    preco: 32.00, bg: ["#fecaca", "#ef4444"] },
+  { emoji: "🍟", nome: "Batata Frita G",     preco: 22.00, bg: ["#fed7aa", "#f97316"] },
+  { emoji: "🥤", nome: "Refrigerante Lata",  preco: 6.50,  bg: ["#bfdbfe", "#3b82f6"] },
+  { emoji: "🍦", nome: "Sorvete Napolitano", preco: 14.90, bg: ["#fbcfe8", "#ec4899"] },
+  { emoji: "🌮", nome: "Combo Família",      preco: 89.00, bg: ["#bbf7d0", "#22c55e"] },
+  { emoji: "🍗", nome: "Frango Crispy",      preco: 27.50, bg: ["#fde68a", "#eab308"] },
+  { emoji: "🥗", nome: "Salada Caesar",      preco: 19.90, bg: ["#d9f99d", "#65a30d"] },
+];
+
 const STATUS_MAP: Record<string, { bg: string; dot: string; label: string }> = {
   em_fila:            { bg: "#fef3c7", dot: "#f59e0b", label: "Em fila" },
   em_preparo:         { bg: "#dbeafe", dot: "#3b82f6", label: "Em preparo" },
@@ -155,6 +166,21 @@ export default function LandingPage() {
     { id: 2, nome: "Carlos Pereira", items: "3x Frango Grelhado",    addr: "Rua das Flores, 123", status: "em_preparo" },
     { id: 3, nome: "Juliana Rocha",  items: "2x Marmita, 1x Água",  addr: "Travessa do Sol, 78", status: "em_fila" },
   ]);
+
+  // ── Catálogo demo interativo (seção "Catálogo Digital") ──
+  const [cartCount, setCartCount] = useState(0);
+  const [cartTotal, setCartTotal] = useState(0);
+  const [addedIdx, setAddedIdx]   = useState<number | null>(null);
+  const [cartBump, setCartBump]   = useState(false);
+
+  function handleAddDemo(i: number, preco: number) {
+    setAddedIdx(i);
+    setCartCount(c => c + 1);
+    setCartTotal(t => t + preco);
+    setCartBump(true);
+    setTimeout(() => setAddedIdx(null), 700);
+    setTimeout(() => setCartBump(false), 350);
+  }
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 30);
@@ -260,6 +286,13 @@ export default function LandingPage() {
         @keyframes marqueeScroll { from{transform:translateX(0)} to{transform:translateX(-50%)} }
         .land-marquee-track { animation: marqueeScroll 28s linear infinite; }
         .land-marquee-track:hover { animation-play-state: paused; }
+        @keyframes catdemoScroll { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+        .catdemo-track { animation: catdemoScroll 22s linear infinite; }
+        .catdemo-viewport:hover .catdemo-track { animation-play-state: paused; }
+        @keyframes cartBump { 0%{transform:scale(1)} 45%{transform:scale(1.07)} 100%{transform:scale(1)} }
+        .catdemo-cart-bump { animation: cartBump .35s ease; }
+        @keyframes addPop { 0%{transform:scale(1)} 50%{transform:scale(1.35)} 100%{transform:scale(1.15)} }
+        .catdemo-add-pop { animation: addPop .4s cubic-bezier(.34,1.56,.64,1); }
         .land-reveal { opacity: 0; transform: translateY(56px) scale(.98); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1); will-change: opacity, transform; }
         .land-reveal.is-visible { opacity: 1; transform: none; }
         .land-reveal-item { opacity: 0; transform: translateY(26px); filter: blur(6px); transition: opacity .65s cubic-bezier(.16,1,.3,1), transform .65s cubic-bezier(.16,1,.3,1), filter .65s cubic-bezier(.16,1,.3,1), border-color .2s, background-color .2s; will-change: opacity, transform, filter; }
@@ -627,7 +660,7 @@ export default function LandingPage() {
           </div>
 
           {/* Mockup */}
-          <div style={{ flex: 1, minWidth: 280, display: "flex", justifyContent: "center" }}>
+          <div style={{ flex: 1, minWidth: 280, display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
             <div style={{ width: 300, background: "#fff", borderRadius: 24, overflow: "hidden", boxShadow: "0 24px 60px rgba(0,0,0,.15)", border: "1px solid #e2e8f0" }}>
               {/* Banner */}
               <div style={{ height: 100, background: "linear-gradient(135deg,#E4002B,#a84400)", position: "relative", display: "flex", alignItems: "flex-end", padding: "0 16px 12px" }}>
@@ -640,18 +673,65 @@ export default function LandingPage() {
                   <span key={t} style={{ fontSize: 11, color: "#64748b", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 999, padding: "3px 8px" }}>{t}</span>
                 ))}
               </div>
-              {/* Products */}
-              {[["Pizza GG Calabresa","R$ 58,00"],["X-Burguer Duplo","R$ 32,00"],["Combo Família","R$ 89,00"]].map(([n, p]) => (
-                <div key={n} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid #f8fafc" }}>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 13, color: "#0f172a" }}>{n}</div>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: "#E4002B", marginTop: 2 }}>{p}</div>
-                  </div>
-                  <div style={{ width: 30, height: 30, borderRadius: 8, background: "#E4002B", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 18, flexShrink: 0 }}>+</div>
+              {/* Carrossel de produtos — loop automático, pausa ao passar o mouse, clicável */}
+              <div className="catdemo-viewport" style={{ padding: "14px 0 2px", overflow: "hidden" }}>
+                <div className="catdemo-track" style={{ display: "flex", gap: 12, width: "max-content", padding: "0 16px" }}>
+                  {[...PRODUTOS_DEMO, ...PRODUTOS_DEMO].map((p, i) => (
+                    <div key={i} style={{ width: 104, flexShrink: 0 }}>
+                      <div style={{
+                        width: 104, height: 80, borderRadius: 14, marginBottom: 7, position: "relative", overflow: "hidden",
+                        background: `linear-gradient(135deg, ${p.bg[0]}, ${p.bg[1]})`,
+                        display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32,
+                      }}>
+                        <div style={{ position: "absolute", width: 70, height: 70, borderRadius: "50%", background: "rgba(255,255,255,.25)", top: -24, right: -20 }} />
+                        <span style={{ position: "relative" }}>{p.emoji}</span>
+                        <button
+                          onClick={() => handleAddDemo(i, p.preco)}
+                          aria-label={`Adicionar ${p.nome}`}
+                          className={addedIdx === i ? "catdemo-add-pop" : ""}
+                          style={{
+                            position: "absolute", bottom: 6, right: 6, width: 24, height: 24, borderRadius: 8, border: "none", cursor: "pointer",
+                            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 900,
+                            background: addedIdx === i ? "#16a34a" : "#fff",
+                            color: addedIdx === i ? "#fff" : "#E4002B",
+                            boxShadow: "0 2px 6px rgba(0,0,0,.22)",
+                            transition: "background .2s, color .2s",
+                          }}
+                        >
+                          {addedIdx === i ? "✓" : "+"}
+                        </button>
+                      </div>
+                      <div style={{ fontWeight: 700, fontSize: 11, color: "#0f172a", lineHeight: 1.3 }}>{p.nome}</div>
+                      <div style={{ fontWeight: 800, fontSize: 12, color: "#E4002B", marginTop: 1 }}>
+                        R$ {p.preco.toFixed(2).replace(".", ",")}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-              <div style={{ padding: "12px 16px", background: "#f8fafc", textAlign: "center", fontSize: 11, color: "#94a3b8" }}>appvellox.online/loja/pizzaria</div>
+              </div>
+
+              {/* Mini-carrinho — demo interativa, estado local, sem back-end */}
+              <div className={cartBump ? "catdemo-cart-bump" : ""} style={{
+                margin: "10px 16px 0", padding: "10px 14px", borderRadius: 14,
+                background: cartCount > 0 ? "linear-gradient(135deg,#E4002B,#a84400)" : "#f8fafc",
+                border: cartCount > 0 ? "none" : "1px solid #e2e8f0",
+                display: "flex", alignItems: "center", justifyContent: "space-between", transition: "background .25s",
+              }}>
+                <span style={{ fontSize: 12.5, fontWeight: 700, color: cartCount > 0 ? "#fff" : "#94a3b8" }}>
+                  🛒 {cartCount === 0 ? "Clique num produto pra testar" : `${cartCount} ${cartCount === 1 ? "item" : "itens"} no carrinho`}
+                </span>
+                {cartCount > 0 && (
+                  <span style={{ fontSize: 13, fontWeight: 900, color: "#fff" }}>
+                    R$ {cartTotal.toFixed(2).replace(".", ",")}
+                  </span>
+                )}
+              </div>
+
+              <div style={{ padding: "12px 16px", textAlign: "center", fontSize: 11, color: "#94a3b8" }}>appvellox.online/loja/pizzaria</div>
             </div>
+            <p style={{ fontSize: 12.5, color: "#94a3b8", display: "flex", alignItems: "center", gap: 6, margin: 0 }}>
+              👆 Exemplo interativo — clique nos produtos acima
+            </p>
           </div>
         </div>
       </section>
