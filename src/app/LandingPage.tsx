@@ -136,15 +136,15 @@ const TESTIMONIALS = [
   { name: "Açaí & Cia",            city: "Fortaleza, CE",     text: "O catálogo digital aumentou nossos pedidos em 40%. Vale muito o investimento.", avatar: "A", stars: 5 },
 ];
 
-const PRODUTOS_DEMO: { emoji: string; nome: string; preco: number; bg: [string, string] }[] = [
-  { emoji: "🍕", nome: "Pizza Calabresa GG", preco: 58.00, bg: ["#fde68a", "#f59e0b"] },
-  { emoji: "🍔", nome: "X-Burguer Duplo",    preco: 32.00, bg: ["#fecaca", "#ef4444"] },
-  { emoji: "🍟", nome: "Batata Frita G",     preco: 22.00, bg: ["#fed7aa", "#f97316"] },
-  { emoji: "🥤", nome: "Refrigerante Lata",  preco: 6.50,  bg: ["#bfdbfe", "#3b82f6"] },
-  { emoji: "🍦", nome: "Sorvete Napolitano", preco: 14.90, bg: ["#fbcfe8", "#ec4899"] },
-  { emoji: "🌮", nome: "Combo Família",      preco: 89.00, bg: ["#bbf7d0", "#22c55e"] },
-  { emoji: "🍗", nome: "Frango Crispy",      preco: 27.50, bg: ["#fde68a", "#eab308"] },
-  { emoji: "🥗", nome: "Salada Caesar",      preco: 19.90, bg: ["#d9f99d", "#65a30d"] },
+const PRODUTOS_DEMO: { img: string; nome: string; preco: number }[] = [
+  { img: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=240&h=180&q=70", nome: "Pizza Calabresa GG",       preco: 58.00 },
+  { img: "https://images.unsplash.com/photo-1571091718767-18b5b1457add?auto=format&fit=crop&w=240&h=180&q=70", nome: "X-Burguer Duplo",          preco: 32.00 },
+  { img: "https://images.unsplash.com/photo-1576107232684-1279f390859f?auto=format&fit=crop&w=240&h=180&q=70", nome: "Batata Frita G",            preco: 22.00 },
+  { img: "https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?auto=format&fit=crop&w=240&h=180&q=70", nome: "Suco Natural 500ml",        preco: 9.90  },
+  { img: "https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&fit=crop&w=240&h=180&q=70", nome: "Torta de Frutas Vermelhas", preco: 16.90 },
+  { img: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=240&h=180&q=70",   nome: "Combo Família",             preco: 89.00 },
+  { img: "https://images.unsplash.com/photo-1562967914-608f82629710?auto=format&fit=crop&w=240&h=180&q=70",   nome: "Frango Crispy",             preco: 27.50 },
+  { img: "https://images.unsplash.com/photo-1595587870672-c79b47875c6a?auto=format&fit=crop&w=240&h=180&q=70", nome: "Salada Caprese",            preco: 19.90 },
 ];
 
 const STATUS_MAP: Record<string, { bg: string; dot: string; label: string }> = {
@@ -289,6 +289,7 @@ export default function LandingPage() {
         @keyframes catdemoScroll { from{transform:translateX(0)} to{transform:translateX(-50%)} }
         .catdemo-track { animation: catdemoScroll 22s linear infinite; }
         .catdemo-viewport:hover .catdemo-track { animation-play-state: paused; }
+        .catdemo-photo:hover img { transform: scale(1.12); }
         @keyframes cartBump { 0%{transform:scale(1)} 45%{transform:scale(1.07)} 100%{transform:scale(1)} }
         .catdemo-cart-bump { animation: cartBump .35s ease; }
         @keyframes addPop { 0%{transform:scale(1)} 50%{transform:scale(1.35)} 100%{transform:scale(1.15)} }
@@ -611,6 +612,37 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ══ BANNER PREMIUM (foto real) ═══════════════════════════════ */}
+      <section data-reveal className="land-reveal" style={{ position: "relative", minHeight: 380, display: "flex", alignItems: "center", overflow: "hidden" }}>
+        <img
+          src="https://images.unsplash.com/photo-1526367790999-0150786686a2?auto=format&fit=crop&w=1600&h=900&q=65"
+          alt="" loading="lazy"
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+        />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(100deg, rgba(15,23,42,.95) 0%, rgba(15,23,42,.8) 42%, rgba(15,23,42,.4) 100%)" }} />
+        <div style={{ position: "relative", zIndex: 1, maxWidth: 1100, margin: "0 auto", padding: "72px 24px", width: "100%" }}>
+          <div style={{ maxWidth: 520 }}>
+            <div style={{ display: "inline-block", background: "rgba(228,0,43,.18)", border: "1px solid rgba(228,0,43,.4)", borderRadius: 999, padding: "5px 16px", marginBottom: 18 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#fca5a5" }}>Feito pra quem entrega de verdade</span>
+            </div>
+            <h2 style={{ fontSize: "clamp(26px,3.4vw,40px)", fontWeight: 900, letterSpacing: "-0.04em", color: "#fff", margin: "0 0 16px", lineHeight: 1.15 }}>
+              Do pedido ao motoboy na rua, em segundos
+            </h2>
+            <p style={{ fontSize: 16, color: "#cbd5e1", lineHeight: 1.7, marginBottom: 36 }}>
+              Despacho automático, rota otimizada e rastreamento ao vivo — o motoboy sai pro endereço certo assim que o pedido é aceito, sem ligação, sem rádio.
+            </p>
+            <div style={{ display: "flex", gap: 36, flexWrap: "wrap" }}>
+              {[["< 30s", "pra despachar"], ["100%", "rastreado ao vivo"], ["0", "ligações pro motoboy"]].map(([n, l], i) => (
+                <div key={n} data-reveal className="land-reveal-item" style={{ transitionDelay: `${i * 100}ms` }}>
+                  <div style={{ fontWeight: 900, fontSize: 26, color: "#fff", letterSpacing: "-0.03em" }}>{n}</div>
+                  <div style={{ fontSize: 12.5, color: "#94a3b8", marginTop: 2 }}>{l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ══ FACILIDADES (carrossel horizontal) ═══════════════════════ */}
       <section style={{ padding: "80px 0", background: "#f8fafc" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px" }}>
@@ -678,13 +710,15 @@ export default function LandingPage() {
                 <div className="catdemo-track" style={{ display: "flex", gap: 12, width: "max-content", padding: "0 16px" }}>
                   {[...PRODUTOS_DEMO, ...PRODUTOS_DEMO].map((p, i) => (
                     <div key={i} style={{ width: 104, flexShrink: 0 }}>
-                      <div style={{
+                      <div className="catdemo-photo" style={{
                         width: 104, height: 80, borderRadius: 14, marginBottom: 7, position: "relative", overflow: "hidden",
-                        background: `linear-gradient(135deg, ${p.bg[0]}, ${p.bg[1]})`,
-                        display: "flex", alignItems: "center", justifyContent: "center", fontSize: 32,
+                        background: "#e2e8f0",
                       }}>
-                        <div style={{ position: "absolute", width: 70, height: 70, borderRadius: "50%", background: "rgba(255,255,255,.25)", top: -24, right: -20 }} />
-                        <span style={{ position: "relative" }}>{p.emoji}</span>
+                        <img
+                          src={p.img} alt={p.nome} loading="lazy"
+                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transition: "transform .4s ease" }}
+                        />
+                        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 55%, rgba(0,0,0,.35) 100%)" }} />
                         <button
                           onClick={() => handleAddDemo(i, p.preco)}
                           aria-label={`Adicionar ${p.nome}`}
