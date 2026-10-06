@@ -262,6 +262,8 @@ export default function LandingPage() {
         .land-marquee-track:hover { animation-play-state: paused; }
         .land-reveal { opacity: 0; transform: translateY(56px) scale(.98); transition: opacity .8s cubic-bezier(.16,1,.3,1), transform .8s cubic-bezier(.16,1,.3,1); will-change: opacity, transform; }
         .land-reveal.is-visible { opacity: 1; transform: none; }
+        .land-reveal-item { opacity: 0; transform: translateY(26px); filter: blur(6px); transition: opacity .65s cubic-bezier(.16,1,.3,1), transform .65s cubic-bezier(.16,1,.3,1), filter .65s cubic-bezier(.16,1,.3,1), border-color .2s, background-color .2s; will-change: opacity, transform, filter; }
+        .land-reveal-item.is-visible { opacity: 1; transform: none; filter: blur(0); }
         .land-carousel-track::-webkit-scrollbar { display: none; }
         .land-carousel-arrows { display: none; }
         @media(min-width:769px){ .land-carousel-arrows { display: flex !important; } }
@@ -494,8 +496,8 @@ export default function LandingPage() {
             { n: "1 link", l: "Catálogo digital próprio" },
             { n: "100%",   l: "Sem papel, sem ligação" },
             { n: "24/7",   l: "Sistema sempre online" },
-          ].map(({ n, l }) => (
-            <div key={n} style={{ textAlign: "center" }}>
+          ].map(({ n, l }, i) => (
+            <div key={n} data-reveal className="land-reveal-item" style={{ textAlign: "center", transitionDelay: `${i * 90}ms` }}>
               <div style={{ fontWeight: 900, fontSize: 28, color: "#E4002B", letterSpacing: "-0.04em" }}>{n}</div>
               <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>{l}</div>
             </div>
@@ -564,7 +566,7 @@ export default function LandingPage() {
 
           <div className="feat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24 }}>
             {FEATURES.map((f, i) => (
-              <div key={i} className="feat-card" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 20, padding: 28, boxShadow: "0 2px 12px rgba(0,0,0,.05)" }}>
+              <div key={i} data-reveal className="feat-card land-reveal-item" style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 20, padding: 28, boxShadow: "0 2px 12px rgba(0,0,0,.05)", transitionDelay: `${(i % 3) * 90}ms` }}>
                 <div style={{ width: 52, height: 52, borderRadius: 14, background: f.bg, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 18 }}>
                   <f.icon size={24} color={f.color} strokeWidth={2} />
                 </div>
@@ -670,13 +672,14 @@ export default function LandingPage() {
           </div>
 
           <div className="plans-grid" style={{ display: "flex", gap: 24, alignItems: "stretch", justifyContent: "center" }}>
-            {PLANS.map((plan) => (
-              <div key={plan.name} className="plan-card" style={{
+            {PLANS.map((plan, i) => (
+              <div key={plan.name} data-reveal className="plan-card land-reveal-item" style={{
                 flex: 1, maxWidth: 360, background: plan.highlighted ? "#0f172a" : "#fff",
                 border: plan.highlighted ? "2px solid #E4002B" : "1.5px solid #e2e8f0",
                 borderRadius: 24, padding: 32, position: "relative",
                 boxShadow: plan.highlighted ? "0 24px 60px rgba(228,0,43,.2), 0 0 0 1px rgba(228,0,43,.3)" : "0 2px 12px rgba(0,0,0,.05)",
                 display: "flex", flexDirection: "column",
+                transitionDelay: `${i * 110}ms`,
               }}>
                 {plan.badge && (
                   <div style={{
@@ -775,7 +778,7 @@ export default function LandingPage() {
           </h2>
           <div className="testi-grid" style={{ display: "flex", gap: 24 }}>
             {TESTIMONIALS.map((t, i) => (
-              <div key={i} style={{ flex: 1, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 20, padding: 28, boxShadow: "0 2px 12px rgba(0,0,0,.05)" }}>
+              <div key={i} data-reveal className="land-reveal-item" style={{ flex: 1, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 20, padding: 28, boxShadow: "0 2px 12px rgba(0,0,0,.05)", transitionDelay: `${i * 100}ms` }}>
                 <div style={{ display: "flex", gap: 3, marginBottom: 16 }}>
                   {Array.from({ length: t.stars }).map((_, j) => <Star key={j} size={14} fill="#f59e0b" color="#f59e0b" />)}
                 </div>
@@ -812,7 +815,7 @@ export default function LandingPage() {
 
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {FAQ_ITEMS.map((item, i) => (
-              <div key={i} style={{ border: "1.5px solid", borderColor: faqOpen === i ? "rgba(228,0,43,.3)" : "#e2e8f0", borderRadius: 16, overflow: "hidden", transition: "border-color .2s", background: faqOpen === i ? "rgba(228,0,43,.02)" : "#fff" }}>
+              <div key={i} data-reveal className="land-reveal-item" style={{ border: "1.5px solid", borderColor: faqOpen === i ? "rgba(228,0,43,.3)" : "#e2e8f0", borderRadius: 16, overflow: "hidden", background: faqOpen === i ? "rgba(228,0,43,.02)" : "#fff", transitionDelay: `${i * 70}ms` }}>
                 <button
                   onClick={() => setFaqOpen(faqOpen === i ? null : i)}
                   style={{ width: "100%", padding: "18px 20px", background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, textAlign: "left" }}
