@@ -291,10 +291,14 @@ export default function CatalogoClient({
     setChoiceOpen(true);
   }
 
-  function openWizard() {
+  function openWizard(opts?: { tipo?: "simples" | "pizza"; categoria?: string }) {
     setChoiceOpen(false);
     setEditId(null);
-    setForm(EMPTY_FORM);
+    setForm({
+      ...EMPTY_FORM,
+      tipo: opts?.tipo ?? EMPTY_FORM.tipo,
+      categoria: opts?.categoria ?? EMPTY_FORM.categoria,
+    });
     setImgPreview("");
     setModalTab("basico");
     setVariacoes([]); setSabores([]); setAdicionais([]);
@@ -625,7 +629,8 @@ export default function CatalogoClient({
         }
       }
       if (wizardStep > 0) {
-        setWizardStep(2);
+        // Produto único não tem Tamanhos/Sabores — pula direto pra Adicionais.
+        setWizardStep(form.tipo === "simples" ? 4 : 2);
       } else {
         setModalOpen(false);
       }
@@ -1139,6 +1144,9 @@ export default function CatalogoClient({
   }
 
   const cor = config.cor_principal;
+
+  // Produto único pula Tamanhos (2) e Sabores (3) — só Informações → Adicionais.
+  const wizardStepSequence = form.tipo === "simples" ? [1, 4] : [1, 2, 3, 4];
 
   // ── Importar cardápio ────────────────────────────────────────────
   async function handleImportarCardapio(file: File) {
@@ -2461,7 +2469,7 @@ export default function CatalogoClient({
         }} onClick={e => { if (e.target === e.currentTarget) setChoiceOpen(false); }}>
           <div style={{
             background: "var(--bg-1)", borderRadius: 24, padding: "28px 24px 24px",
-            width: "100%", maxWidth: 420,
+            width: "100%", maxWidth: 420, maxHeight: "92vh", overflowY: "auto",
             boxShadow: "0 24px 64px rgba(0,0,0,0.18)",
           }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
@@ -2473,8 +2481,28 @@ export default function CatalogoClient({
             </div>
             <p style={{ fontSize: 13, color: "var(--text-4)", margin: "0 0 22px" }}>Escolha o tipo de cadastro abaixo</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {/* Produto */}
-              <button onClick={openWizard} style={{
+              {/* Bebida / item simples */}
+              <button onClick={() => openWizard({ tipo: "simples", categoria: "Bebidas" })} style={{
+                display: "flex", alignItems: "center", gap: 16,
+                padding: "16px 18px", borderRadius: 16,
+                background: "rgba(59,130,246,0.08)", border: "2px solid rgba(59,130,246,0.22)",
+                cursor: "pointer", textAlign: "left", width: "100%",
+                transition: "all 0.15s",
+              }}>
+                <div style={{
+                  width: 46, height: 46, borderRadius: 14, flexShrink: 0,
+                  background: "rgba(59,130,246,0.15)", display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <span style={{ fontSize: 22 }}>🥤</span>
+                </div>
+                <div>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: "var(--text-1)", margin: "0 0 2px" }}>Bebida / item simples</p>
+                  <p style={{ fontSize: 12, color: "var(--text-3)", margin: 0 }}>Cadastro rápido: nome, preço e foto — ideal pra bebidas e itens sem variação</p>
+                </div>
+                <ChevronRight size={16} style={{ color: "var(--text-5)", marginLeft: "auto", flexShrink: 0 }} />
+              </button>
+              {/* Produto com variações */}
+              <button onClick={() => openWizard({ tipo: "pizza" })} style={{
                 display: "flex", alignItems: "center", gap: 16,
                 padding: "16px 18px", borderRadius: 16,
                 background: `${cor}08`, border: `2px solid ${cor}22`,
@@ -2485,11 +2513,11 @@ export default function CatalogoClient({
                   width: 46, height: 46, borderRadius: 14, flexShrink: 0,
                   background: `${cor}18`, display: "flex", alignItems: "center", justifyContent: "center",
                 }}>
-                  <span style={{ fontSize: 22 }}>🍔</span>
+                  <span style={{ fontSize: 22 }}>🍕</span>
                 </div>
                 <div>
-                  <p style={{ fontSize: 14, fontWeight: 800, color: "var(--text-1)", margin: "0 0 2px" }}>Produto</p>
-                  <p style={{ fontSize: 12, color: "var(--text-3)", margin: 0 }}>Cadastrar um produto completo com tamanhos, sabores e adicionais</p>
+                  <p style={{ fontSize: 14, fontWeight: 800, color: "var(--text-1)", margin: "0 0 2px" }}>Produto com variações</p>
+                  <p style={{ fontSize: 12, color: "var(--text-3)", margin: 0 }}>Tamanhos, sabores e adicionais — ideal pra pizzas, combos e produtos com opções</p>
                 </div>
                 <ChevronRight size={16} style={{ color: "var(--text-5)", marginLeft: "auto", flexShrink: 0 }} />
               </button>
@@ -2816,7 +2844,7 @@ export default function CatalogoClient({
                   {wizardStep > 0 ? (
                     <>
                       <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-4)", margin: "0 0 3px", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                        Novo produto — passo {wizardStep} de 4
+                        Novo produto — passo {wizardStepSequence.indexOf(wizardStep) + 1} de {wizardStepSequence.length}
                       </p>
                       <p style={{ fontSize: 16, fontWeight: 900, color: "var(--text-1)", margin: 0 }}>
                         {["", "Informações básicas", form.variantes_label || "Variantes", "Sabores", "Adicionais"][wizardStep]}
@@ -2836,7 +2864,7 @@ export default function CatalogoClient({
               {/* Wizard progress bars */}
               {wizardStep > 0 && (
                 <div style={{ display: "flex", gap: 5, paddingBottom: 14 }}>
-                  {[1, 2, 3, 4].map(s => (
+                  {wizardStepSequence.map(s => (
                     <div key={s} style={{
                       flex: 1, height: 4, borderRadius: 999,
                       background: s <= wizardStep ? cor : "var(--border-1)",
@@ -2849,7 +2877,9 @@ export default function CatalogoClient({
               {/* Edit mode tabs */}
               {wizardStep === 0 && editId && (
                 <div style={{ display: "flex", gap: 2, paddingBottom: 0 }}>
-                  {([ ["basico","Produto"], ["tamanhos", form.variantes_label || "Variantes"], ["sabores","Sabores"], ["adicionais","Adicionais"] ] as [ModalTab, string][]).map(([key, label]) => (
+                  {([ ["basico","Produto"], ["tamanhos", form.variantes_label || "Variantes"], ["sabores","Sabores"], ["adicionais","Adicionais"] ] as [ModalTab, string][])
+                    .filter(([key]) => form.tipo === "pizza" || (key !== "tamanhos" && key !== "sabores"))
+                    .map(([key, label]) => (
                     <button key={key} onClick={() => setModalTab(key)}
                       style={{
                         padding: "8px 14px", borderRadius: "8px 8px 0 0",
@@ -2888,7 +2918,7 @@ export default function CatalogoClient({
                   </label>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                     {/* Produto único */}
-                    <button onClick={() => setForm(f => ({ ...f, tipo: "simples", variantes_label: "" }))}
+                    <button onClick={() => { setForm(f => ({ ...f, tipo: "simples", variantes_label: "" })); setModalTab("basico"); }}
                       style={{
                         padding: "14px 12px", borderRadius: 14, cursor: "pointer", transition: "all 0.15s",
                         border: `2px solid ${form.tipo === "simples" ? cor : "var(--border-1)"}`,
@@ -3708,7 +3738,7 @@ export default function CatalogoClient({
                 )}
                 {wizardStep === 4 && (
                   <div style={{ display: "flex", gap: 10, paddingTop: 4 }}>
-                    <button onClick={() => setWizardStep(3)}
+                    <button onClick={() => setWizardStep(form.tipo === "simples" ? 1 : 3)}
                       style={{ padding: "11px 16px", borderRadius: 12, border: "1.5px solid var(--border-1)", background: "var(--bg-1)", fontSize: 13, fontWeight: 700, color: "var(--text-3)", cursor: "pointer" }}>
                       ← Voltar
                     </button>
