@@ -3136,6 +3136,12 @@ export default function CatalogoClient({
             {/* ── STEP 2 / Tab Tamanhos ── */}
             {(wizardStep === 2 || (wizardStep === 0 && editId && modalTab === "tamanhos")) && (
               <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
+                {wizardStep === 2 && (
+                  <button onClick={() => setWizardStep(3)}
+                    style={{ alignSelf: "flex-end", fontSize: 12, fontWeight: 700, color: "var(--text-4)", background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: -4 }}>
+                    Este produto não tem {(form.variantes_label || "variantes").toLowerCase()} — pular →
+                  </button>
+                )}
                 {loadingTabs ? (
                   <div style={{ display: "flex", justifyContent: "center", padding: 20 }}><Loader2 size={20} style={{ color: "var(--text-4)", animation: "spin 1s linear infinite" }} /></div>
                 ) : form.categoria_preco_id ? (() => {
@@ -3267,6 +3273,12 @@ export default function CatalogoClient({
             {/* ── STEP 3 / Tab Sabores ── */}
             {(wizardStep === 3 || (wizardStep === 0 && editId && modalTab === "sabores")) && (
               <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
+                {wizardStep === 3 && (
+                  <button onClick={() => setWizardStep(4)}
+                    style={{ alignSelf: "flex-end", fontSize: 12, fontWeight: 700, color: "var(--text-4)", background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: -4 }}>
+                    Este produto não tem sabores — pular →
+                  </button>
+                )}
                 {/* Preço padrão global */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 12, background: "#f0fdf4", border: "1.5px solid #bbf7d0" }}>
                   <div style={{ flex: 1 }}>
