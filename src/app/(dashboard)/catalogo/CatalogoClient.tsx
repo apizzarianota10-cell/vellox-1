@@ -310,7 +310,8 @@ export default function CatalogoClient({
   function openQuickAdd(type: "sabor" | "adicional") {
     setChoiceOpen(false);
     setQuickType(type);
-    setQuickProdutoId(produtos.length > 0 ? produtos[0].id : "");
+    const opcoes = type === "adicional" ? produtos.filter(p => p.tipo !== "simples") : produtos;
+    setQuickProdutoId(opcoes.length > 0 ? opcoes[0].id : "");
     setQuickSabor({ nome: "", descricao: "", preco: "" });
     setQuickAdicional({ nome: "", preco: "", obrigatorio: false });
     setQuickAdicionalOutrosProdutos([]);
@@ -629,8 +630,13 @@ export default function CatalogoClient({
         }
       }
       if (wizardStep > 0) {
-        // Produto único não tem Tamanhos/Sabores — pula direto pra Adicionais.
-        setWizardStep(form.tipo === "simples" ? 4 : 2);
+        // Produto único não tem Tamanhos/Sabores/Adicionais — nome, foto,
+        // descrição e valor bastam, salva e já fecha.
+        if (form.tipo === "simples") {
+          setModalOpen(false);
+        } else {
+          setWizardStep(2);
+        }
       } else {
         setModalOpen(false);
       }
@@ -1145,8 +1151,10 @@ export default function CatalogoClient({
 
   const cor = config.cor_principal;
 
-  // Produto único pula Tamanhos (2) e Sabores (3) — só Informações → Adicionais.
-  const wizardStepSequence = form.tipo === "simples" ? [1, 4] : [1, 2, 3, 4];
+  // Produto único não usa Tamanhos/Sabores/Adicionais — só o passo 1.
+  const wizardStepSequence = form.tipo === "simples" ? [1] : [1, 2, 3, 4];
+  // Produto único não recebe adicionais — exclui do seletor do "quick-add".
+  const produtosParaAdicional = produtos.filter(p => p.tipo !== "simples");
 
   // ── Importar cardápio ────────────────────────────────────────────
   async function handleImportarCardapio(file: File) {
@@ -2575,16 +2583,16 @@ export default function CatalogoClient({
                 </div>
               </button>
               {/* Adicional */}
-              <button onClick={() => openQuickAdd("adicional")} disabled={produtos.length === 0}
-                onMouseEnter={e => { if (produtos.length > 0) e.currentTarget.style.borderColor = "rgba(34,197,94,.55)"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = produtos.length === 0 ? "var(--border-1)" : "rgba(34,197,94,0.28)"; }}
+              <button onClick={() => openQuickAdd("adicional")} disabled={produtosParaAdicional.length === 0}
+                onMouseEnter={e => { if (produtosParaAdicional.length > 0) e.currentTarget.style.borderColor = "rgba(34,197,94,.55)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = produtosParaAdicional.length === 0 ? "var(--border-1)" : "rgba(34,197,94,0.28)"; }}
                 style={{
                   display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8,
                   padding: 14, borderRadius: 16,
-                  background: produtos.length === 0 ? "var(--bg-input)" : "rgba(34,197,94,0.07)",
-                  border: `1.5px solid ${produtos.length === 0 ? "var(--border-1)" : "rgba(34,197,94,0.28)"}`,
-                  cursor: produtos.length === 0 ? "not-allowed" : "pointer", textAlign: "left", width: "100%",
-                  opacity: produtos.length === 0 ? 0.5 : 1, transition: "border-color 0.18s",
+                  background: produtosParaAdicional.length === 0 ? "var(--bg-input)" : "rgba(34,197,94,0.07)",
+                  border: `1.5px solid ${produtosParaAdicional.length === 0 ? "var(--border-1)" : "rgba(34,197,94,0.28)"}`,
+                  cursor: produtosParaAdicional.length === 0 ? "not-allowed" : "pointer", textAlign: "left", width: "100%",
+                  opacity: produtosParaAdicional.length === 0 ? 0.5 : 1, transition: "border-color 0.18s",
                 }}>
                 <div style={{
                   width: 36, height: 36, borderRadius: 11, flexShrink: 0,
@@ -2645,7 +2653,7 @@ export default function CatalogoClient({
                   fontSize: 13, fontWeight: 600, color: "var(--text-1)",
                   outline: "none", cursor: "pointer",
                 }}>
-                {produtos.map(p => (
+                {(quickType === "adicional" ? produtosParaAdicional : produtos).map(p => (
                   <option key={p.id} value={p.id}>{p.nome}</option>
                 ))}
               </select>
@@ -2793,11 +2801,11 @@ export default function CatalogoClient({
                     <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Adicional obrigatório</span>
                   </label>
                 </div>
-                {produtos.filter(p => p.id !== quickProdutoId).length > 0 && (
+                {produtos.filter(p => p.id !== quickProdutoId && p.tipo !== "simples").length > 0 && (
                   <div style={{ marginBottom: 20 }}>
                     <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", display: "block", marginBottom: 6 }}>Incluir também em outros produtos (opcional)</label>
                     <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 140, overflowY: "auto", padding: 8, borderRadius: 10, border: "1.5px solid var(--border-1)" }}>
-                      {produtos.filter(p => p.id !== quickProdutoId).map(p => (
+                      {produtos.filter(p => p.id !== quickProdutoId && p.tipo !== "simples").map(p => (
                         <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-2)", cursor: "pointer" }}>
                           <input type="checkbox" checked={quickAdicionalOutrosProdutos.includes(p.id)}
                             onChange={e => setQuickAdicionalOutrosProdutos(prev => e.target.checked ? [...prev, p.id] : prev.filter(id => id !== p.id))}
@@ -2874,14 +2882,20 @@ export default function CatalogoClient({
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: (wizardStep > 0 || editId) ? 14 : 0, paddingBottom: (!editId && wizardStep === 0) ? 18 : 0 }}>
                 <div>
                   {wizardStep > 0 ? (
-                    <>
-                      <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-4)", margin: "0 0 3px", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                        Novo produto — passo {wizardStepSequence.indexOf(wizardStep) + 1} de {wizardStepSequence.length}
-                      </p>
+                    wizardStepSequence.length > 1 ? (
+                      <>
+                        <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-4)", margin: "0 0 3px", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                          Novo produto — passo {wizardStepSequence.indexOf(wizardStep) + 1} de {wizardStepSequence.length}
+                        </p>
+                        <p style={{ fontSize: 16, fontWeight: 900, color: "var(--text-1)", margin: 0 }}>
+                          {["", "Informações básicas", form.variantes_label || "Variantes", "Sabores", "Adicionais"][wizardStep]}
+                        </p>
+                      </>
+                    ) : (
                       <p style={{ fontSize: 16, fontWeight: 900, color: "var(--text-1)", margin: 0 }}>
-                        {["", "Informações básicas", form.variantes_label || "Variantes", "Sabores", "Adicionais"][wizardStep]}
+                        Novo produto
                       </p>
-                    </>
+                    )
                   ) : (
                     <p style={{ fontSize: 16, fontWeight: 900, color: "var(--text-1)", margin: 0 }}>
                       {editId ? "Editar produto" : "Novo produto"}
@@ -2894,7 +2908,7 @@ export default function CatalogoClient({
                 </button>
               </div>
               {/* Wizard progress bars */}
-              {wizardStep > 0 && (
+              {wizardStep > 0 && wizardStepSequence.length > 1 && (
                 <div style={{ display: "flex", gap: 5, paddingBottom: 14 }}>
                   {wizardStepSequence.map(s => (
                     <div key={s} style={{
@@ -2910,7 +2924,7 @@ export default function CatalogoClient({
               {wizardStep === 0 && editId && (
                 <div style={{ display: "flex", gap: 2, paddingBottom: 0 }}>
                   {([ ["basico","Produto"], ["tamanhos", form.variantes_label || "Variantes"], ["sabores","Sabores"], ["adicionais","Adicionais"] ] as [ModalTab, string][])
-                    .filter(([key]) => form.tipo === "pizza" || (key !== "tamanhos" && key !== "sabores"))
+                    .filter(([key]) => form.tipo === "pizza" || (key !== "tamanhos" && key !== "sabores" && key !== "adicionais"))
                     .map(([key, label]) => (
                     <button key={key} onClick={() => setModalTab(key)}
                       style={{
@@ -3164,7 +3178,9 @@ export default function CatalogoClient({
                       opacity: saving || !form.nome.trim() ? 0.7 : 1,
                       display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                     }}>
-                    {saving ? "Salvando…" : <><span>Próximo</span><ChevronRight size={16} /></>}
+                    {saving ? "Salvando…" : form.tipo === "simples"
+                      ? <><Check size={16} /><span>Adicionar produto</span></>
+                      : <><span>Próximo</span><ChevronRight size={16} /></>}
                   </button>
                 ) : (
                   <button onClick={handleSave} disabled={saving || !form.nome.trim()}
@@ -3774,11 +3790,11 @@ export default function CatalogoClient({
                           Obrigatório
                         </label>
                       </div>
-                      {produtos.filter(p => p.id !== editId).length > 0 && (
+                      {produtos.filter(p => p.id !== editId && p.tipo !== "simples").length > 0 && (
                         <div>
                           <p style={{ fontSize: 12, fontWeight: 600, color: "var(--text-3)", margin: "0 0 6px" }}>Incluir também em outros produtos (opcional)</p>
                           <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 140, overflowY: "auto", padding: 8, borderRadius: 10, border: "1px solid var(--border-1)", background: "var(--bg-1)" }}>
-                            {produtos.filter(p => p.id !== editId).map(p => (
+                            {produtos.filter(p => p.id !== editId && p.tipo !== "simples").map(p => (
                               <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-2)", cursor: "pointer" }}>
                                 <input type="checkbox" checked={novoAdicionalOutrosProdutos.includes(p.id)}
                                   onChange={e => setNovoAdicionalOutrosProdutos(prev => e.target.checked ? [...prev, p.id] : prev.filter(id => id !== p.id))}
