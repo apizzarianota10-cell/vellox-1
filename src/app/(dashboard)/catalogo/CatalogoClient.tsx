@@ -2464,106 +2464,138 @@ export default function CatalogoClient({
       {choiceOpen && (
         <div style={{
           position: "fixed", inset: 0, zIndex: 400,
-          background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)",
+          background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)",
           display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
         }} onClick={e => { if (e.target === e.currentTarget) setChoiceOpen(false); }}>
           <div style={{
-            background: "var(--bg-1)", borderRadius: 24, padding: "28px 24px 24px",
-            width: "100%", maxWidth: 420, maxHeight: "92vh", overflowY: "auto",
-            boxShadow: "0 24px 64px rgba(0,0,0,0.18)",
+            background: "var(--bg-1)", borderRadius: 28, padding: "24px 22px 22px",
+            width: "100%", maxWidth: 440, maxHeight: "92vh", overflowY: "auto",
+            boxShadow: "0 32px 80px rgba(0,0,0,0.4)", border: "1px solid var(--border-1)",
           }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-              <p style={{ fontSize: 18, fontWeight: 900, color: "var(--text-1)", margin: 0 }}>O que deseja cadastrar?</p>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20 }}>
+              <div>
+                <p style={{ fontSize: 19, fontWeight: 900, color: "var(--text-1)", margin: 0, letterSpacing: "-0.02em" }}>O que deseja cadastrar?</p>
+                <p style={{ fontSize: 13, color: "var(--text-4)", margin: "4px 0 0" }}>Escolha o caminho mais rápido pro seu caso</p>
+              </div>
               <button onClick={() => setChoiceOpen(false)}
-                style={{ background: "var(--bg-input)", border: "none", borderRadius: 8, padding: 6, cursor: "pointer", color: "var(--text-3)" }}>
+                style={{ background: "var(--bg-input)", border: "none", borderRadius: 10, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--text-3)", flexShrink: 0 }}>
                 <X size={16} />
               </button>
             </div>
-            <p style={{ fontSize: 13, color: "var(--text-4)", margin: "0 0 22px" }}>Escolha o tipo de cadastro abaixo</p>
+
+            {/* Produto novo — 2 caminhos principais */}
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {/* Bebida / item simples */}
-              <button onClick={() => openWizard({ tipo: "simples", categoria: "Bebidas" })} style={{
-                display: "flex", alignItems: "center", gap: 16,
-                padding: "16px 18px", borderRadius: 16,
-                background: "rgba(59,130,246,0.08)", border: "2px solid rgba(59,130,246,0.22)",
-                cursor: "pointer", textAlign: "left", width: "100%",
-                transition: "all 0.15s",
-              }}>
-                <div style={{
-                  width: 46, height: 46, borderRadius: 14, flexShrink: 0,
-                  background: "rgba(59,130,246,0.15)", display: "flex", alignItems: "center", justifyContent: "center",
+              <button onClick={() => openWizard({ tipo: "simples", categoria: "Bebidas" })}
+                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 10px 24px rgba(59,130,246,.22)"; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 14,
+                  padding: 16, borderRadius: 18,
+                  background: "linear-gradient(135deg, rgba(59,130,246,.14), rgba(59,130,246,.02))",
+                  border: "1.5px solid rgba(59,130,246,.3)",
+                  cursor: "pointer", textAlign: "left", width: "100%",
+                  transition: "transform 0.18s, box-shadow 0.18s",
                 }}>
-                  <span style={{ fontSize: 22 }}>🥤</span>
+                <div style={{
+                  width: 50, height: 50, borderRadius: 15, flexShrink: 0,
+                  background: "linear-gradient(135deg,#60a5fa,#2563eb)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: "0 6px 16px rgba(37,99,235,.4)",
+                }}>
+                  <span style={{ fontSize: 24 }}>🥤</span>
                 </div>
-                <div>
-                  <p style={{ fontSize: 14, fontWeight: 800, color: "var(--text-1)", margin: "0 0 2px" }}>Bebida / item simples</p>
-                  <p style={{ fontSize: 12, color: "var(--text-3)", margin: 0 }}>Cadastro rápido: nome, preço e foto — ideal pra bebidas e itens sem variação</p>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <p style={{ fontSize: 14.5, fontWeight: 800, color: "var(--text-1)", margin: 0 }}>Bebida / item simples</p>
+                    <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.04em", color: "#2563eb", background: "rgba(59,130,246,.15)", borderRadius: 999, padding: "2px 7px", flexShrink: 0 }}>RÁPIDO</span>
+                  </div>
+                  <p style={{ fontSize: 12, color: "var(--text-3)", margin: "3px 0 0", lineHeight: 1.4 }}>Nome, foto, descrição e preço — pronto em 1 tela</p>
                 </div>
-                <ChevronRight size={16} style={{ color: "var(--text-5)", marginLeft: "auto", flexShrink: 0 }} />
+                <ChevronRight size={16} style={{ color: "var(--text-5)", flexShrink: 0 }} />
               </button>
+
               {/* Produto com variações */}
-              <button onClick={() => openWizard({ tipo: "pizza" })} style={{
-                display: "flex", alignItems: "center", gap: 16,
-                padding: "16px 18px", borderRadius: 16,
-                background: `${cor}08`, border: `2px solid ${cor}22`,
-                cursor: "pointer", textAlign: "left", width: "100%",
-                transition: "all 0.15s",
-              }}>
-                <div style={{
-                  width: 46, height: 46, borderRadius: 14, flexShrink: 0,
-                  background: `${cor}18`, display: "flex", alignItems: "center", justifyContent: "center",
+              <button onClick={() => openWizard({ tipo: "pizza" })}
+                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 10px 24px ${cor}38`; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 14,
+                  padding: 16, borderRadius: 18,
+                  background: `linear-gradient(135deg, ${cor}20, ${cor}04)`,
+                  border: `1.5px solid ${cor}45`,
+                  cursor: "pointer", textAlign: "left", width: "100%",
+                  transition: "transform 0.18s, box-shadow 0.18s",
                 }}>
-                  <span style={{ fontSize: 22 }}>🍕</span>
+                <div style={{
+                  width: 50, height: 50, borderRadius: 15, flexShrink: 0,
+                  background: `linear-gradient(135deg, ${cor}, ${cor}cc)`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: `0 6px 16px ${cor}55`,
+                }}>
+                  <span style={{ fontSize: 24 }}>🍕</span>
                 </div>
-                <div>
-                  <p style={{ fontSize: 14, fontWeight: 800, color: "var(--text-1)", margin: "0 0 2px" }}>Produto com variações</p>
-                  <p style={{ fontSize: 12, color: "var(--text-3)", margin: 0 }}>Tamanhos, sabores e adicionais — ideal pra pizzas, combos e produtos com opções</p>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <p style={{ fontSize: 14.5, fontWeight: 800, color: "var(--text-1)", margin: 0 }}>Produto com variações</p>
+                    <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.04em", color: cor, background: `${cor}1f`, borderRadius: 999, padding: "2px 7px", flexShrink: 0 }}>COMPLETO</span>
+                  </div>
+                  <p style={{ fontSize: 12, color: "var(--text-3)", margin: "3px 0 0", lineHeight: 1.4 }}>Tamanhos, sabores e adicionais — pizzas, combos e opções</p>
                 </div>
-                <ChevronRight size={16} style={{ color: "var(--text-5)", marginLeft: "auto", flexShrink: 0 }} />
+                <ChevronRight size={16} style={{ color: "var(--text-5)", flexShrink: 0 }} />
               </button>
+            </div>
+
+            {/* Já existe o produto? — ações secundárias */}
+            <p style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-5)", margin: "20px 0 8px" }}>
+              Já existe o produto?
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
               {/* Sabor */}
-              <button onClick={() => openQuickAdd("sabor")} disabled={produtos.length === 0} style={{
-                display: "flex", alignItems: "center", gap: 16,
-                padding: "16px 18px", borderRadius: 16,
-                background: produtos.length === 0 ? "var(--bg-input)" : "rgba(251,146,60,0.08)",
-                border: `2px solid ${produtos.length === 0 ? "var(--border-1)" : "rgba(251,146,60,0.25)"}`,
-                cursor: produtos.length === 0 ? "not-allowed" : "pointer", textAlign: "left", width: "100%",
-                opacity: produtos.length === 0 ? 0.5 : 1,
-                transition: "all 0.15s",
-              }}>
-                <div style={{
-                  width: 46, height: 46, borderRadius: 14, flexShrink: 0,
-                  background: "rgba(251,146,60,0.15)", display: "flex", alignItems: "center", justifyContent: "center",
+              <button onClick={() => openQuickAdd("sabor")} disabled={produtos.length === 0}
+                onMouseEnter={e => { if (produtos.length > 0) e.currentTarget.style.borderColor = "rgba(251,146,60,.55)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = produtos.length === 0 ? "var(--border-1)" : "rgba(251,146,60,.28)"; }}
+                style={{
+                  display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8,
+                  padding: 14, borderRadius: 16,
+                  background: produtos.length === 0 ? "var(--bg-input)" : "rgba(251,146,60,0.07)",
+                  border: `1.5px solid ${produtos.length === 0 ? "var(--border-1)" : "rgba(251,146,60,0.28)"}`,
+                  cursor: produtos.length === 0 ? "not-allowed" : "pointer", textAlign: "left", width: "100%",
+                  opacity: produtos.length === 0 ? 0.5 : 1, transition: "border-color 0.18s",
                 }}>
-                  <span style={{ fontSize: 22 }}>🌶️</span>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 11, flexShrink: 0,
+                  background: "linear-gradient(135deg,#fb923c,#ea580c)", display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <span style={{ fontSize: 17 }}>🌶️</span>
                 </div>
                 <div>
-                  <p style={{ fontSize: 14, fontWeight: 800, color: "var(--text-1)", margin: "0 0 2px" }}>Sabor</p>
-                  <p style={{ fontSize: 12, color: "var(--text-3)", margin: 0 }}>Adicionar um sabor a um produto já existente</p>
+                  <p style={{ fontSize: 13, fontWeight: 800, color: "var(--text-1)", margin: "0 0 2px" }}>Sabor</p>
+                  <p style={{ fontSize: 11, color: "var(--text-3)", margin: 0, lineHeight: 1.35 }}>Add num produto já existente</p>
                 </div>
-                <ChevronRight size={16} style={{ color: "var(--text-5)", marginLeft: "auto", flexShrink: 0 }} />
               </button>
               {/* Adicional */}
-              <button onClick={() => openQuickAdd("adicional")} disabled={produtos.length === 0} style={{
-                display: "flex", alignItems: "center", gap: 16,
-                padding: "16px 18px", borderRadius: 16,
-                background: produtos.length === 0 ? "var(--bg-input)" : "rgba(34,197,94,0.08)",
-                border: `2px solid ${produtos.length === 0 ? "var(--border-1)" : "rgba(34,197,94,0.25)"}`,
-                cursor: produtos.length === 0 ? "not-allowed" : "pointer", textAlign: "left", width: "100%",
-                opacity: produtos.length === 0 ? 0.5 : 1,
-                transition: "all 0.15s",
-              }}>
-                <div style={{
-                  width: 46, height: 46, borderRadius: 14, flexShrink: 0,
-                  background: "rgba(34,197,94,0.15)", display: "flex", alignItems: "center", justifyContent: "center",
+              <button onClick={() => openQuickAdd("adicional")} disabled={produtos.length === 0}
+                onMouseEnter={e => { if (produtos.length > 0) e.currentTarget.style.borderColor = "rgba(34,197,94,.55)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = produtos.length === 0 ? "var(--border-1)" : "rgba(34,197,94,0.28)"; }}
+                style={{
+                  display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8,
+                  padding: 14, borderRadius: 16,
+                  background: produtos.length === 0 ? "var(--bg-input)" : "rgba(34,197,94,0.07)",
+                  border: `1.5px solid ${produtos.length === 0 ? "var(--border-1)" : "rgba(34,197,94,0.28)"}`,
+                  cursor: produtos.length === 0 ? "not-allowed" : "pointer", textAlign: "left", width: "100%",
+                  opacity: produtos.length === 0 ? 0.5 : 1, transition: "border-color 0.18s",
                 }}>
-                  <span style={{ fontSize: 22 }}>➕</span>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 11, flexShrink: 0,
+                  background: "linear-gradient(135deg,#4ade80,#16a34a)", display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <span style={{ fontSize: 17 }}>➕</span>
                 </div>
                 <div>
-                  <p style={{ fontSize: 14, fontWeight: 800, color: "var(--text-1)", margin: "0 0 2px" }}>Adicional</p>
-                  <p style={{ fontSize: 12, color: "var(--text-3)", margin: 0 }}>Adicionar um item extra a um produto já existente</p>
+                  <p style={{ fontSize: 13, fontWeight: 800, color: "var(--text-1)", margin: "0 0 2px" }}>Adicional</p>
+                  <p style={{ fontSize: 11, color: "var(--text-3)", margin: 0, lineHeight: 1.35 }}>Add num produto já existente</p>
                 </div>
-                <ChevronRight size={16} style={{ color: "var(--text-5)", marginLeft: "auto", flexShrink: 0 }} />
               </button>
             </div>
           </div>
@@ -2982,21 +3014,25 @@ export default function CatalogoClient({
                     style={{ width: "100%", padding: "11px 13px", borderRadius: 11, border: "1px solid var(--border-1)", fontSize: 14, color: "var(--text-1)", background: "var(--bg-input)" }} />
                 </div>
 
-                {/* Categoria */}
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.06em", textTransform: "uppercase", display: "block", marginBottom: 7 }}>
-                    Categoria
-                  </label>
-                  <select value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}
-                    style={{ width: "100%", padding: "11px 13px", borderRadius: 11, border: "1px solid var(--border-1)", fontSize: 13, color: "var(--text-1)", background: "var(--bg-input)" }}>
-                    {CATEGORIAS_PADRAO.map(c => <option key={c} value={c}>{c}</option>)}
-                    <option value="__custom__">+ Personalizada…</option>
-                  </select>
-                </div>
-                {form.categoria === "__custom__" && (
-                  <input value={form.categoriaCustom} onChange={e => setForm(f => ({ ...f, categoriaCustom: e.target.value }))}
-                    placeholder="Nome da categoria personalizada"
-                    style={{ width: "100%", padding: "11px 13px", borderRadius: 11, border: "1px solid var(--border-1)", fontSize: 13, color: "var(--text-1)", background: "var(--bg-input)" }} />
+                {/* Categoria — produto único na criação não precisa escolher (já vem definida pela entrada "Bebida/item simples" ou fica editável depois) */}
+                {!(wizardStep === 1 && form.tipo === "simples") && (
+                  <>
+                    <div>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.06em", textTransform: "uppercase", display: "block", marginBottom: 7 }}>
+                        Categoria
+                      </label>
+                      <select value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}
+                        style={{ width: "100%", padding: "11px 13px", borderRadius: 11, border: "1px solid var(--border-1)", fontSize: 13, color: "var(--text-1)", background: "var(--bg-input)" }}>
+                        {CATEGORIAS_PADRAO.map(c => <option key={c} value={c}>{c}</option>)}
+                        <option value="__custom__">+ Personalizada…</option>
+                      </select>
+                    </div>
+                    {form.categoria === "__custom__" && (
+                      <input value={form.categoriaCustom} onChange={e => setForm(f => ({ ...f, categoriaCustom: e.target.value }))}
+                        placeholder="Nome da categoria personalizada"
+                        style={{ width: "100%", padding: "11px 13px", borderRadius: 11, border: "1px solid var(--border-1)", fontSize: 13, color: "var(--text-1)", background: "var(--bg-input)" }} />
+                    )}
+                  </>
                 )}
 
                 {/* Categoria de preço — opcional, só relevante para tipo pizza */}
@@ -3071,8 +3107,8 @@ export default function CatalogoClient({
                   </div>
                 </div>
 
-                {/* Campos extras apenas no modo edição (tabs) */}
-                {wizardStep === 0 && (
+                {/* Descrição + Preço — sempre na edição; na criação, só pro fluxo de produto único (nome, foto, descrição, valor) */}
+                {(wizardStep === 0 || (wizardStep === 1 && form.tipo === "simples")) && (
                   <>
                     <div>
                       <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.06em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 5, marginBottom: 7 }}>
@@ -3082,26 +3118,38 @@ export default function CatalogoClient({
                         placeholder="Ingredientes, tamanho, observações…" rows={2}
                         style={{ width: "100%", padding: "10px 13px", borderRadius: 11, border: "1px solid var(--border-1)", fontSize: 13, color: "var(--text-1)", background: "var(--bg-input)", resize: "vertical", fontFamily: "inherit" }} />
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    {wizardStep === 0 ? (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                        <div>
+                          <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.06em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 5, marginBottom: 7 }}>
+                            <DollarSign size={11} /> Preço base
+                          </label>
+                          <input type="number" min="0" step="0.50" value={form.preco}
+                            onChange={e => setForm(f => ({ ...f, preco: e.target.value }))}
+                            placeholder="0.00"
+                            style={{ width: "100%", padding: "10px 13px", borderRadius: 11, border: "1px solid var(--border-1)", fontSize: 14, color: "var(--text-1)", background: "var(--bg-input)" }} />
+                        </div>
+                        <div style={{ display: "flex", alignItems: "flex-end", paddingBottom: 1 }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "10px 13px", borderRadius: 11, border: "1px solid var(--border-1)", background: "var(--bg-input)" }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)" }}>Ativo</span>
+                            <button onClick={() => setForm(f => ({ ...f, ativo: !f.ativo }))}
+                              style={{ width: 40, height: 22, borderRadius: 11, background: form.ativo ? "#22c55e" : "var(--border-1)", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
+                              <span style={{ position: "absolute", top: 2, left: form.ativo ? 20 : 2, width: 18, height: 18, borderRadius: "50%", background: "var(--bg-1)", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
                       <div>
                         <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.06em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 5, marginBottom: 7 }}>
-                          <DollarSign size={11} /> Preço base
+                          <DollarSign size={11} /> Valor
                         </label>
                         <input type="number" min="0" step="0.50" value={form.preco}
                           onChange={e => setForm(f => ({ ...f, preco: e.target.value }))}
                           placeholder="0.00"
                           style={{ width: "100%", padding: "10px 13px", borderRadius: 11, border: "1px solid var(--border-1)", fontSize: 14, color: "var(--text-1)", background: "var(--bg-input)" }} />
                       </div>
-                      <div style={{ display: "flex", alignItems: "flex-end", paddingBottom: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "10px 13px", borderRadius: 11, border: "1px solid var(--border-1)", background: "var(--bg-input)" }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)" }}>Ativo</span>
-                          <button onClick={() => setForm(f => ({ ...f, ativo: !f.ativo }))}
-                            style={{ width: 40, height: 22, borderRadius: 11, background: form.ativo ? "#22c55e" : "var(--border-1)", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
-                            <span style={{ position: "absolute", top: 2, left: form.ativo ? 20 : 2, width: 18, height: 18, borderRadius: "50%", background: "var(--bg-1)", transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
+                    )}
                   </>
                 )}
 
