@@ -33,6 +33,9 @@ export default function PrintListener({ empresaId, empresaNome, empresaCnpj, lay
   const [avisoAgenteOffline, setAvisoAgenteOffline] = useState(false);
   const [pedidosAtrasados, setPedidosAtrasados] = useState<PedidoAtrasado[]>([]);
   const [avisoAtrasadosFechado, setAvisoAtrasadosFechado] = useState(false);
+  // IDs de pedidos atrasados já exibidos ao usuário — evita reabrir o aviso
+  // (já fechado por ele) repetidamente pros mesmos pedidos a cada checagem.
+  const atrasadosConhecidos = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const supabase = createClient();
@@ -165,7 +168,11 @@ export default function PrintListener({ empresaId, empresaNome, empresaCnpj, lay
 
       const lista = (data ?? []) as PedidoAtrasado[];
       setPedidosAtrasados(lista);
-      if (lista.length > 0) setAvisoAtrasadosFechado(false);
+      // Só reabre o aviso (se o usuário já fechou) quando surge um pedido
+      // atrasado novo — não para os mesmos pedidos de antes a cada checagem.
+      const temNovo = lista.some(p => !atrasadosConhecidos.current.has(p.id));
+      lista.forEach(p => atrasadosConhecidos.current.add(p.id));
+      if (temNovo) setAvisoAtrasadosFechado(false);
     }
 
     checarAtrasados();
