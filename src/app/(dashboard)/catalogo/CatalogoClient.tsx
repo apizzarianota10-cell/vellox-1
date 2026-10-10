@@ -167,22 +167,13 @@ export default function CatalogoClient({
   const [importSaboresOpen, setImportSaboresOpen] = useState(false);
   const [salvandoSaboresImport, setSalvandoSaboresImport] = useState(false);
 
-  // Choice popup (Produto / Sabor / Adicional)
+  // Choice popup (Produto com variações / Bebida·item simples / Adicional) — Sabor vira a view "🍕 Sabores"
   const [choiceOpen, setChoiceOpen] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);
-  const [quickType, setQuickType] = useState<"sabor" | "adicional">("sabor");
   const [quickProdutoId, setQuickProdutoId] = useState("");
-  const [quickSabor, setQuickSabor] = useState({ nome: "", descricao: "", preco: "" });
   const [quickAdicional, setQuickAdicional] = useState({ nome: "", preco: "", obrigatorio: false });
   const [quickAdicionalOutrosProdutos, setQuickAdicionalOutrosProdutos] = useState<string[]>([]);
   const [savingQuick, setSavingQuick] = useState(false);
-
-  // Quick import sabores from image (inside quick-add modal)
-  const quickImportSaboresRef = useRef<HTMLInputElement>(null);
-  const [quickImportLoading, setQuickImportLoading] = useState(false);
-  const [quickImportList, setQuickImportList] = useState<{ nome: string; descricao: string; sel: boolean }[]>([]);
-  const [quickImportOpen, setQuickImportOpen] = useState(false);
-  const [salvandoQuickImport, setSalvandoQuickImport] = useState(false);
 
   // Product image upload
   const [uploading, setUploading] = useState(false);
@@ -276,7 +267,9 @@ export default function CatalogoClient({
 
   const saboresPorProduto = produtos
     .map(p => ({ produto: p, sabores: p.produto_sabores?.filter(s => s.ativo !== false) ?? [] }))
-    .filter(g => g.sabores.length > 0);
+    // Mostra todo produto "com variações", mesmo sem nenhum sabor ainda —
+    // é o único lugar pra adicionar o primeiro sabor dele.
+    .filter(g => g.sabores.length > 0 || g.produto.tipo === "pizza");
 
   const categorias = [
     "Todos",
@@ -307,12 +300,9 @@ export default function CatalogoClient({
     setModalOpen(true);
   }
 
-  function openQuickAdd(type: "sabor" | "adicional") {
+  function openQuickAdd() {
     setChoiceOpen(false);
-    setQuickType(type);
-    const opcoes = type === "adicional" ? produtos.filter(p => p.tipo !== "simples") : produtos;
-    setQuickProdutoId(opcoes.length > 0 ? opcoes[0].id : "");
-    setQuickSabor({ nome: "", descricao: "", preco: "" });
+    setQuickProdutoId(produtosParaAdicional.length > 0 ? produtosParaAdicional[0].id : "");
     setQuickAdicional({ nome: "", preco: "", obrigatorio: false });
     setQuickAdicionalOutrosProdutos([]);
     setQuickOpen(true);
@@ -338,45 +328,24 @@ export default function CatalogoClient({
     if (!quickProdutoId) return;
     setSavingQuick(true);
     try {
-      if (quickType === "sabor") {
-        if (!quickSabor.nome.trim()) return;
-        const { data: existingSabores } = await supabase
-          .from("produto_sabores").select("ordem").eq("produto_id", quickProdutoId).order("ordem", { ascending: false }).limit(1);
-        const nextOrdem = (existingSabores?.[0]?.ordem ?? -1) + 1;
-        const { data: novoSaborData, error: errSabor } = await supabase.from("produto_sabores").insert({
-          produto_id: quickProdutoId,
-          nome: quickSabor.nome.trim(),
-          descricao: quickSabor.descricao.trim(),
-          preco_adicional: parseFloat(quickSabor.preco) || null,
-          ordem: nextOrdem,
-          ativo: true,
-        }).select().single();
-        if (errSabor) { alert("Erro ao criar sabor: " + errSabor.message); return; }
-        if (novoSaborData) {
-          setProdutos(prev => prev.map(prod => prod.id === quickProdutoId
-            ? { ...prod, produto_sabores: [...(prod.produto_sabores ?? []), novoSaborData as ProdutoSabor] }
-            : prod));
-        }
-      } else {
-        if (!quickAdicional.nome.trim()) return;
-        const { data: existingAdicionais } = await supabase
-          .from("produto_adicionais").select("ordem").eq("produto_id", quickProdutoId).order("ordem", { ascending: false }).limit(1);
-        const nextOrdem = (existingAdicionais?.[0]?.ordem ?? -1) + 1;
-        const { data: novoAdicionalData } = await supabase.from("produto_adicionais").insert({
-          produto_id: quickProdutoId, nome: quickAdicional.nome.trim(),
-          preco: parseFloat(quickAdicional.preco) || 0,
-          obrigatorio: quickAdicional.obrigatorio,
-          ordem: nextOrdem, ativo: true,
-        }).select().single();
-        if (novoAdicionalData) {
-          setProdutos(prev => prev.map(prod => prod.id === quickProdutoId
-            ? { ...prod, produto_adicionais: [...(prod.produto_adicionais ?? []), novoAdicionalData as ProdutoAdicional] }
-            : prod));
-          await copiarAdicionalParaProdutos(
-            quickAdicional.nome.trim(), parseFloat(quickAdicional.preco) || 0, quickAdicional.obrigatorio,
-            quickAdicionalOutrosProdutos.filter(id => id !== quickProdutoId),
-          );
-        }
+      if (!quickAdicional.nome.trim()) return;
+      const { data: existingAdicionais } = await supabase
+        .from("produto_adicionais").select("ordem").eq("produto_id", quickProdutoId).order("ordem", { ascending: false }).limit(1);
+      const nextOrdem = (existingAdicionais?.[0]?.ordem ?? -1) + 1;
+      const { data: novoAdicionalData } = await supabase.from("produto_adicionais").insert({
+        produto_id: quickProdutoId, nome: quickAdicional.nome.trim(),
+        preco: parseFloat(quickAdicional.preco) || 0,
+        obrigatorio: quickAdicional.obrigatorio,
+        ordem: nextOrdem, ativo: true,
+      }).select().single();
+      if (novoAdicionalData) {
+        setProdutos(prev => prev.map(prod => prod.id === quickProdutoId
+          ? { ...prod, produto_adicionais: [...(prod.produto_adicionais ?? []), novoAdicionalData as ProdutoAdicional] }
+          : prod));
+        await copiarAdicionalParaProdutos(
+          quickAdicional.nome.trim(), parseFloat(quickAdicional.preco) || 0, quickAdicional.obrigatorio,
+          quickAdicionalOutrosProdutos.filter(id => id !== quickProdutoId),
+        );
       }
       setQuickOpen(false);
     } finally {
@@ -1018,50 +987,6 @@ export default function CatalogoClient({
     }
   }
 
-  async function handleQuickImportSaboresImage(file: File) {
-    setQuickImportLoading(true);
-    setQuickImportOpen(true);
-    setQuickImportList([]);
-    try {
-      const fd = new FormData();
-      fd.append("imagem", file);
-      const res = await fetch("/api/catalogo/importar-sabores", { method: "POST", body: fd });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Erro ao processar imagem");
-      setQuickImportList(json.sabores.map((s: { nome: string; descricao: string }) => ({ ...s, sel: true })));
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "Erro ao processar imagem");
-      setQuickImportOpen(false);
-    } finally {
-      setQuickImportLoading(false);
-    }
-  }
-
-  async function handleSalvarQuickImport() {
-    if (!quickProdutoId) return;
-    const selecionados = quickImportList.filter(s => s.sel);
-    if (selecionados.length === 0) return;
-    setSalvandoQuickImport(true);
-    try {
-      const { data: existing } = await supabase
-        .from("produto_sabores").select("id").eq("produto_id", quickProdutoId);
-      const ordemBase = existing?.length ?? 0;
-      const inserts = selecionados.map((s, i) => ({
-        produto_id: quickProdutoId,
-        nome: s.nome,
-        descricao: s.descricao,
-        ordem: ordemBase + i,
-        ativo: true,
-      }));
-      await supabase.from("produto_sabores").insert(inserts);
-      setQuickImportOpen(false);
-      setQuickImportList([]);
-      setQuickOpen(false);
-    } finally {
-      setSalvandoQuickImport(false);
-    }
-  }
-
   async function handleImportAdicionaisImage(file: File) {
     setImportAdicionaisLoading(true);
     setImportAdicionaisOpen(true);
@@ -1155,6 +1080,8 @@ export default function CatalogoClient({
   const wizardStepSequence = form.tipo === "simples" ? [1] : [1, 2, 3, 4];
   // Produto único não recebe adicionais — exclui do seletor do "quick-add".
   const produtosParaAdicional = produtos.filter(p => p.tipo !== "simples");
+  // Só produto "com variações" pode ter sabor.
+  const produtosParaSabor = produtos.filter(p => p.tipo === "pizza");
 
   // ── Importar cardápio ────────────────────────────────────────────
   async function handleImportarCardapio(file: File) {
@@ -2559,17 +2486,17 @@ export default function CatalogoClient({
               Já existe o produto?
             </p>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              {/* Sabor */}
-              <button onClick={() => openQuickAdd("sabor")} disabled={produtos.length === 0}
-                onMouseEnter={e => { if (produtos.length > 0) e.currentTarget.style.borderColor = "rgba(251,146,60,.55)"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = produtos.length === 0 ? "var(--border-1)" : "rgba(251,146,60,.28)"; }}
+              {/* Sabor — vai pra view "🍕 Sabores", que já cobre add rápido, editar e vincular entre produtos */}
+              <button onClick={() => { setChoiceOpen(false); setCatFilter("__sabores__"); }} disabled={produtosParaSabor.length === 0}
+                onMouseEnter={e => { if (produtosParaSabor.length > 0) e.currentTarget.style.borderColor = "rgba(251,146,60,.55)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = produtosParaSabor.length === 0 ? "var(--border-1)" : "rgba(251,146,60,.28)"; }}
                 style={{
                   display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8,
                   padding: 14, borderRadius: 16,
-                  background: produtos.length === 0 ? "var(--bg-input)" : "rgba(251,146,60,0.07)",
-                  border: `1.5px solid ${produtos.length === 0 ? "var(--border-1)" : "rgba(251,146,60,0.28)"}`,
-                  cursor: produtos.length === 0 ? "not-allowed" : "pointer", textAlign: "left", width: "100%",
-                  opacity: produtos.length === 0 ? 0.5 : 1, transition: "border-color 0.18s",
+                  background: produtosParaSabor.length === 0 ? "var(--bg-input)" : "rgba(251,146,60,0.07)",
+                  border: `1.5px solid ${produtosParaSabor.length === 0 ? "var(--border-1)" : "rgba(251,146,60,0.28)"}`,
+                  cursor: produtosParaSabor.length === 0 ? "not-allowed" : "pointer", textAlign: "left", width: "100%",
+                  opacity: produtosParaSabor.length === 0 ? 0.5 : 1, transition: "border-color 0.18s",
                 }}>
                 <div style={{
                   width: 36, height: 36, borderRadius: 11, flexShrink: 0,
@@ -2583,7 +2510,7 @@ export default function CatalogoClient({
                 </div>
               </button>
               {/* Adicional */}
-              <button onClick={() => openQuickAdd("adicional")} disabled={produtosParaAdicional.length === 0}
+              <button onClick={openQuickAdd} disabled={produtosParaAdicional.length === 0}
                 onMouseEnter={e => { if (produtosParaAdicional.length > 0) e.currentTarget.style.borderColor = "rgba(34,197,94,.55)"; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = produtosParaAdicional.length === 0 ? "var(--border-1)" : "rgba(34,197,94,0.28)"; }}
                 style={{
@@ -2627,10 +2554,10 @@ export default function CatalogoClient({
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
               <div>
                 <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-4)", margin: "0 0 3px", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                  {quickType === "sabor" ? "🌶️ Sabor" : "➕ Adicional"}
+                  ➕ Adicional
                 </p>
                 <p style={{ fontSize: 16, fontWeight: 900, color: "var(--text-1)", margin: 0 }}>
-                  {quickType === "sabor" ? "Adicionar sabor" : "Adicionar item extra"}
+                  Adicionar item extra
                 </p>
               </div>
               <button onClick={() => setQuickOpen(false)}
@@ -2653,174 +2580,68 @@ export default function CatalogoClient({
                   fontSize: 13, fontWeight: 600, color: "var(--text-1)",
                   outline: "none", cursor: "pointer",
                 }}>
-                {(quickType === "adicional" ? produtosParaAdicional : produtos).map(p => (
+                {produtosParaAdicional.map(p => (
                   <option key={p.id} value={p.id}>{p.nome}</option>
                 ))}
               </select>
             </div>
 
-            {quickType === "sabor" ? (
-              <>
-                {/* Import from image */}
-                <input ref={quickImportSaboresRef} type="file" accept="image/*" style={{ display: "none" }}
-                  onChange={e => {
-                    const f = e.target.files?.[0];
-                    if (f) handleQuickImportSaboresImage(f);
-                    e.target.value = "";
-                  }} />
-
-                {quickImportOpen ? (
-                  <div style={{ marginBottom: 16 }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                      <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", margin: 0 }}>
-                        {quickImportLoading ? "Analisando cardápio..." : `${quickImportList.filter(s => s.sel).length} sabores selecionados`}
-                      </p>
-                      <button onClick={() => { setQuickImportOpen(false); setQuickImportList([]); }}
-                        style={{ background: "none", border: "none", color: "var(--text-4)", cursor: "pointer", fontSize: 11, fontWeight: 700 }}>
-                        Cancelar import
-                      </button>
-                    </div>
-                    {quickImportLoading ? (
-                      <div style={{ display: "flex", justifyContent: "center", padding: 20 }}>
-                        <Loader2 size={22} style={{ animation: "spin 1s linear infinite", color: cor }} />
-                      </div>
-                    ) : (
-                      <div style={{ maxHeight: 200, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6 }}>
-                        {quickImportList.map((s, i) => (
-                          <label key={i} style={{
-                            display: "flex", alignItems: "center", gap: 10, padding: "8px 10px",
-                            background: s.sel ? "var(--bg-2)" : "var(--bg-input)",
-                            borderRadius: 8, cursor: "pointer", border: `1.5px solid ${s.sel ? cor : "var(--border-1)"}`,
-                          }}>
-                            <input type="checkbox" checked={s.sel}
-                              onChange={e => setQuickImportList(list => list.map((x, j) => j === i ? { ...x, sel: e.target.checked } : x))}
-                              style={{ accentColor: cor, width: 15, height: 15, flexShrink: 0 }} />
-                            <div>
-                              <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-1)", margin: 0 }}>{s.nome}</p>
-                              {s.descricao && <p style={{ fontSize: 11, color: "var(--text-4)", margin: 0 }}>{s.descricao}</p>}
-                            </div>
-                          </label>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    <button onClick={() => quickImportSaboresRef.current?.click()}
-                      style={{
-                        width: "100%", padding: "9px 12px", borderRadius: 10, marginBottom: 14,
-                        border: `1.5px dashed ${cor}`, background: "transparent",
-                        color: cor, fontSize: 12, fontWeight: 700, cursor: "pointer",
-                        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                      }}>
-                      <ImageIcon size={14} /> Importar cardápio (foto)
-                    </button>
-                    <div style={{ marginBottom: 12 }}>
-                      <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", display: "block", marginBottom: 6 }}>Nome do sabor *</label>
-                      <input
-                        value={quickSabor.nome}
-                        onChange={e => setQuickSabor(s => ({ ...s, nome: e.target.value }))}
-                        placeholder="Ex: Frango com Catupiry"
-                        style={{
-                          width: "100%", padding: "10px 12px", borderRadius: 10,
-                          border: "1.5px solid var(--border-1)", fontSize: 13, color: "var(--text-1)",
-                          outline: "none", boxSizing: "border-box",
-                        }}
-                      />
-                    </div>
-                    <div style={{ marginBottom: 12 }}>
-                      <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", display: "block", marginBottom: 6 }}>Descrição</label>
-                      <input
-                        value={quickSabor.descricao}
-                        onChange={e => setQuickSabor(s => ({ ...s, descricao: e.target.value }))}
-                        placeholder="Opcional"
-                        style={{
-                          width: "100%", padding: "10px 12px", borderRadius: 10,
-                          border: "1.5px solid var(--border-1)", fontSize: 13, color: "var(--text-1)",
-                          outline: "none", boxSizing: "border-box",
-                        }}
-                      />
-                    </div>
-                    <div style={{ marginBottom: 20 }}>
-                      <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", display: "block", marginBottom: 6 }}>Preço (opcional)</label>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-3)" }}>R$</span>
-                        <input
-                          type="number" step="0.01" min="0"
-                          value={quickSabor.preco}
-                          onChange={e => setQuickSabor(s => ({ ...s, preco: e.target.value }))}
-                          placeholder="0,00"
-                          style={{
-                            flex: 1, padding: "10px 12px", borderRadius: 10,
-                            border: "1.5px solid var(--border-1)", fontSize: 13, color: "var(--text-1)",
-                            outline: "none", boxSizing: "border-box",
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </>
-                )}
-              </>
-            ) : (
-              <>
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", display: "block", marginBottom: 6 }}>Nome do adicional *</label>
-                  <input
-                    value={quickAdicional.nome}
-                    onChange={e => setQuickAdicional(a => ({ ...a, nome: e.target.value }))}
-                    placeholder="Ex: Bacon extra"
-                    style={{
-                      width: "100%", padding: "10px 12px", borderRadius: 10,
-                      border: "1.5px solid var(--border-1)", fontSize: 13, color: "var(--text-1)",
-                      outline: "none", boxSizing: "border-box",
-                    }}
-                  />
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", display: "block", marginBottom: 6 }}>Nome do adicional *</label>
+              <input
+                value={quickAdicional.nome}
+                onChange={e => setQuickAdicional(a => ({ ...a, nome: e.target.value }))}
+                placeholder="Ex: Bacon extra"
+                style={{
+                  width: "100%", padding: "10px 12px", borderRadius: 10,
+                  border: "1.5px solid var(--border-1)", fontSize: 13, color: "var(--text-1)",
+                  outline: "none", boxSizing: "border-box",
+                }}
+              />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", display: "block", marginBottom: 6 }}>Preço</label>
+              <input
+                value={quickAdicional.preco}
+                onChange={e => setQuickAdicional(a => ({ ...a, preco: e.target.value }))}
+                placeholder="0,00"
+                type="number" min="0" step="0.01"
+                style={{
+                  width: "100%", padding: "10px 12px", borderRadius: 10,
+                  border: "1.5px solid var(--border-1)", fontSize: 13, color: "var(--text-1)",
+                  outline: "none", boxSizing: "border-box",
+                }}
+              />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={quickAdicional.obrigatorio}
+                  onChange={e => setQuickAdicional(a => ({ ...a, obrigatorio: e.target.checked }))}
+                  style={{ width: 16, height: 16, accentColor: cor }}
+                />
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Adicional obrigatório</span>
+              </label>
+            </div>
+            {produtos.filter(p => p.id !== quickProdutoId && p.tipo !== "simples").length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", display: "block", marginBottom: 6 }}>Incluir também em outros produtos (opcional)</label>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 140, overflowY: "auto", padding: 8, borderRadius: 10, border: "1.5px solid var(--border-1)" }}>
+                  {produtos.filter(p => p.id !== quickProdutoId && p.tipo !== "simples").map(p => (
+                    <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-2)", cursor: "pointer" }}>
+                      <input type="checkbox" checked={quickAdicionalOutrosProdutos.includes(p.id)}
+                        onChange={e => setQuickAdicionalOutrosProdutos(prev => e.target.checked ? [...prev, p.id] : prev.filter(id => id !== p.id))}
+                        style={{ width: 14, height: 14 }} />
+                      {p.nome}
+                    </label>
+                  ))}
                 </div>
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", display: "block", marginBottom: 6 }}>Preço</label>
-                  <input
-                    value={quickAdicional.preco}
-                    onChange={e => setQuickAdicional(a => ({ ...a, preco: e.target.value }))}
-                    placeholder="0,00"
-                    type="number" min="0" step="0.01"
-                    style={{
-                      width: "100%", padding: "10px 12px", borderRadius: 10,
-                      border: "1.5px solid var(--border-1)", fontSize: 13, color: "var(--text-1)",
-                      outline: "none", boxSizing: "border-box",
-                    }}
-                  />
-                </div>
-                <div style={{ marginBottom: 20 }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={quickAdicional.obrigatorio}
-                      onChange={e => setQuickAdicional(a => ({ ...a, obrigatorio: e.target.checked }))}
-                      style={{ width: 16, height: 16, accentColor: cor }}
-                    />
-                    <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Adicional obrigatório</span>
-                  </label>
-                </div>
-                {produtos.filter(p => p.id !== quickProdutoId && p.tipo !== "simples").length > 0 && (
-                  <div style={{ marginBottom: 20 }}>
-                    <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", display: "block", marginBottom: 6 }}>Incluir também em outros produtos (opcional)</label>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 140, overflowY: "auto", padding: 8, borderRadius: 10, border: "1.5px solid var(--border-1)" }}>
-                      {produtos.filter(p => p.id !== quickProdutoId && p.tipo !== "simples").map(p => (
-                        <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-2)", cursor: "pointer" }}>
-                          <input type="checkbox" checked={quickAdicionalOutrosProdutos.includes(p.id)}
-                            onChange={e => setQuickAdicionalOutrosProdutos(prev => e.target.checked ? [...prev, p.id] : prev.filter(id => id !== p.id))}
-                            style={{ width: 14, height: 14 }} />
-                          {p.nome}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
+              </div>
             )}
 
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => { setQuickOpen(false); setQuickImportOpen(false); setQuickImportList([]); }}
+              <button onClick={() => setQuickOpen(false)}
                 style={{
                   flex: 1, padding: "12px", borderRadius: 12,
                   background: "var(--bg-input)", border: "1px solid var(--border-1)",
@@ -2828,35 +2649,19 @@ export default function CatalogoClient({
                 }}>
                 Cancelar
               </button>
-              {quickImportOpen ? (
-                <button
-                  onClick={handleSalvarQuickImport}
-                  disabled={salvandoQuickImport || quickImportLoading || quickImportList.filter(s => s.sel).length === 0}
-                  style={{
-                    flex: 2, padding: "12px", borderRadius: 12,
-                    background: (salvandoQuickImport || quickImportLoading || quickImportList.filter(s => s.sel).length === 0) ? "var(--text-4)" : cor,
-                    border: "none", color: "#fff", fontSize: 13, fontWeight: 800,
-                    cursor: (salvandoQuickImport || quickImportLoading) ? "not-allowed" : "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                  }}>
-                  {salvandoQuickImport ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : null}
-                  {salvandoQuickImport ? "Salvando..." : `Salvar ${quickImportList.filter(s => s.sel).length} sabores`}
-                </button>
-              ) : (
-                <button
-                  onClick={handleSaveQuick}
-                  disabled={savingQuick || (quickType === "sabor" ? !quickSabor.nome.trim() : !quickAdicional.nome.trim())}
-                  style={{
-                    flex: 2, padding: "12px", borderRadius: 12,
-                    background: savingQuick ? "var(--text-4)" : cor,
-                    border: "none", color: "#fff", fontSize: 13, fontWeight: 800,
-                    cursor: savingQuick ? "not-allowed" : "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                  }}>
-                  {savingQuick ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : null}
-                  {savingQuick ? "Salvando..." : "Salvar"}
-                </button>
-              )}
+              <button
+                onClick={handleSaveQuick}
+                disabled={savingQuick || !quickAdicional.nome.trim()}
+                style={{
+                  flex: 2, padding: "12px", borderRadius: 12,
+                  background: savingQuick ? "var(--text-4)" : cor,
+                  border: "none", color: "#fff", fontSize: 13, fontWeight: 800,
+                  cursor: savingQuick ? "not-allowed" : "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                }}>
+                {savingQuick ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : null}
+                {savingQuick ? "Salvando..." : "Salvar"}
+              </button>
             </div>
           </div>
         </div>
