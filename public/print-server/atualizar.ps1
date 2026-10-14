@@ -1,6 +1,8 @@
 # Vellox - Atualiza o servidor de impressao sem mexer nas credenciais salvas
 # (empresa_id, agent_token, impressora, papel continuam os mesmos de C:\VelloxPrint\config.json)
 $ErrorActionPreference = "Stop"
+# TLS 1.2 - Windows PowerShell 5.1 nem sempre liga sozinho e o site so aceita 1.2+.
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072 } catch {}
 $dir = "C:\VelloxPrint"
 
 Write-Host "=====================================" -ForegroundColor Cyan
@@ -9,7 +11,7 @@ Write-Host "=====================================" -ForegroundColor Cyan
 Write-Host ""
 
 if (-not (Test-Path "$dir\config.json")) {
-    Write-Host "ERRO: nao achei $dir\config.json — parece que o Vellox Print nao esta instalado neste PC." -ForegroundColor Red
+    Write-Host "ERRO: nao achei $dir\config.json - parece que o Vellox Print nao esta instalado neste PC." -ForegroundColor Red
     Write-Host "Rode o instalador completo em https://www.appvellox.online/print-server/instalar.bat" -ForegroundColor Yellow
     Read-Host "Pressione ENTER para sair"
     exit 1
@@ -17,7 +19,7 @@ if (-not (Test-Path "$dir\config.json")) {
 
 Write-Host "Baixando a versao mais recente..." -ForegroundColor Yellow
 # Baixa pra um arquivo temporario primeiro e SO troca o servidor.ps1 (e para
-# o antigo) se o download realmente deu certo — assim, se a internet cair no
+# o antigo) se o download realmente deu certo - assim, se a internet cair no
 # meio, o agente que ja estava rodando continua rodando em vez de ficar sem
 # nenhum processo de impressao ate alguem notar.
 $tmpFile = Join-Path $env:TEMP "vellox-servidor-novo.ps1"
@@ -27,21 +29,21 @@ try {
         throw "Arquivo baixado parece vazio ou incompleto."
     }
 } catch {
-    Write-Host "ERRO: nao foi possivel baixar a atualizacao ($($_.Exception.Message)). O servidor atual continua rodando normalmente — tente de novo mais tarde." -ForegroundColor Red
+    Write-Host "ERRO: nao foi possivel baixar a atualizacao ($($_.Exception.Message)). O servidor atual continua rodando normalmente - tente de novo mais tarde." -ForegroundColor Red
     Read-Host "Pressione ENTER para sair"
     exit 1
 }
 
 Write-Host "Download OK. Parando o servidor atual (se estiver rodando)..." -ForegroundColor Yellow
-# Antes filtrava só por Name='powershell.exe' e nunca conferia se matou de
-# verdade — se falhasse (nome diferente tipo pwsh.exe, processo preso,
+# Antes filtrava so por Name='powershell.exe' e nunca conferia se matou de
+# verdade - se falhasse (nome diferente tipo pwsh.exe, processo preso,
 # permissao), o script seguia em frente do mesmo jeito e subia a versao
 # nova, que trombava com o mutex do processo antigo ainda vivo e se fechava
 # sozinha sem avisar nada. Parecia que a atualizacao "nao tinha feito
 # nada". Agora: pega qualquer processo com servidor.ps1 na linha de
 # comando (sem travar no nome do executavel), mata, CONFERE que morreu de
-# verdade (reconsultando), escala pra taskkill se precisar, e só segue
-# adiante depois de confirmar — se não conseguir, avisa bem alto em vez de
+# verdade (reconsultando), escala pra taskkill se precisar, e so segue
+# adiante depois de confirmar - se nao conseguir, avisa bem alto em vez de
 # seguir calado.
 function Get-ServidorProcs {
     Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
@@ -55,7 +57,7 @@ while ($restantes.Count -gt 0 -and $tentativas -lt 5) {
         if ($tentativas -eq 0) {
             try { Stop-Process -Id $proc.ProcessId -Force -ErrorAction Stop } catch {}
         } else {
-            # Escalada: Stop-Process não bastou, tenta taskkill /T (mata a
+            # Escalada: Stop-Process nao bastou, tenta taskkill /T (mata a
             # arvore de processos toda, inclusive filhos presos).
             try { & taskkill /F /T /PID $proc.ProcessId 2>$null | Out-Null } catch {}
         }
@@ -78,7 +80,7 @@ Write-Host "Servidor antigo encerrado (confirmado)." -ForegroundColor Green
 Move-Item -Path $tmpFile -Destination "$dir\servidor.ps1" -Force
 
 if (-not (Test-Path "$dir\iniciar.bat")) {
-    # instalações antigas podem não ter o iniciar.bat — recria
+    # instalacoes antigas podem nao ter o iniciar.bat - recria
     "@echo off`r`npowershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$dir\servidor.ps1`"" |
         Out-File -Encoding ascii "$dir\iniciar.bat"
 }

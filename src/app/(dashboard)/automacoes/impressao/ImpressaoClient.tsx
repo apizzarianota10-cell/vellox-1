@@ -41,7 +41,7 @@ const DESTAQUE_OPTS: { id: Destaque; label: string }[] = [
 // Versão atual do servidor.ps1 (public/print-server/servidor.ps1, variável
 // $Versao no topo do arquivo) — mantenha os dois em sincronia a cada mudança
 // no script, pra esse aviso ficar confiável.
-const VERSAO_AGENTE_ATUAL = "v8";
+const VERSAO_AGENTE_ATUAL = "v10";
 
 export default function ImpressaoClient({ empresa, initialConfig }: Props) {
   const supabase = createClient();
@@ -73,6 +73,30 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
   const [showToken,     setShowToken]     = useState(false);
   const [baixandoInstalador, setBaixandoInstalador] = useState(false);
   const [baixandoAtualizador, setBaixandoAtualizador] = useState(false);
+  const [agentStatus, setAgentStatus] = useState<{ last_seen: string | null; versao: string | null }>({
+    last_seen: initialConfig?.agent_last_seen ?? null,
+    versao:    initialConfig?.agent_versao ?? null,
+  });
+  const [agora, setAgora] = useState(() => Date.now());
+
+  // Sem isso, o status ficava congelado no que veio do servidor ao abrir a
+  // página: o dono instalava o agente e continuava vendo "offline" até dar F5.
+  useEffect(() => {
+    const sb = createClient();
+    let ativo = true;
+    async function atualizarStatus() {
+      const { data } = await sb
+        .from("configuracoes_print_agent")
+        .select("agent_last_seen, agent_versao")
+        .eq("empresa_id", empresa.id)
+        .maybeSingle();
+      if (!ativo) return;
+      if (data) setAgentStatus({ last_seen: data.agent_last_seen, versao: data.agent_versao });
+      setAgora(Date.now());
+    }
+    const t = setInterval(atualizarStatus, 10_000);
+    return () => { ativo = false; clearInterval(t); };
+  }, [empresa.id]);
 
   // O link precisa estar no DOM antes do .click() (em alguns navegadores,
   // um <a download> solto na memória não dispara o download de jeito
@@ -96,13 +120,34 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
   // Baixa o instalador com o número da versão já no nome do arquivo (lido do
   // próprio conteúdo, ex: "INSTALADOR_VERSAO=v3"), pra dar pra saber qual
   // versão você tem só de olhar a pasta de Downloads, sem precisar abrir.
+  // O .bat sai com o ID e o token desta loja embutidos (variáveis de ambiente
+  // que o configurar.ps1 lê), então o dono só dá dois cliques — sem copiar e
+  // colar credencial, que era onde mais dava erro.
   async function baixarInstalador() {
     setBaixandoInstalador(true);
     try {
+      let c = creds;
+      if (!c) {
+        // Sem credencial ainda baixa o instalador genérico (que pede colar na mão).
+        try {
+          const r = await fetch("/api/print-server/credentials");
+          const d = await r.json();
+          if (r.ok) { c = { empresa_id: d.empresa_id, agent_token: d.agent_token }; setCreds(c); }
+        } catch { /* segue sem credencial */ }
+      }
       const res = await fetch("/print-server/instalar.bat", { cache: "no-store" });
-      const texto = await res.text();
+      let texto = await res.text();
       const m = texto.match(/INSTALADOR_VERSAO=([^\r\n]+)/);
       const versao = m ? m[1].trim() : "";
+      // Token hex (atual) ou JWT (lojas antigas) — ambos só têm caracteres seguros num `set "..."` do .bat.
+      if (c && /^[0-9a-f-]{36}$/i.test(c.empresa_id) && /^([0-9a-f]{32,64}|[\w-]+\.[\w-]+\.[\w-]+)$/i.test(c.agent_token)) {
+        texto = texto.replace(
+          /^@echo off/,
+          `@echo off\nset "VELLOX_EMPRESA_ID=${c.empresa_id}"\nset "VELLOX_AGENT_TOKEN=${c.agent_token}"`,
+        );
+      }
+      // cmd.exe é mais confiável com CRLF (continuação de linha com ^).
+      texto = texto.replace(/\r?\n/g, "\r\n");
       downloadBlob(texto, `vellox-instalador${versao ? `-${versao}` : ""}.bat`);
     } finally {
       setBaixandoInstalador(false);
@@ -116,7 +161,7 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
     setBaixandoAtualizador(true);
     try {
       const res = await fetch("/print-server/atualizar.bat", { cache: "no-store" });
-      const texto = await res.text();
+      const texto = (await res.text()).replace(/\r?\n/g, "\r\n");
       downloadBlob(texto, "vellox-atualizar.bat");
     } finally {
       setBaixandoAtualizador(false);
@@ -256,19 +301,19 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
         </div>
       </div>
 
-      {/* Status do agente de impressão local */}
-      {initialConfig?.agent_last_seen && (() => {
-        const ultimoMs = new Date(initialConfig.agent_last_seen!).getTime();
-        const agentOnline = Date.now() - ultimoMs < 30_000;
-        const versaoAtual = initialConfig.agent_versao;
-        const desatualizado = versaoAtual != null && versaoAtual !== VERSAO_AGENTE_ATUAL;
+      {/* Status do agente de impressão local — atualiza sozinho a cada 10s */}
+      {(() => {
+        const lastSeen = agentStatus.last_seen;
+        const agentOnline = !!lastSeen && agora - new Date(lastSeen).getTime() < 30_000;
+        const versaoAtual = agentStatus.versao;
+        const desatualizado = agentOnline && versaoAtual != null && versaoAtual !== VERSAO_AGENTE_ATUAL;
         return (
           <div className="rounded-2xl p-4" style={{ background: "var(--bg-2)", border: "1px solid var(--border-1)" }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full" style={{ background: agentOnline ? "#22c55e" : "#ef4444" }} />
                 <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>
-                  Agente de impressão {agentOnline ? "online" : "offline"}
+                  Agente de impressão {agentOnline ? "online" : lastSeen ? "offline" : "ainda não conectado"}
                 </p>
               </div>
               {versaoAtual && (
@@ -279,7 +324,9 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
             </div>
             {!agentOnline && (
               <p className="text-xs mt-1.5" style={{ color: "#64748b" }}>
-                Última vez visto: {new Date(initialConfig.agent_last_seen!).toLocaleString("pt-BR")}
+                {lastSeen
+                  ? `Última vez visto: ${new Date(lastSeen).toLocaleString("pt-BR")} — no computador da impressora, rode o instalador de novo.`
+                  : "Clique em \"Baixar instalador\" abaixo e abra o arquivo no computador ligado à impressora."}
               </p>
             )}
             {desatualizado && (
@@ -301,7 +348,7 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
           <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>Credenciais do servidor de impressão</p>
         </div>
         <p className="text-xs mb-3" style={{ color: "#64748b" }}>
-          Use estes valores no instalador (<span style={{ fontFamily: "monospace" }}>instalar.bat</span>) rodando no computador da impressora.
+          O <strong>Baixar instalador</strong> abaixo já sai configurado pra sua loja — é só abrir o arquivo no computador da impressora, escolher a impressora na lista e conferir o cupom de teste. Estes valores só são necessários se o instalador pedir.
         </p>
 
         {/* ID da empresa */}
@@ -355,7 +402,7 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
           </div>
         ) : null}
         <p className="text-xs mt-1.5" style={{ color: "#374151" }}>
-          Não compartilhe o token — quem tiver acesso a ele consegue ler os pedidos pendentes da sua loja.
+          Não compartilhe o token nem o instalador baixado (ele carrega o token) — quem tiver acesso consegue ler os pedidos pendentes da sua loja.
         </p>
 
         <div className="flex gap-2 mt-3">
