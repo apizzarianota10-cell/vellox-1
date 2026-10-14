@@ -78,7 +78,7 @@ timeout /t 8 /nobreak >nul
 powershell -NoProfile -Command ^
   "$vivo=@(Get-CimInstance Win32_Process -EA SilentlyContinue | Where-Object { $_.CommandLine -like '*servidor.ps1*' -and $_.ProcessId -ne $PID }).Count -gt 0;" ^
   "$log=if(Test-Path '%DIR%\log.txt'){ Get-Content '%DIR%\log.txt' -Tail 15 }else{ @() };" ^
-  "$erro=@($log | Where-Object { $_ -match 'ERRO' });" ^
+  "$erro=@($log | Where-Object { $_ -cmatch '^\s*ERRO|\[ERRO' });" ^
   "Write-Host '';" ^
   "if($vivo -and $erro.Count -eq 0){" ^
   "  Write-Host ' =========================================' -ForegroundColor Green;" ^

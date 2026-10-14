@@ -5,7 +5,7 @@ import { AlertTriangle, X } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { autoPrint } from "@/lib/printService";
-import type { LayoutOpt } from "@/lib/printService";
+import type { LayoutOpt, FonteOpt } from "@/lib/printService";
 import { checkAgentOnlineViaDb } from "@/lib/printAgentOnline";
 import type { Pedido } from "@/types";
 
@@ -17,6 +17,7 @@ interface Props {
   empresaNome: string;
   empresaCnpj?: string | null;
   layout?: LayoutOpt;
+  fonte?: FonteOpt;
 }
 
 interface PedidoAtrasado {
@@ -25,7 +26,7 @@ interface PedidoAtrasado {
   created_at: string;
 }
 
-export default function PrintListener({ empresaId, empresaNome, empresaCnpj, layout }: Props) {
+export default function PrintListener({ empresaId, empresaNome, empresaCnpj, layout, fonte }: Props) {
   // Evita dupla impressão entre abas usando Set compartilhado via localStorage
   const printedSet = useRef<Set<string>>(new Set());
   // Evita repetir o aviso pra cada pedido novo enquanto o agente continuar offline
@@ -101,7 +102,7 @@ export default function PrintListener({ empresaId, empresaNome, empresaCnpj, lay
       }
 
       // 3. WebUSB se configurado → silencioso; senão window.print()
-      const resultado = await autoPrint(pedido, empresaNome, layout);
+      const resultado = await autoPrint(pedido, empresaNome, layout, fonte);
 
       // Marca no banco que este pedido já foi impresso (pelo navegador), para
       // que o servidor.ps1 — cujo heartbeat pode ainda não refletir o ciclo
@@ -147,7 +148,7 @@ export default function PrintListener({ empresaId, empresaNome, empresaCnpj, lay
       .subscribe();
 
     return () => { supabase.removeChannel(ch); };
-  }, [empresaId, empresaNome, empresaCnpj, layout]);
+  }, [empresaId, empresaNome, empresaCnpj, layout, fonte]);
 
   // Lembrete: pedido em fila há mais de 5 minutos sem ser marcado como
   // impresso (nem pelo agente, nem pelo fallback do navegador) — sinal de

@@ -11,7 +11,8 @@ import LayoutUpdateModal from "@/components/dashboard/LayoutUpdateModal";
 import { PlanoProvider } from "@/contexts/PlanoContext";
 import { LojaProvider } from "@/contexts/LojaContext";
 import type { Plano, Loja } from "@/types";
-import type { LayoutOpt } from "@/lib/printService";
+import type { LayoutOpt, FonteOpt } from "@/lib/printService";
+import { isFonteOpt } from "@/lib/escpos";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   try {
@@ -53,19 +54,20 @@ export default async function DashboardLayout({ children }: { children: React.Re
     // está configurado (antes dependia do localStorage de cada navegador).
     const { data: printPrefs } = await supabase
       .from("configuracoes_print_agent")
-      .select("layout")
+      .select("layout, fonte")
       .eq("empresa_id", user.id)
       .maybeSingle();
 
+    const fonte: FonteOpt | undefined = isFonteOpt(printPrefs?.fonte) ? printPrefs?.fonte : undefined;
     const lojas: Loja[] = (lojasRaw ?? []) as Loja[];
     const plano: Plano  = (empresa?.plano ?? "basic") as Plano;
 
     return (
       <PlanoProvider plano={plano} assinaturaAtiva={empresa?.assinatura_ativa ?? false}>
         <LojaProvider initialLojas={lojas} empresaId={user.id}>
-          <PrintListener empresaId={empresa.id} empresaNome={empresa.nome} empresaCnpj={empresa.cnpj} layout={printPrefs?.layout as LayoutOpt | undefined} />
-          <NewOrderPopup empresaId={empresa.id} empresaNome={empresa.nome} empresaCnpj={empresa.cnpj} layout={printPrefs?.layout as LayoutOpt | undefined} />
-          <LayoutUpdateModal empresaId={empresa.id} empresaNome={empresa.nome} />
+          <PrintListener empresaId={empresa.id} empresaNome={empresa.nome} empresaCnpj={empresa.cnpj} layout={printPrefs?.layout as LayoutOpt | undefined} fonte={fonte} />
+          <NewOrderPopup empresaId={empresa.id} empresaNome={empresa.nome} empresaCnpj={empresa.cnpj} layout={printPrefs?.layout as LayoutOpt | undefined} fonte={fonte} />
+          <LayoutUpdateModal empresaId={empresa.id} empresaNome={empresa.nome} fonte={fonte} />
           <div className="flex flex-col h-full">
             <VersionChecker />
             <PrintAgentBanner empresaId={empresa.id} />

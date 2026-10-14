@@ -9,16 +9,34 @@ const CENTER    = [ESC, 0x61, 0x01];
 const LEFT      = [ESC, 0x61, 0x00];
 const BOLD_ON   = [ESC, 0x45, 0x01];
 const BOLD_OFF  = [ESC, 0x45, 0x00];
-const BIG       = [ESC, 0x21, 0x30]; // double width + height
-const NORMAL    = [ESC, 0x21, 0x00];
-// Nome do cliente e sabores: altura dupla + negrito, largura normal (em
-// largura dupla ficavam enormes e quebravam no meio da palavra).
-const MEDIO     = [ESC, 0x21, 0x18];
 const CUT       = [GS,  0x56, 0x41, 0x03];
 
 type LayoutOpt = "classico" | "moderno" | "compacto";
 
-function getColumns(): number {
+// Tamanho da letra do cupom inteiro (configuracoes_print_agent.fonte) — mesmo
+// mapeamento do servidor.ps1: um GS ! só, aplicado uma vez depois do INIT.
+export type FonteOpt = "normal" | "grande" | "extra_grande";
+const FONTE_KEY = "vellox-receipt-fonte";
+
+export function isFonteOpt(v: unknown): v is FonteOpt {
+  return v === "normal" || v === "grande" || v === "extra_grande";
+}
+
+export function getSavedFonte(): FonteOpt {
+  try {
+    const v = localStorage.getItem(FONTE_KEY);
+    if (isFonteOpt(v)) return v;
+  } catch {}
+  return "grande";
+}
+
+export function saveFonte(f: FonteOpt): void {
+  try { localStorage.setItem(FONTE_KEY, f); } catch {}
+}
+
+const GS_TAMANHO: Record<FonteOpt, number> = { normal: 0x00, grande: 0x01, extra_grande: 0x11 };
+
+function getBaseColumns(): number {
   try {
     return localStorage.getItem("vellox-paper-size") === "58mm" ? 32 : 48;
   } catch {
@@ -45,12 +63,10 @@ function txt(s: string): number[] {
   return bytes;
 }
 
-function ln(s = ""): number[] { return [...txt(s), LF]; }
-
 // Quebra texto em linhas de `cols` chars sem cortar palavra ao meio
 // (só quebra uma palavra isoladamente se ela sozinha já for maior que `cols`)
 function wrapLines(s: string, cols: number): string[] {
-  const words = s.split(" ");
+  const words = s.split(" ").filter(w => w);
   const lines: string[] = [];
   let cur = "";
   for (const w of words) {
@@ -69,13 +85,42 @@ function wrapLines(s: string, cols: number): string[] {
   return lines.length ? lines : [""];
 }
 
-function wrap(s: string, cols: number): number[] {
-  const out: number[] = [];
-  for (const l of wrapLines(s, cols)) out.push(...txt(l), LF);
-  return out;
+// Todas as linhas do cupom passam por aqui com a largura efetiva (W já
+// dividido quando a letra é 2x de largura), então nada passa da linha.
+function makeR(W: number) {
+  const wrap = (s: string): number[] => {
+    const out: number[] = [];
+    for (const l of wrapLines(s, W)) out.push(...txt(l), LF);
+    return out;
+  };
+  const wrapPref = (s: string, pref: string, cont: string): number[] => {
+    const out: number[] = [];
+    wrapLines(s, Math.max(W - pref.length, 4)).forEach((l, i) => out.push(...txt((i === 0 ? pref : cont) + l), LF));
+    return out;
+  };
+  // Primeira variante que cabe inteira numa linha; senão quebra a última.
+  const fit = (...opcoes: string[]): number[] => {
+    const ok = opcoes.find(o => o.length <= W);
+    return ok !== undefined ? [...txt(ok), LF] : wrap(opcoes[opcoes.length - 1]);
+  };
+  const sep = (char = "-"): number[] => [...txt(char.repeat(W)), LF];
+  // Valor à direita na última linha do rótulo; se não couber, sozinho embaixo.
+  const row = (label: string, value: string): number[] => {
+    const ls = wrapLines(label, W);
+    const out: number[] = [];
+    ls.slice(0, -1).forEach(l => out.push(...txt(l), LF));
+    const ult = ls[ls.length - 1];
+    const sp = W - ult.length - value.length;
+    if (sp >= 1) return [...out, ...txt(ult + " ".repeat(sp) + value), LF];
+    out.push(...txt(ult), LF);
+    return value.length <= W ? [...out, ...txt(" ".repeat(W - value.length) + value), LF] : [...out, ...wrap(value)];
+  };
+  // Duas partes juntas com " | " se couber, senão uma por linha.
+  const par = (a: string, b?: string): number[] =>
+    !b ? wrap(a) : `${a} | ${b}`.length <= W ? [...txt(`${a} | ${b}`), LF] : [...wrap(a), ...wrap(b)];
+  return { W, wrap, wrapPref, fit, sep, row, par };
 }
-
-function sep(char = "-"): number[] { return ln(char.repeat(getColumns())); }
+type R = ReturnType<typeof makeR>;
 
 export type ItemDetalhe = { texto: string; sabor: boolean };
 export type ItemParsed = { qtd: string; nome: string; detalhes: ItemDetalhe[]; preco: string };
@@ -122,54 +167,34 @@ export function parseItemLine(line: string): ItemParsed | null {
   return { qtd, nome, detalhes, preco };
 }
 
-// Cada item vira um bloco próprio: nome+preço numa linha, detalhes (variação/
-// adicional) recuados embaixo e cada sabor numa linha própria em altura dupla
-// + negrito (MEDIO). `descricao_itens` insere uma linha em
-// branco entre blocos para os produtos não ficarem colados uns nos outros
-// (exceto no compacto, que fica sem respiro entre eles pra caber mais no rolo).
-function itemBlock(line: string, cols: number, prefix: string): number[] {
+// Cada item vira um bloco próprio: nome+preço, cada sabor numa linha própria
+// (" - Sabor") e variação/adicionais recuados embaixo — tudo no mesmo tamanho.
+function itemBlock(r: R, line: string, prefix: string): number[] {
   const parsed = parseItemLine(line);
-  if (!parsed) return wrap((prefix ? "• " : "") + (line || " "), cols);
+  if (!parsed) return r.wrap(prefix + (line || " "));
 
-  const out: number[] = [];
-  const qtdNome  = `${prefix}${parsed.qtd}x ${parsed.nome}`;
-  const precoTxt = `R$${parsed.preco}`;
-  const pad = cols - qtdNome.length - precoTxt.length;
-  if (pad >= 1) {
-    out.push(...txt(qtdNome + " ".repeat(pad) + precoTxt), LF);
-  } else {
-    for (const l of wrapLines(qtdNome, cols)) out.push(...txt(l), LF);
-    out.push(...txt(precoTxt), LF);
-  }
+  const out: number[] = [...r.row(`${prefix}${parsed.qtd}x ${parsed.nome}`, `R$${parsed.preco}`)];
+  // 2+ sabores numerados, continuação recuada sob o texto — uma quebra de
+  // linha nunca parece outro sabor.
+  const multi = parsed.detalhes.filter(d => d.sabor).length >= 2;
+  let n = 0;
   for (const d of parsed.detalhes) {
-    if (d.sabor) {
-      // " - " + texto; continuação recuada 3 pra alinhar com o nome do sabor
-      const ls = wrapLines(d.texto, Math.max(cols - 3, 8));
-      out.push(...MEDIO);
-      ls.forEach((l, i) => out.push(...txt((i === 0 ? " - " : "   ") + l), LF));
-      out.push(...NORMAL);
-    } else {
-      for (const l of wrapLines(d.texto, Math.max(cols - 3, 8))) out.push(...txt("   " + l), LF);
-    }
+    if (!d.sabor) { out.push(...r.wrapPref(d.texto, "   ", "   ")); continue; }
+    const pref = multi ? `${++n}. ` : " - ";
+    out.push(...r.wrapPref(d.texto, pref, " ".repeat(pref.length)));
   }
   return out;
 }
 
-function itemsSection(descricaoItens: string | null | undefined, cols: number, layout: LayoutOpt): number[] {
-  const prefix = layout === "moderno" ? "› " : "";
+function itemsSection(r: R, descricaoItens: string | null | undefined, layout: LayoutOpt): number[] {
+  const prefix = layout === "moderno" ? "- " : "";
   const linhas = (descricaoItens ?? "---").split("\n");
   const out: number[] = [];
   linhas.forEach((l, i) => {
-    out.push(...itemBlock(l, cols, prefix));
+    out.push(...itemBlock(r, l, prefix));
     if (layout !== "compacto" && i < linhas.length - 1) out.push(LF);
   });
   return out;
-}
-
-function row(label: string, value: string): number[] {
-  const W   = getColumns();
-  const pad = W - value.length;
-  return ln(label.padEnd(pad < 1 ? 1 : pad).slice(0, pad < 1 ? 1 : pad) + value);
 }
 
 const PGTO_LABELS: Record<string, string> = {
@@ -180,60 +205,58 @@ const PGTO_LABELS: Record<string, string> = {
   ja_pago:       "Ja pago",
 };
 
-function buildClassico(pedido: Pedido, empresaNome: string, W: number, bigW: number): number[] {
-  const data  = new Date(pedido.created_at).toLocaleString("pt-BR");
+const rs = (v: number) => "R$ " + v.toFixed(2).replace(".", ",");
+const dataCurta = (iso: string) => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(",", "");
+const totalOpcoes = (total: number) => [`TOTAL: ${rs(total)}`, `TOTAL ${rs(total).replace(" ", "")}`];
+
+function buildClassico(r: R, pedido: Pedido, empresaNome: string): number[] {
   const total = pedido.valor_pedido + pedido.valor_motoboy;
   const pgto  = pedido.forma_pagamento
     ? (PGTO_LABELS[pedido.forma_pagamento] ?? pedido.forma_pagamento)
     : "---";
 
   return [
-    ...CENTER, ...BIG, ...BOLD_ON,
-    ...ln(empresaNome.toUpperCase().slice(0, bigW)),
-    ...NORMAL, ...BOLD_OFF,
-    ...ln(data),
-    ...sep(),
-    ...LEFT, ...BOLD_ON,
-    ...ln("PEDIDO #" + pedido.id.slice(0, 8).toUpperCase()),
+    ...CENTER, ...BOLD_ON,
+    ...r.wrap(empresaNome.toUpperCase()),
     ...BOLD_OFF,
-    ...sep(),
-    ...MEDIO, ...wrap("CLIENTE: " + pedido.cliente_nome, W), ...NORMAL,
-    ...(pedido.cliente_telefone ? wrap("TEL: " + pedido.cliente_telefone, W) : []),
-    ...sep(),
+    ...r.wrap(dataCurta(pedido.created_at)),
+    ...r.sep(),
+    ...LEFT, ...BOLD_ON,
+    ...r.fit("PEDIDO #" + pedido.id.slice(0, 8).toUpperCase()),
+    ...BOLD_OFF,
+    ...r.sep(),
+    ...BOLD_ON, ...r.wrap("CLIENTE: " + pedido.cliente_nome), ...BOLD_OFF,
+    ...(pedido.cliente_telefone ? r.wrap("TEL: " + pedido.cliente_telefone) : []),
+    ...r.sep(),
     ...BOLD_ON,
-    ...ln(pedido.tipo_pedido === "entrega" ? "** DELIVERY **" : "** RETIRADA **"),
+    ...r.fit(pedido.tipo_pedido === "entrega" ? "** DELIVERY **" : "** RETIRADA **"),
     ...BOLD_OFF,
     ...(pedido.tipo_pedido === "entrega"
       ? [
-          ...wrap("END: " + pedido.endereco_entrega, W),
-          ...(pedido.bairro ? wrap("BAI: " + pedido.bairro, W) : []),
+          ...r.wrap("END: " + pedido.endereco_entrega),
+          ...(pedido.bairro ? r.wrap("BAI: " + pedido.bairro) : []),
         ]
       : []),
-    ...sep(),
-    ...BOLD_ON, ...ln("ITENS:"), ...BOLD_OFF,
-    ...itemsSection(pedido.descricao_itens, W, "classico"),
-    ...(pedido.observacoes ? wrap("OBS: " + pedido.observacoes, W) : []),
-    ...sep(),
-    ...row("Subtotal:", "R$ " + pedido.valor_pedido.toFixed(2).replace(".", ",")),
-    ...(pedido.valor_motoboy > 0
-      ? row("Entrega:", "R$ " + pedido.valor_motoboy.toFixed(2).replace(".", ","))
-      : []),
+    ...r.sep(),
+    ...BOLD_ON, ...r.fit("ITENS:"), ...BOLD_OFF,
+    ...itemsSection(r, pedido.descricao_itens, "classico"),
+    ...(pedido.observacoes ? r.wrap("OBS: " + pedido.observacoes) : []),
+    ...r.sep(),
+    ...r.row("Subtotal:", rs(pedido.valor_pedido)),
+    ...(pedido.valor_motoboy > 0 ? r.row("Entrega:", rs(pedido.valor_motoboy)) : []),
     ...BOLD_ON,
-    ...row("TOTAL:", "R$ " + total.toFixed(2).replace(".", ",")),
+    ...r.row("TOTAL:", rs(total)),
     ...BOLD_OFF,
-    ...sep(),
-    ...BOLD_ON, ...wrap("PGTO: " + pgto, W), ...BOLD_OFF,
-    ...(pedido.troco_para
-      ? wrap("Troco p/ R$ " + pedido.troco_para.toFixed(2).replace(".", ","), W)
-      : []),
-    ...sep(),
+    ...r.sep(),
+    ...BOLD_ON, ...r.wrap("PGTO: " + pgto), ...BOLD_OFF,
+    ...(pedido.troco_para ? r.wrap("Troco p/ " + rs(pedido.troco_para)) : []),
+    ...r.sep(),
     ...CENTER,
-    ...ln("Vellox - appvellox.online"),
+    ...r.fit("Vellox - appvellox.online", "appvellox.online"),
   ];
 }
 
-function buildModerno(pedido: Pedido, empresaNome: string, W: number, bigW: number): number[] {
-  const data  = new Date(pedido.created_at).toLocaleString("pt-BR");
+function buildModerno(r: R, pedido: Pedido, empresaNome: string): number[] {
   const total = pedido.valor_pedido + pedido.valor_motoboy;
   const pgto  = pedido.forma_pagamento
     ? (PGTO_LABELS[pedido.forma_pagamento] ?? pedido.forma_pagamento)
@@ -241,91 +264,95 @@ function buildModerno(pedido: Pedido, empresaNome: string, W: number, bigW: numb
   const tipo = pedido.tipo_pedido === "retirada" ? "RETIRADA" : pedido.forma_pagamento === "ja_pago" ? "JA PAGO" : "DELIVERY";
 
   return [
-    ...sep("="),
-    ...CENTER, ...BIG, ...BOLD_ON,
-    ...ln(empresaNome.toUpperCase().slice(0, bigW)),
-    ...NORMAL, ...BOLD_OFF,
-    ...ln(data),
-    ...sep("="),
-    ...BOLD_ON,
-    ...ln(`[ ${tipo} ]`),
+    ...r.sep("="),
+    ...CENTER, ...BOLD_ON,
+    ...r.wrap(empresaNome.toUpperCase()),
     ...BOLD_OFF,
-    ...ln("PEDIDO #" + pedido.id.slice(0, 8).toUpperCase()),
-    ...sep("="),
-    ...LEFT, ...MEDIO,
-    ...wrap("> " + pedido.cliente_nome, W),
-    ...NORMAL, ...BOLD_OFF,
-    ...(pedido.cliente_telefone ? wrap("Tel: " + pedido.cliente_telefone, W) : []),
-    ...sep(),
+    ...r.wrap(dataCurta(pedido.created_at)),
+    ...r.sep("="),
+    ...BOLD_ON,
+    ...r.fit(`[ ${tipo} ]`),
+    ...BOLD_OFF,
+    ...r.fit("PEDIDO #" + pedido.id.slice(0, 8).toUpperCase()),
+    ...r.sep("="),
+    ...LEFT, ...BOLD_ON,
+    ...r.wrap("> " + pedido.cliente_nome),
+    ...BOLD_OFF,
+    ...(pedido.cliente_telefone ? r.wrap("Tel: " + pedido.cliente_telefone) : []),
+    ...r.sep(),
     ...(pedido.tipo_pedido === "entrega"
-      ? wrap("End: " + pedido.endereco_entrega + (pedido.bairro ? `, ${pedido.bairro}` : ""), W)
-      : [...BOLD_ON, ...CENTER, ...ln("*** RETIRADA NO LOCAL ***"), ...LEFT, ...BOLD_OFF]),
-    ...sep("="),
-    ...BOLD_ON, ...ln("ITENS"), ...BOLD_OFF,
-    ...itemsSection(pedido.descricao_itens, W, "moderno"),
-    ...(pedido.observacoes ? [...sep(), ...BOLD_ON, ...ln("Obs:"), ...BOLD_OFF, ...wrap(pedido.observacoes, W)] : []),
-    ...sep("="),
-    ...row("Subtotal:", "R$ " + pedido.valor_pedido.toFixed(2).replace(".", ",")),
-    ...(pedido.valor_motoboy > 0
-      ? row("Entrega:", "R$ " + pedido.valor_motoboy.toFixed(2).replace(".", ","))
-      : []),
-    ...sep("="),
-    ...CENTER, ...BIG, ...BOLD_ON,
-    ...ln(`>> TOTAL: R$ ${total.toFixed(2).replace(".", ",")} <<`),
-    ...NORMAL, ...BOLD_OFF,
-    ...sep("="),
+      ? r.wrap("End: " + pedido.endereco_entrega + (pedido.bairro ? `, ${pedido.bairro}` : ""))
+      : [...BOLD_ON, ...CENTER, ...r.fit("*** RETIRADA NO LOCAL ***", "RETIRADA NO LOCAL"), ...LEFT, ...BOLD_OFF]),
+    ...r.sep("="),
+    ...BOLD_ON, ...r.fit("ITENS"), ...BOLD_OFF,
+    ...itemsSection(r, pedido.descricao_itens, "moderno"),
+    ...(pedido.observacoes ? [...r.sep(), ...BOLD_ON, ...r.fit("Obs:"), ...BOLD_OFF, ...r.wrap(pedido.observacoes)] : []),
+    ...r.sep("="),
+    ...r.row("Subtotal:", rs(pedido.valor_pedido)),
+    ...(pedido.valor_motoboy > 0 ? r.row("Entrega:", rs(pedido.valor_motoboy)) : []),
+    ...r.sep("="),
+    ...CENTER, ...BOLD_ON,
+    ...r.fit(`>> TOTAL: ${rs(total)} <<`, ...totalOpcoes(total)),
+    ...BOLD_OFF,
+    ...r.sep("="),
     ...LEFT,
-    ...wrap("Pgto: " + pgto, W),
-    ...(pedido.troco_para ? wrap("Troco p/ R$ " + pedido.troco_para.toFixed(2).replace(".", ","), W) : []),
-    ...sep("="),
+    ...r.wrap("Pgto: " + pgto),
+    ...(pedido.troco_para ? r.wrap("Troco p/ " + rs(pedido.troco_para)) : []),
+    ...r.sep("="),
     ...CENTER,
-    ...ln("appvellox.online"),
+    ...r.fit("appvellox.online"),
   ];
 }
 
-function buildCompacto(pedido: Pedido, empresaNome: string, W: number, bigW: number): number[] {
+function buildCompacto(r: R, pedido: Pedido, empresaNome: string): number[] {
   const total = pedido.valor_pedido + pedido.valor_motoboy;
   const pgto  = pedido.forma_pagamento
     ? (PGTO_LABELS[pedido.forma_pagamento] ?? pedido.forma_pagamento)
     : "---";
-  const dataC = new Date(pedido.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
   const tipo  = pedido.tipo_pedido === "retirada" ? "[RETIRADA]" : pedido.forma_pagamento === "ja_pago" ? "[JA PAGO]" : "[DELIVERY]";
 
   return [
-    ...CENTER, ...BIG, ...BOLD_ON,
-    ...ln(empresaNome.toUpperCase().slice(0, bigW)),
-    ...NORMAL, ...BOLD_OFF,
-    ...ln(`${dataC} | #${pedido.id.slice(0, 8).toUpperCase()}`),
-    ...sep(),
-    ...LEFT, ...MEDIO,
-    ...wrap(`${tipo} ${pedido.cliente_nome}`, W),
-    ...NORMAL, ...BOLD_OFF,
-    ...(pedido.cliente_telefone ? wrap(pedido.cliente_telefone, W) : []),
-    ...(pedido.tipo_pedido === "entrega" ? wrap(pedido.endereco_entrega + (pedido.bairro ? `, ${pedido.bairro}` : ""), W) : []),
-    ...sep(),
-    ...itemsSection(pedido.descricao_itens, W, "compacto"),
-    ...(pedido.observacoes ? wrap("Obs: " + pedido.observacoes, W) : []),
-    ...sep(),
-    ...wrap(`Sub: R$ ${pedido.valor_pedido.toFixed(2).replace(".", ",")}` + (pedido.valor_motoboy > 0 ? ` | Entr: R$ ${pedido.valor_motoboy.toFixed(2).replace(".", ",")}` : ""), W),
-    ...BOLD_ON,
-    ...ln(`TOTAL: R$ ${total.toFixed(2).replace(".", ",")}`),
+    ...CENTER, ...BOLD_ON,
+    ...r.wrap(empresaNome.toUpperCase()),
     ...BOLD_OFF,
-    ...wrap(`Pgto: ${pgto}` + (pedido.troco_para ? ` | Troco p/ R$ ${pedido.troco_para.toFixed(2).replace(".", ",")}` : ""), W),
-    ...sep(),
+    ...r.par(dataCurta(pedido.created_at), `#${pedido.id.slice(0, 8).toUpperCase()}`),
+    ...r.sep(),
+    ...LEFT, ...BOLD_ON,
+    ...r.wrap(`${tipo} ${pedido.cliente_nome}`),
+    ...BOLD_OFF,
+    ...(pedido.cliente_telefone ? r.wrap(pedido.cliente_telefone) : []),
+    ...(pedido.tipo_pedido === "entrega" ? r.wrap(pedido.endereco_entrega + (pedido.bairro ? `, ${pedido.bairro}` : "")) : []),
+    ...r.sep(),
+    ...itemsSection(r, pedido.descricao_itens, "compacto"),
+    ...(pedido.observacoes ? r.wrap("Obs: " + pedido.observacoes) : []),
+    ...r.sep(),
+    ...r.par(`Sub: ${rs(pedido.valor_pedido)}`, pedido.valor_motoboy > 0 ? `Entr: ${rs(pedido.valor_motoboy)}` : undefined),
+    ...BOLD_ON,
+    ...r.fit(...totalOpcoes(total)),
+    ...BOLD_OFF,
+    ...r.par(`Pgto: ${pgto}`, pedido.troco_para ? `Troco p/ ${rs(pedido.troco_para)}` : undefined),
+    ...r.sep(),
     ...CENTER,
-    ...ln("appvellox.online"),
+    ...r.fit("appvellox.online"),
   ];
 }
 
-export function buildReceipt(pedido: Pedido, empresaNome = "PEDIDO", layoutOverride?: LayoutOpt): Uint8Array {
-  const W    = getColumns();
-  const bigW = Math.floor(W / 2); // colunas em double-width mode
+export function buildReceipt(
+  pedido: Pedido,
+  empresaNome = "PEDIDO",
+  layoutOverride?: LayoutOpt,
+  fonteOverride?: FonteOpt,
+): Uint8Array {
+  const fonte  = fonteOverride ?? getSavedFonte();
+  const W      = fonte === "extra_grande" ? getBaseColumns() / 2 : getBaseColumns();
+  const r      = makeR(W);
   const layout = layoutOverride ?? getLayout();
 
-  const body = layout === "moderno" ? buildModerno(pedido, empresaNome, W, bigW)
-    : layout === "compacto" ? buildCompacto(pedido, empresaNome, W, bigW)
-    : buildClassico(pedido, empresaNome, W, bigW);
+  const body = layout === "moderno" ? buildModerno(r, pedido, empresaNome)
+    : layout === "compacto" ? buildCompacto(r, pedido, empresaNome)
+    : buildClassico(r, pedido, empresaNome);
 
-  const buf: number[] = [...INIT, ...body, LF, LF, ...CUT];
+  // ESC @ zera o GS ! — o tamanho vem logo depois, uma vez só pro cupom todo.
+  const buf: number[] = [...INIT, GS, 0x21, GS_TAMANHO[fonte], ...body, LF, LF, ...CUT];
   return new Uint8Array(buf);
 }

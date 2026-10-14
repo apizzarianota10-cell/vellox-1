@@ -3,6 +3,7 @@ import PedidosClient from "./PedidosClient";
 import DbError from "@/components/DbError";
 import type { Pedido, Produto } from "@/types";
 import type { LayoutOpt } from "@/lib/printService";
+import { isFonteOpt } from "@/lib/escpos";
 
 export default async function PedidosPage() {
   const supabase = await createClient();
@@ -34,7 +35,7 @@ export default async function PedidosPage() {
       .single(),
     supabase
       .from("configuracoes_print_agent")
-      .select("layout")
+      .select("layout, fonte")
       .eq("empresa_id", user!.id)
       .maybeSingle(),
   ]);
@@ -58,6 +59,7 @@ export default async function PedidosPage() {
       modoCalculo={(configRes.data?.modo_calculo_pizza ?? "maior_valor") as "maior_valor" | "proporcional"}
       corPrincipal={configRes.data?.cor_principal ?? "#E4002B"}
       layoutImpressao={printPrefsRes.data?.layout as LayoutOpt | undefined}
+      fonteImpressao={isFonteOpt(printPrefsRes.data?.fonte) ? printPrefsRes.data?.fonte : undefined}
     />
   );
 }

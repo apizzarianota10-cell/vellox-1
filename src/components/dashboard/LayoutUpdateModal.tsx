@@ -5,8 +5,8 @@ import { X, Printer, Play, CheckCircle, Loader2, ArrowRight } from "lucide-react
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { saveLayout, printOrder, buildTestPedido } from "@/lib/printService";
-import type { LayoutOpt } from "@/lib/printService";
-import { LAYOUT_PREVIEWS } from "@/lib/printLayoutPreviews";
+import type { LayoutOpt, FonteOpt } from "@/lib/printService";
+import { buildLayoutPreviews } from "@/lib/printLayoutPreviews";
 
 // Bump esse sufixo (_v1 -> _v2 -> ...) se um novo aviso de layout precisar
 // reaparecer pra quem já viu este. v2: corrigida a divergência entre
@@ -15,14 +15,17 @@ import { LAYOUT_PREVIEWS } from "@/lib/printLayoutPreviews";
 // acento por caractere errado — precisa rodar o atualizador pra pegar isso.
 // v4: sabores um abaixo do outro (agente v10). v5: nome/sabores em altura
 // dupla e destaque que nao cabe desce de tamanho sozinho (agente v11).
-const SEEN_KEY = "vellox_layout_update_v5_seen";
+// v6: cupom inteiro num tamanho so (config "Tamanho da letra"), sabores numerados (agente v13).
+const SEEN_KEY = "vellox_layout_update_v6_seen";
 
 interface Props {
   empresaId: string;
   empresaNome: string;
+  fonte?: FonteOpt;
 }
 
-export default function LayoutUpdateModal({ empresaId, empresaNome }: Props) {
+export default function LayoutUpdateModal({ empresaId, empresaNome, fonte }: Props) {
+  const previews = buildLayoutPreviews(fonte);
   const [open,     setOpen]     = useState(false);
   const [selected, setSelected] = useState<LayoutOpt>("classico");
   const [testing,  setTesting]  = useState(false);
@@ -44,7 +47,7 @@ export default function LayoutUpdateModal({ empresaId, empresaNome }: Props) {
   function handleTest() {
     setTesting(true);
     saveLayout(selected);
-    printOrder(buildTestPedido(empresaId), empresaNome);
+    printOrder(buildTestPedido(empresaId), empresaNome, undefined, selected, fonte);
     setTimeout(() => setTesting(false), 700);
   }
 
@@ -89,7 +92,7 @@ export default function LayoutUpdateModal({ empresaId, empresaNome }: Props) {
             </div>
             <div>
               <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>Cupom impresso atualizado</p>
-              <p className="text-xs" style={{ color: "var(--text-4)" }}>Sabores um abaixo do outro, tamanho na medida</p>
+              <p className="text-xs" style={{ color: "var(--text-4)" }}>Letras do mesmo tamanho no cupom inteiro</p>
             </div>
           </div>
           <button onClick={fechar} style={{ color: "var(--text-4)", flexShrink: 0 }}>
@@ -98,11 +101,11 @@ export default function LayoutUpdateModal({ empresaId, empresaNome }: Props) {
         </div>
 
         <p className="text-xs mt-3 mb-4" style={{ color: "var(--text-3)" }}>
-          Em todos os modelos, pizza com mais de um sabor agora sai com cada sabor numa linha, em negrito e com altura dupla — e nada mais sai gigante ou cortado no meio. <strong>Pra isso valer no computador da impressora, baixe o atualizador abaixo</strong> (ou o instalador novo, que já vem configurado pra sua loja). Aproveite e confirme o layout.
+          O cupom inteiro agora sai num tamanho só, que você escolhe em Configurações → "Tamanho da letra". Sabores saem numerados (1., 2.), um por linha, sem cortar palavra no meio. <strong>Pra isso valer no computador da impressora, baixe o atualizador abaixo</strong> (depois dele, as próximas atualizações chegam sozinhas). Aproveite e confirme o layout.
         </p>
 
         <div className="grid grid-cols-3 gap-2 mb-4">
-          {LAYOUT_PREVIEWS.map(opt => (
+          {previews.map(opt => (
             <button
               key={opt.id}
               onClick={() => setSelected(opt.id)}
@@ -139,7 +142,7 @@ export default function LayoutUpdateModal({ empresaId, empresaNome }: Props) {
             style={{ background: saved ? "rgba(34,197,94,0.15)" : "#E4002B", border: "none", color: saved ? "#4ade80" : "#fff", opacity: saving ? 0.7 : 1 }}
           >
             {saving ? <Loader2 size={13} className="animate-spin" /> : saved ? <CheckCircle size={13} /> : null}
-            {saving ? "Salvando..." : saved ? "Selecionado!" : `Usar o ${LAYOUT_PREVIEWS.find(o => o.id === selected)?.label}`}
+            {saving ? "Salvando..." : saved ? "Selecionado!" : `Usar o ${previews.find(o => o.id === selected)?.label}`}
           </button>
         </div>
 

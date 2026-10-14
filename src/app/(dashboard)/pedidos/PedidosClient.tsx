@@ -198,6 +198,7 @@ interface Props {
   modoCalculo: "maior_valor" | "proporcional";
   corPrincipal: string;
   layoutImpressao?: printService.LayoutOpt;
+  fonteImpressao?: printService.FonteOpt;
 }
 
 interface NewOrderBanner {
@@ -205,7 +206,7 @@ interface NewOrderBanner {
   count: number;
 }
 
-export default function PedidosClient({ pedidos: initial, empresaId, empresaNome, empresaCodigo, empresaLat, empresaLng, empresaCidade, empresaEstado, autoDespacho, produtos, modoCalculo, corPrincipal, layoutImpressao }: Props) {
+export default function PedidosClient({ pedidos: initial, empresaId, empresaNome, empresaCodigo, empresaLat, empresaLng, empresaCidade, empresaEstado, autoDespacho, produtos, modoCalculo, corPrincipal, layoutImpressao, fonteImpressao }: Props) {
   const cor = corPrincipal;
   const router  = useRouter();
   const supabase = createClient();
@@ -946,7 +947,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
   function staleMin(p: Pedido) { return (now - new Date(p.updated_at).getTime()) / 60_000; }
 
   function handlePrint(pedido: Pedido) {
-    printService.printOrder(pedido, empresaNome, undefined, layoutImpressao);
+    printService.printOrder(pedido, empresaNome, undefined, layoutImpressao, fonteImpressao);
   }
 
   const filteredManual   = filtered.filter(p => p.origem !== "catalogo");

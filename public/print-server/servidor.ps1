@@ -1,5 +1,5 @@
 # Vellox Print Server - PowerShell (sem Node.js)
-$Versao = "v12"
+$Versao = "v13"
 
 # Impressora termica usa a propria codepage (normalmente CP850/CP860), que
 # NAO bate com os bytes que [int][char] produz pra acentos - "O" (211)
@@ -49,7 +49,7 @@ $tamanhoPapel = if ($cfg.tamanho_papel) { $cfg.tamanho_papel.ToString().Trim() }
 # painel sem precisar reinstalar nada no PC. "moderno" é só o valor inicial
 # até a primeira busca responder.
 $layout = "moderno"
-# Tamanho do destaque (nome/total/pagamento) — normal/grande/extra_grande.
+# Tamanho da letra do cupom inteiro - normal/grande/extra_grande.
 # Mesma lógica do $layout: vem do banco, não do config.json.
 $fonte = "grande"
 
@@ -114,11 +114,15 @@ public class WinPrint {
 
 function Build-EscPos($p) {
     $b = New-Object System.Collections.Generic.List[byte]
-    $W = if ($tamanhoPapel -eq "58mm") { 32 } else { 48 }
-    $script:bigN = 0
+    # Um tamanho so pro cupom inteiro (configuracoes_print_agent.fonte):
+    # normal = 1x, grande = altura dupla (mesmas colunas), extra_grande = 2x2
+    # (metade das colunas). Toda quebra/separador/coluna usa o $W efetivo, entao
+    # nenhuma linha passa da largura e a impressora nunca corta no meio.
+    $base = if ($tamanhoPapel -eq "58mm") { 32 } else { 48 }
+    $tam = if ($fonte -eq "normal") { 0 } elseif ($fonte -eq "extra_grande") { 17 } else { 1 }
+    $W = if ($tam -eq 17) { [int]($base / 2) } else { $base }
     function xB { param([byte[]]$v) foreach ($x in $v) { $b.Add($x) } }
     function xT { param([string]$s)
-        AjustaBig $s
         foreach ($c in $s.ToCharArray()) {
             if ($script:AccentMap.ContainsKey($c)) {
                 foreach ($mc in $script:AccentMap[$c].ToCharArray()) { $b.Add([byte][int]$mc) }
@@ -129,108 +133,78 @@ function Build-EscPos($p) {
         }
     }
     function xN { param([int]$n=1) for($i=0;$i -lt $n;$i++){$b.Add([byte]10)} }
-    function Init  { xB @(27,64) }
+    # ESC @ zera o GS ! - o tamanho e reaplicado logo depois de todo Init.
+    function Init  { xB @(27,64); xB @(29,33,$tam) }
     function Bold  { param([bool]$on) xB @(27,69,$(if($on){1}else{0})) }
-    # Tamanho do destaque configurável (fonte): 17=0x11 (2x2, "grande",
-    # comportamento de sempre), 1=0x01 (2x altura só, "normal", mais discreto),
-    # 34=0x22 (3x3, "extra_grande", bem maior). Só afeta os trechos já
-    # marcados como destaque (nome, total, pagamento) — o resto do cupom
-    # continua em tamanho normal de texto sempre.
-    function Big   { param([bool]$on)
-        $n = if (-not $on) { 0 }
-             elseif ($fonte -eq "normal") { 1 }
-             elseif ($fonte -eq "extra_grande") { 34 }
-             else { 17 }
-        $script:bigN = $n
-        xB @(29,33,$n)
-    }
-    # Se o texto de destaque nao cabe no tamanho escolhido (3x3 no 80mm = 16
-    # colunas), a impressora quebrava no meio da palavra e ficava gigante.
-    # Desce so aquela linha pro maior tamanho que cabe.
-    function AjustaBig { param([string]$s)
-        if (-not $script:bigN) { return }
-        foreach ($c in @(34, 17, 1)) {
-            if ($c -gt $script:bigN) { continue }
-            $mult = ($c -shr 4) + 1
-            if ($s.Length -le [Math]::Floor($W / $mult) -or $c -eq 1) {
-                if ($c -ne $script:bigN) { xB @(29,33,$c) }
-                return
-            }
-        }
-    }
-    # Nome do cliente e sabores: so altura dupla + negrito (GS ! 0x01), largura
-    # normal. Em 2x2/3x3 viravam letras enormes que estouravam a linha.
-    function Medio { param([bool]$on)
-        if ($on) { xB @(29,33,1); Bold $true } else { Bold $false; xB @(29,33,0) }
-    }
     function Align { param([int]$a) xB @(27,97,$a) }
     function Sep   { xT ("="*$W); xN }
     function DSep  { xT ("-"*$W); xN }
     function Cut   { xB @(29,86,65,5) }
-    # Se L+R não couberem juntos na largura do papel, forcava os dois na
-    # mesma linha mesmo assim e a impressora cortava/quebrava do jeito dela
-    # (foi o que cortou o "R$ 49,00" pra "R$ 4900" num pedido de teste) -
-    # agora quebra de propósito em duas linhas, rótulo e valor alinhado à
-    # direita, nunca manda uma linha maior que $W.
+    # Comprimento ja com acento trocado (o "..." vira 3 colunas).
+    function Len { param([string]$s)
+        $n = 0
+        foreach ($c in $s.ToCharArray()) { if ($script:AccentMap.ContainsKey($c)) { $n += $script:AccentMap[$c].Length } else { $n++ } }
+        return $n
+    }
+    function Plain { param([string]$s)
+        $sb = New-Object System.Text.StringBuilder
+        foreach ($c in $s.ToCharArray()) { if ($script:AccentMap.ContainsKey($c)) { [void]$sb.Append($script:AccentMap[$c]) } else { [void]$sb.Append($c) } }
+        return $sb.ToString()
+    }
+    # Word-wrap com recuo: 1a linha com $pref, continuacoes com $cont. So
+    # corta no meio da palavra se ela sozinha nao cabe na linha.
+    function WrapLinhas { param([string]$s, [string]$pref, [string]$cont)
+        $out = New-Object System.Collections.Generic.List[string]
+        $linha = (Plain $s).Trim()
+        $p0 = $pref
+        while ($true) {
+            $cols = [Math]::Max($W - $p0.Length, 4)
+            if ($linha.Length -le $cols) { break }
+            $corte = $linha.Substring(0, $cols + 1).LastIndexOf(' ')
+            if ($corte -lt 1) { $corte = $cols }
+            $out.Add($p0 + $linha.Substring(0, $corte).TrimEnd())
+            $linha = $linha.Substring($corte).TrimStart()
+            $p0 = $cont
+        }
+        $out.Add($p0 + $linha)
+        return ,$out
+    }
+    function xWrapPref { param([string]$s, [string]$pref, [string]$cont)
+        foreach ($l in (WrapLinhas $s $pref $cont)) { xT $l; xN }
+    }
+    function xWrap       { param([string]$s) xWrapPref $s "" "" }
+    function xWrapIndent { param([string]$s) xWrapPref $s "   " "   " }
+    function xWrapSabor  { param([string]$s) xWrapPref $s " - " "   " }
+    # Primeira variante que cabe inteira numa linha; senao quebra a ultima.
+    function xFit { param([string[]]$opcoes)
+        foreach ($o in $opcoes) { if ((Len $o) -le $W) { xT $o; xN; return } }
+        xWrap $opcoes[-1]
+    }
+    # Valor alinhado a direita na ultima linha do rotulo (quebrado por palavra);
+    # se nao couber ali, vai sozinho pra linha de baixo.
     function Cols  { param([string]$L,[string]$R)
-        $sp = $W - $L.Length - $R.Length
-        if ($sp -gt 0) {
-            xT ($L + (" " * $sp) + $R); xN
+        $ls = WrapLinhas $L "" ""
+        $R = Plain $R
+        for ($i = 0; $i -lt $ls.Count - 1; $i++) { xT $ls[$i]; xN }
+        $ult = $ls[$ls.Count - 1]
+        $sp = $W - $ult.Length - $R.Length
+        if ($sp -ge 1) {
+            xT ($ult + (" " * $sp) + $R); xN
         } else {
-            xT $L; xN
+            xT $ult; xN
             $pad = $W - $R.Length
-            xT ($(if ($pad -gt 0) { " " * $pad } else { "" }) + $R); xN
+            if ($pad -ge 0) { xT ((" " * $pad) + $R); xN } else { xWrap $R }
         }
     }
-    # Impressora térmica não sabe quebrar por palavra — sem isso, uma linha
-    # comprida (ex: "1x Pizza G (Calabresa/Mussarela) - R$45,00", comum com
-    # 2+ sabores no mesmo item) é cortada no meio de qualquer caractere onde
-    # bater a largura do papel, embaralhando o texto visualmente. Quebra nos
-    # espaços (como word-wrap normal) e só corta no meio da palavra se ela
-    # sozinha já for maior que a largura da linha.
-    function xWrap { param([string]$s)
-        $linha = $s
-        while ($linha.Length -gt $W) {
-            $corte = $linha.Substring(0, $W).LastIndexOf(' ')
-            if ($corte -lt 1) { $corte = $W }
-            xT $linha.Substring(0, $corte).TrimEnd(); xN
-            $linha = $linha.Substring($corte).TrimStart()
-        }
-        xT $linha; xN
-    }
-
-    # Quebra uma linha de detalhe (sabor/borda/adicional) recuada 3 espaços,
-    # com o mesmo word-wrap do xWrap.
-    function xWrapIndent { param([string]$s)
-        $cols = [Math]::Max($W - 3, 8)
-        $linha = $s
-        while ($linha.Length -gt $cols) {
-            $corte = $linha.Substring(0, $cols).LastIndexOf(' ')
-            if ($corte -lt 1) { $corte = $cols }
-            xT ("   " + $linha.Substring(0, $corte).TrimEnd()); xN
-            $linha = $linha.Substring($corte).TrimStart()
-        }
-        xT ("   " + $linha); xN
-    }
-
-    # Linha de sabor em altura dupla (Medio), largura normal: " - Sabor",
-    # continuacao recuada.
-    function xWrapSabor { param([string]$s)
-        $cols = [Math]::Max($W - 3, 8)
-        $linha = $s
-        $pref = " - "
-        while ($linha.Length -gt $cols) {
-            $corte = $linha.Substring(0, $cols).LastIndexOf(' ')
-            if ($corte -lt 1) { $corte = $cols }
-            xT ($pref + $linha.Substring(0, $corte).TrimEnd()); xN
-            $linha = $linha.Substring($corte).TrimStart()
-            $pref = "   "
-        }
-        xT ($pref + $linha); xN
+    # Duas partes juntas com " | " se couber, senao uma por linha.
+    function xPar { param([string]$a, [string]$c)
+        if (-not $c) { xWrap $a; return }
+        $j = "$a | $c"
+        if ((Len $j) -le $W) { xT $j; xN } else { xWrap $a; xWrap $c }
     }
 
     # Mesma regra de src/lib/escpos.ts (indiceSabores): os detalhes vem como
-    # "variacao . Sabor1/Sabor2 . + adicional" (separador " · "); com 2+ segmentos que nao
+    # "variacao . Sabor1/Sabor2 . + adicional" (separador " . "); com 2+ segmentos que nao
     # comecam com "+ ", o 2o e o de sabores; com 1 so, so e sabor se tiver "/".
     function IndiceSabores { param([string[]]$segs)
         $nao = @()
@@ -244,13 +218,12 @@ function Build-EscPos($p) {
         return -1
     }
 
-    # "Nx Nome (detalhe · detalhe) — R$valor" -> nome/preco numa linha
-    # (preco alinhado a direita), detalhes recuados embaixo.
+    # "Nx Nome (detalhe . detalhe) - R$valor" -> nome e preco na mesma linha
+    # (preco a direita) quando cabe, senao preco na linha de baixo; sabores um
+    # por linha e demais detalhes recuados embaixo.
     function ItemBlock { param([string]$line, [string]$prefixo = "")
         # Travessao e ponto medio via \u2014/\u00B7 (escape de regex), nao literais:
-        # o instalador baixa este .ps1 sem BOM e o PowerShell 5.1 le como ANSI,
-        # entao o travessao literal aqui virava mojibake e nunca batia com o texto
-        # do pedido (o item caia no fallback com tudo numa linha so).
+        # o instalador baixa este .ps1 sem BOM e o PowerShell 5.1 le como ANSI.
         if ($line -match '^(\d+)x\s+(.+?)\s+\u2014\s+R\$\s*([\d.,]+)\s*$') {
             $qtd = $Matches[1]; $nomeCompleto = $Matches[2]; $preco = $Matches[3]
             $nome = $nomeCompleto; $detalhesRaw = ""
@@ -259,24 +232,23 @@ function Build-EscPos($p) {
                 $nome = $nomeCompleto.Substring(0, $parenIdx)
                 $detalhesRaw = $nomeCompleto.Substring($parenIdx + 2, $nomeCompleto.Length - $parenIdx - 3)
             }
-            $qtdNome  = "$prefixo$($qtd)x $nome"
-            $precoTxt = "R$" + $preco
-            $pad = $W - $qtdNome.Length - $precoTxt.Length
-            if ($pad -ge 1) {
-                xT ($qtdNome + (" " * $pad) + $precoTxt); xN
-            } else {
-                xWrap $qtdNome
-                xT $precoTxt; xN
-            }
+            Cols "$prefixo$($qtd)x $nome" ("R$" + $preco)
             if ($detalhesRaw) {
                 $segs = @($detalhesRaw -split ' \u00B7 ')
                 $iSab = IndiceSabores $segs
                 for ($k = 0; $k -lt $segs.Count; $k++) {
                     if ($k -eq $iSab) {
                         $sabores = @($segs[$k] -split '/' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-                        Medio $true
-                        foreach ($sab in $sabores) { xWrapSabor $sab }
-                        Medio $false
+                        # 2+ sabores numerados e continuacao recuada sob o texto,
+                        # pra uma quebra de linha nunca parecer outro sabor.
+                        if ($sabores.Count -ge 2) {
+                            for ($j = 0; $j -lt $sabores.Count; $j++) {
+                                $num = "$($j + 1). "
+                                xWrapPref $sabores[$j] $num (" " * $num.Length)
+                            }
+                        } else {
+                            foreach ($sab in $sabores) { xWrapSabor $sab }
+                        }
                     } else {
                         xWrapIndent $segs[$k]
                     }
@@ -287,8 +259,7 @@ function Build-EscPos($p) {
         }
     }
 
-    # Cada item vira um bloco proprio, com uma linha em branco entre eles
-    # para nao ficar um produto colado no outro.
+    # Cada item vira um bloco proprio, com uma linha em branco entre eles.
     function ItemsSection { param([string]$descricaoItens, [string]$prefixo = "")
         if (-not $descricaoItens) { return }
         $linhas = @($descricaoItens -split "`n" | Where-Object { $_.Trim() })
@@ -298,20 +269,24 @@ function Build-EscPos($p) {
         }
     }
 
+    function Rs { param($v) "R$ " + ([double]$v).ToString("F2").Replace(".",",") }
+
     $data = [DateTime]::Parse($p.created_at).ToLocalTime().ToString("dd/MM/yy HH:mm")
     $total = [double]$p.valor_pedido + [double]$p.valor_motoboy
     $pgtoMap = @{dinheiro="Dinheiro";cartao_credito="Cartao de Credito";cartao_debito="Cartao de Debito";pix="PIX";ja_pago="Ja pago"}
     $pgto = if ($pgtoMap.ContainsKey($p.forma_pagamento)) { $pgtoMap[$p.forma_pagamento] } else { "$($p.forma_pagamento)" }
     # Mesma prioridade do cupom "reimprimir" (src/lib/printService.ts, layout moderno):
-    # retirada vence, depois já pago, senão delivery.
+    # retirada vence, depois ja pago, senao delivery.
     $tipo = if ($p.tipo_pedido -eq "retirada") { "RETIRADA" }
             elseif ($p.forma_pagamento -eq "ja_pago") { "JA PAGO" }
             else { "DELIVERY" }
+    $loja = if ($empresaNome) { $empresaNome.ToUpper() } else { "PEDIDO" }
+    $numero = "PEDIDO #$($p.id.Substring(0,8).ToUpper())"
+    $endereco = "$($p.endereco_entrega)$(if($p.bairro){", $($p.bairro)"})"
+    $troco = if ($p.troco_para) { "Troco p/ $(Rs $p.troco_para)" } else { "" }
 
-    # ── Layout espelhando o cupom "reimprimir" (formatReceipt) — clássico,
-    # moderno ou compacto, o mesmo que a empresa escolheu em Configurações.
-    # Tudo em negrito o tempo todo (o HTML de referência usa peso 700 como base
-    # em toda parte) — só Big/Align mudam pra marcar ênfase.
+    # Layout espelhando o cupom "reimprimir" (formatReceipt) - classico,
+    # moderno ou compacto. Tudo no mesmo tamanho e em negrito; so Align muda.
     Init
     Bold $true
 
@@ -320,151 +295,113 @@ function Build-EscPos($p) {
                       elseif ($p.tipo_pedido -eq "retirada") { "-- RETIRADA --" }
                       else { "- DELIVERY -" }
 
-        Align 1; Big $true
-        xT $(if ($empresaNome) { $empresaNome.ToUpper() } else { "PEDIDO" }); xN
-        Big $false
-        xT $data; xN
+        Align 1
+        xWrap $loja
+        xWrap $data
         Sep
-
-        Big $true
-        xT $headerText; xN
-        Big $false
-        xT "PEDIDO #$($p.id.Substring(0,8).ToUpper())"; xN
+        xFit @($headerText)
+        xFit @($numero)
         Align 0
         Sep
 
-        Medio $true
         xWrap ([string]$p.cliente_nome)
-        Medio $false
-        if ($p.cliente_telefone) { xT "Tel: $($p.cliente_telefone)"; xN }
+        if ($p.cliente_telefone) { xWrap "Tel: $($p.cliente_telefone)" }
         if ($p.tipo_pedido -eq "entrega") {
-            xWrap "End: $($p.endereco_entrega)$(if($p.bairro){", $($p.bairro)"})"
+            xWrap "End: $endereco"
         } else {
-            Align 1; Big $true
-            xT "*** RETIRADA NO LOCAL ***"; xN
-            Big $false; Align 0
+            Align 1; xFit @("*** RETIRADA NO LOCAL ***", "RETIRADA NO LOCAL"); Align 0
         }
         Sep
 
         xT "ITENS"; xN
-        if ($p.descricao_itens) {
-            ItemsSection $p.descricao_itens
-        }
+        ItemsSection $p.descricao_itens
         if ($p.observacoes) { xWrap "Obs: $($p.observacoes)" }
         Sep
 
-        Cols "Subtotal:" "R$ $(([double]$p.valor_pedido).ToString("F2").Replace(".",","))"
-        if ([double]$p.valor_motoboy -gt 0) { Cols "Entrega:" "R$ $(([double]$p.valor_motoboy).ToString("F2").Replace(".",","))" }
+        Cols "Subtotal:" (Rs $p.valor_pedido)
+        if ([double]$p.valor_motoboy -gt 0) { Cols "Entrega:" (Rs $p.valor_motoboy) }
         Sep
 
-        Align 1; Big $true
-        xT "TOTAL: R$ $($total.ToString("F2").Replace(".",","))"; xN
-        Big $false; Align 0
+        Align 1; xFit @("TOTAL: $(Rs $total)", "TOTAL $((Rs $total).Replace(' ',''))"); Align 0
         Sep
 
-        Big $true
-        xT "Pgto: $pgto"; xN
-        Big $false
-        if ($p.troco_para) { xT "Troco p/ R$ $(([double]$p.troco_para).ToString("F2").Replace(".", ","))"; xN }
+        xWrap "Pgto: $pgto"
+        if ($troco) { xWrap $troco }
         Sep
 
         Align 1
         xT "appvellox.online"; xN
 
     } elseif ($layout -eq "compacto") {
-        $tag = if ($p.tipo_pedido -eq "retirada") { "[RETIRADA]" }
-               elseif ($p.forma_pagamento -eq "ja_pago") { "[JA PAGO]" }
-               else { "[DELIVERY]" }
+        $tag = "[$tipo]"
 
-        Align 1; Big $true
-        xT $(if ($empresaNome) { $empresaNome.ToUpper() } else { "PEDIDO" }); xN
-        Big $false
-        xT "$data | #$($p.id.Substring(0,8).ToUpper())"; xN
+        Align 1
+        xWrap $loja
+        xPar $data "#$($p.id.Substring(0,8).ToUpper())"
         Align 0
         DSep
 
-        Medio $true
         xWrap "$tag $($p.cliente_nome)"
-        Medio $false
-        if ($p.cliente_telefone) { xT $p.cliente_telefone; xN }
-        if ($p.tipo_pedido -eq "entrega") { xWrap "$($p.endereco_entrega)$(if($p.bairro){", $($p.bairro)"})" }
+        if ($p.cliente_telefone) { xWrap $p.cliente_telefone }
+        if ($p.tipo_pedido -eq "entrega") { xWrap $endereco }
         DSep
 
-        if ($p.descricao_itens) {
-            ItemsSection $p.descricao_itens
-        }
+        ItemsSection $p.descricao_itens
         if ($p.observacoes) { xWrap "Obs: $($p.observacoes)" }
         DSep
 
-        $subLinha = "Sub: R$ $(([double]$p.valor_pedido).ToString("F2").Replace(".",","))"
-        if ([double]$p.valor_motoboy -gt 0) { $subLinha += " | Entr: R$ $(([double]$p.valor_motoboy).ToString("F2").Replace(".",","))" }
-        xT $subLinha; xN
-        Big $true
-        xT "TOTAL: R$ $($total.ToString("F2").Replace(".",","))"; xN
-        Big $false
-        $pgtoLinha = "Pgto: $pgto"
-        if ($p.troco_para) { $pgtoLinha += " | Troco p/ R$ $(([double]$p.troco_para).ToString("F2").Replace(".", ","))" }
-        xT $pgtoLinha; xN
+        $entr = if ([double]$p.valor_motoboy -gt 0) { "Entr: $(Rs $p.valor_motoboy)" } else { "" }
+        xPar "Sub: $(Rs $p.valor_pedido)" $entr
+        xFit @("TOTAL: $(Rs $total)", "TOTAL $((Rs $total).Replace(' ',''))")
+        xPar "Pgto: $pgto" $troco
         DSep
 
         Align 1
         xT "appvellox.online"; xN
 
     } else {
-        # Moderno (padrão)
+        # Moderno (padrao)
         Sep
-        Align 1; Big $true
-        xT $(if ($empresaNome) { $empresaNome.ToUpper() } else { "PEDIDO" }); xN
-        Big $false
-        xT $data; xN
+        Align 1
+        xWrap $loja
+        xWrap $data
         Align 0
         Sep
 
-        Align 1; Big $true
-        xT "[ $tipo ]"; xN
-        Big $false
-        xT "PEDIDO #$($p.id.Substring(0,8).ToUpper())"; xN
+        Align 1
+        xFit @("[ $tipo ]")
+        xFit @($numero)
         Align 0
         Sep
 
-        Medio $true
         xWrap "> $($p.cliente_nome)"
-        Medio $false
-        if ($p.cliente_telefone) { xT "Tel: $($p.cliente_telefone)"; xN }
+        if ($p.cliente_telefone) { xWrap "Tel: $($p.cliente_telefone)" }
         DSep
 
         if ($p.tipo_pedido -eq "entrega") {
-            xWrap "End: $($p.endereco_entrega)$(if($p.bairro){", $($p.bairro)"})"
+            xWrap "End: $endereco"
         } else {
-            Align 1; Big $true
-            xT "*** RETIRADA NO LOCAL ***"; xN
-            Big $false; Align 0
+            Align 1; xFit @("*** RETIRADA NO LOCAL ***", "RETIRADA NO LOCAL"); Align 0
         }
         Sep
 
         xT "ITENS"; xN
-        if ($p.descricao_itens) {
-            ItemsSection $p.descricao_itens "- "
-        }
+        ItemsSection $p.descricao_itens "- "
         if ($p.observacoes) {
             DSep
             xWrap "Obs: $($p.observacoes)"
         }
         Sep
 
-        Cols "Subtotal:" "R$ $(([double]$p.valor_pedido).ToString("F2").Replace(".",","))"
-        if ([double]$p.valor_motoboy -gt 0) { Cols "Entrega:" "R$ $(([double]$p.valor_motoboy).ToString("F2").Replace(".",","))" }
+        Cols "Subtotal:" (Rs $p.valor_pedido)
+        if ([double]$p.valor_motoboy -gt 0) { Cols "Entrega:" (Rs $p.valor_motoboy) }
         Sep
 
-        Align 1; Big $true
-        xT ">> TOTAL: R$ $($total.ToString("F2").Replace(".",",")) <<"; xN
-        Big $false; Align 0
+        Align 1; xFit @(">> TOTAL: $(Rs $total) <<", "TOTAL: $(Rs $total)", "TOTAL $((Rs $total).Replace(' ',''))"); Align 0
         Sep
 
-        Big $true
-        xT "Pgto: $pgto"; xN
-        Big $false
-        if ($p.troco_para) { xT "Troco p/ R$ $(([double]$p.troco_para).ToString("F2").Replace(".", ","))"; xN }
+        xWrap "Pgto: $pgto"
+        if ($troco) { xWrap $troco }
         Sep
 
         Align 1
@@ -562,6 +499,10 @@ function Print-Raw { param([byte[]]$bytes)
 $httpListener  = $null
 $listenerRs    = $null
 $listenerPs    = $null
+# Cupom de teste enviado pelo painel ("Imprimir teste"): entra nesta fila e o
+# loop principal imprime com o MESMO Build-EscPos dos pedidos reais — o teste
+# sai exatamente igual ao pedido do catalogo.
+$filaTeste = New-Object 'System.Collections.Concurrent.ConcurrentQueue[string]'
 try {
     $httpListener = New-Object System.Net.HttpListener
     $httpListener.Prefixes.Add("http://localhost:7532/")
@@ -572,7 +513,7 @@ try {
     $listenerPs = [powershell]::Create()
     $listenerPs.Runspace = $listenerRs
     [void]$listenerPs.AddScript({
-        param($listener)
+        param($listener, $fila, $tokenAgente)
         while ($listener.IsListening) {
             try {
                 $context = $listener.GetContext()
@@ -596,10 +537,28 @@ try {
             } elseif ($request.HttpMethod -eq "GET" -and $request.Url.AbsolutePath -eq "/") {
                 $body = '{"online":true,"selectedPrinter":null,"realtimeStatus":"SUBSCRIBED","lastError":null}'
             } elseif ($request.HttpMethod -eq "POST" -and $request.Url.AbsolutePath -eq "/print") {
-                # O pedido chega e sera impresso pelo loop de polling em ate
-                # 5s — so confirma recebido pra o navegador nao tentar imprimir
-                # ele mesmo (evita duplicar).
+                # Pedido real: sera impresso pelo loop de polling em ate 5s — so
+                # confirma recebido pra o navegador nao imprimir de novo.
+                # Cupom de teste: so com o token da loja (qualquer site aberto
+                # no navegador consegue chamar localhost, entao sem isso daria
+                # pra mandar impressao pra impressora de qualquer um).
                 $body = '{"ok":true}'
+                $raw = ""
+                try {
+                    $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
+                    $raw = $reader.ReadToEnd(); $reader.Close()
+                } catch {}
+                if ($raw -match '"teste"\s*:\s*true') {
+                    $obj = $null
+                    try { $obj = $raw | ConvertFrom-Json } catch {}
+                    if ($obj -and $obj.token -and $obj.token -eq $tokenAgente -and $obj.pedido) {
+                        $fila.Enqueue($raw)
+                        $body = '{"ok":true,"teste":true}'
+                    } else {
+                        $response.StatusCode = 403
+                        $body = '{"ok":false,"erro":"token invalido"}'
+                    }
+                }
             } else {
                 $response.StatusCode = 404
             }
@@ -609,7 +568,7 @@ try {
             $response.OutputStream.Write($buffer, 0, $buffer.Length)
             $response.OutputStream.Close()
         }
-    }).AddArgument($httpListener)
+    }).AddArgument($httpListener).AddArgument($filaTeste).AddArgument($agentToken)
     [void]$listenerPs.BeginInvoke()
 
     # Confirmacao ativa de que a porta realmente esta respondendo. Como o
@@ -745,6 +704,24 @@ while ($true) {
         $pingBody = @{ p_empresa_id = $empresaId; p_impressora = $printerName; p_tamanho_papel = $tamanhoPapel; p_agent_token = $agentToken; p_agent_versao = $Versao } | ConvertTo-Json
         Invoke-RestMethod -Uri $pingUri -Headers $headers -Method POST -Body $pingBody -TimeoutSec 15 -ErrorAction SilentlyContinue | Out-Null
     } catch {}
+
+    # Cupom de teste do painel: usa o layout/tamanho escolhidos na tela (os
+    # mesmos ja salvos no banco) so pra este cupom.
+    $rawTeste = $null
+    while ($filaTeste.TryDequeue([ref]$rawTeste)) {
+        try {
+            $jt = $rawTeste | ConvertFrom-Json
+            $layoutReal = $layout; $fonteReal = $fonte
+            if ($jt.layout -in @('classico', 'moderno', 'compacto')) { $layout = $jt.layout }
+            if ($jt.fonte -in @('normal', 'grande', 'extra_grande')) { $fonte = $jt.fonte }
+            try {
+                Print-Raw (Build-EscPos $jt.pedido)
+                Write-Host "[TESTE] Cupom de teste impresso ($layout / $fonte)." -ForegroundColor Green
+            } finally { $layout = $layoutReal; $fonte = $fonteReal }
+        } catch {
+            Write-Host "  [ERRO teste] $_" -ForegroundColor Red
+        }
+    }
 
     # Layout do cupom: busca no banco a cada 60s (não a cada 5s pra não
     # dobrar o tráfego à toa) — assim, trocar o layout nas Configurações do

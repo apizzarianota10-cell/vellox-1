@@ -9,14 +9,14 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import {
   savePaperSize, getSavedPaperSize,
-  saveFontSize,  getSavedFontSize,
+  saveFonte,     isFonteOpt,
   saveLayout,
   saveLogo,      getSavedLogo,
   printOrder,
   buildTestPedido,
 } from "@/lib/printService";
-import type { FontSizeOpt, LayoutOpt } from "@/lib/printService";
-import { LAYOUT_PREVIEWS } from "@/lib/printLayoutPreviews";
+import type { FonteOpt, LayoutOpt } from "@/lib/printService";
+import { buildLayoutPreviews } from "@/lib/printLayoutPreviews";
 
 interface Props {
   empresa: { id: string; nome: string; cnpj: string | null };
@@ -31,11 +31,10 @@ interface Props {
   } | null;
 }
 
-type Destaque = "normal" | "grande" | "extra_grande";
-const DESTAQUE_OPTS: { id: Destaque; label: string }[] = [
-  { id: "normal",       label: "Normal" },
-  { id: "grande",       label: "Grande" },
-  { id: "extra_grande", label: "Extra grande" },
+const FONTE_OPTS: { id: FonteOpt; label: string; sub: string }[] = [
+  { id: "normal",       label: "Normal",       sub: "Letra padrão" },
+  { id: "grande",       label: "Grande",       sub: "Altura dupla" },
+  { id: "extra_grande", label: "Extra grande", sub: "2x — menos colunas" },
 ];
 
 // Versão atual do servidor.ps1 (public/print-server/servidor.ps1, variável
@@ -53,13 +52,13 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
   const [paperSize,   setPaperSize]   = useState<"58mm" | "80mm">(
     (initialConfig?.tamanho_papel as "58mm" | "80mm") ?? "80mm"
   );
-  const [fontSize,      setFontSize]      = useState<FontSizeOpt>("m");
   const [layout,        setLayout]        = useState<LayoutOpt>(
     (initialConfig?.layout as LayoutOpt) ?? "classico"
   );
-  const [destaque,      setDestaque]      = useState<Destaque>(
-    (initialConfig?.fonte as Destaque) ?? "grande"
+  const [fonte,         setFonte]         = useState<FonteOpt>(
+    isFonteOpt(initialConfig?.fonte) ? initialConfig?.fonte : "grande"
   );
+  const [fontError,     setFontError]     = useState("");
   const [logoUrl,       setLogoUrl]       = useState("");
   const [autoAtivo,     setAutoAtivo]     = useState(true);
   const [savingPaper,   setSavingPaper]   = useState(false);
@@ -213,7 +212,9 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
 
   useEffect(() => {
     setPaperSize(getSavedPaperSize());
-    setFontSize(getSavedFontSize());
+    // Espelha o valor do banco no navegador: é o fallback de quem imprime sem
+    // receber o override (ex: popup de novidades).
+    if (isFonteOpt(initialConfig?.fonte)) saveFonte(initialConfig?.fonte);
     // layout vem do banco (initialConfig) agora — é o que o agente de
     // impressão local também lê, então precisa ser a mesma fonte pros dois.
     setLogoUrl(getSavedLogo());
@@ -260,9 +261,16 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
 
   async function handleSaveFont() {
     setSavingFont(true);
-    saveFontSize(fontSize);
-    await new Promise(r => setTimeout(r, 400));
+    setFontError("");
+    saveFonte(fonte);
+    // O agente de impressão (servidor.ps1) lê esse valor do banco a cada 60s.
+    const { error } = await supabase.from("configuracoes_print_agent")
+      .upsert({ empresa_id: empresa.id, fonte }, { onConflict: "empresa_id" });
     setSavingFont(false);
+    if (error) {
+      setFontError("Não salvou no banco (ficou só neste navegador): " + error.message);
+      return;
+    }
     setFontSaved(true);
     setTimeout(() => setFontSaved(false), 2500);
   }
@@ -276,7 +284,7 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
     // (servidor.ps1) lê o layout, pra imprimir automaticamente igual ao
     // que sai na reimpressão — sem precisar reinstalar nada no PC.
     const { error } = await supabase.from("configuracoes_print_agent")
-      .upsert({ empresa_id: empresa.id, layout, fonte: destaque }, { onConflict: "empresa_id" });
+      .upsert({ empresa_id: empresa.id, layout }, { onConflict: "empresa_id" });
     setSavingLayout(false);
     if (error) {
       setLayoutError("Não salvou no banco (ficou só neste navegador): " + error.message);
@@ -286,16 +294,44 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
     setTimeout(() => setLayoutSaved(false), 2500);
   }
 
-  function handleTest() {
+  // Pedido real do catálogo sai pelo agente do computador da impressora — o
+  // teste precisa ir pelo MESMO caminho, senão mostra um cupom (do navegador)
+  // diferente do que sai na cozinha. Agente v13+ aceita cupom de teste em
+  // localhost:7532 (com o token da loja); sem isso, cai pro navegador e avisa.
+  async function handleTest() {
     setTesting(true);
     setTestResult(null);
+    const pedidoTeste = buildTestPedido(empresa.id);
 
-    const ok = printOrder(buildTestPedido(empresa.id), empresa.nome);
+    let aviso = "";
+    if (creds?.agent_token) {
+      try {
+        const res = await fetch("http://localhost:7532/print", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ teste: true, token: creds.agent_token, layout, fonte, pedido: pedidoTeste }),
+          signal: AbortSignal.timeout(3000),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.teste === true) {
+          setTesting(false);
+          setTestResult({ ok: true, msg: "Enviado pro agente de impressão — sai exatamente igual aos pedidos do catálogo (em até 5s)." });
+          return;
+        }
+        aviso = res.status === 403
+          ? "O agente deste computador está com outra credencial — reinstale com o instalador do painel."
+          : "O agente deste computador é uma versão antiga e não imprime teste — os pedidos reais podem sair diferentes deste cupom. Baixe o atualizador.";
+      } catch {
+        aviso = "O agente não está neste computador — teste impresso pelo navegador. Os pedidos do catálogo saem pelo agente do computador da impressora.";
+      }
+    }
+
+    const ok = printOrder(pedidoTeste, empresa.nome, undefined, layout, fonte);
     setTimeout(() => {
       setTesting(false);
       setTestResult({
         ok,
-        msg: ok ? "Cupom enviado para impressão!" : "Erro ao gerar cupom. Verifique o console.",
+        msg: !ok ? "Erro ao gerar cupom. Verifique o console." : aviso ? `Impresso pelo navegador. ${aviso}` : "Cupom enviado para impressão!",
       });
     }, 500);
   }
@@ -500,23 +536,22 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
         </button>
       </div>
 
-      {/* Tamanho da fonte */}
+      {/* Tamanho da letra — vale pro cupom inteiro, em todas as vias de impressão */}
       <div className="rounded-2xl p-4" style={{ background: "var(--bg-2)", border: "1px solid var(--border-1)" }}>
-        <p className="text-xs font-semibold mb-3" style={{ color: "#64748b" }}>TAMANHO DA FONTE</p>
-        <div className="grid grid-cols-4 gap-2 mb-3">
-          {([
-            { id: "p"  as FontSizeOpt, label: "P",    sub: "Pequena" },
-            { id: "m"  as FontSizeOpt, label: "M",    sub: "Normal" },
-            { id: "g"  as FontSizeOpt, label: "G",    sub: "Grande" },
-            { id: "xg" as FontSizeOpt, label: "XG",   sub: "Extra" },
-          ]).map(opt => (
+        <p className="text-xs font-semibold mb-1" style={{ color: "#64748b" }}>TAMANHO DA LETRA (CUPOM INTEIRO)</p>
+        <p className="text-xs mb-3" style={{ color: "var(--text-4)" }}>
+          Todas as linhas saem no mesmo tamanho — loja, cliente, endereço, itens, sabores, total e pagamento. Vale pra impressão automática, reimpressão e teste; o agente do computador da impressora pega a mudança em até 1 minuto.
+        </p>
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          {FONTE_OPTS.map(opt => (
             <button
               key={opt.id}
-              onClick={() => setFontSize(opt.id)}
-              className="flex flex-col items-center gap-1 p-3 rounded-xl"
-              style={{ background: fontSize === opt.id ? "rgba(228,0,43,0.08)" : "var(--overlay-sm)", border: `1px solid ${fontSize === opt.id ? "rgba(228,0,43,0.4)" : "var(--border-1)"}` }}
+              onClick={() => setFonte(opt.id)}
+              className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl"
+              style={{ background: fonte === opt.id ? "rgba(228,0,43,0.08)" : "var(--overlay-sm)", border: `1px solid ${fonte === opt.id ? "rgba(228,0,43,0.4)" : "var(--border-1)"}` }}
             >
-              <span className="font-black" style={{ fontSize: opt.id === "p" ? 13 : opt.id === "m" ? 16 : opt.id === "g" ? 19 : 22, color: fontSize === opt.id ? "#E4002B" : "var(--text-1)" }}>{opt.label}</span>
+              <span className="font-black" style={{ fontSize: opt.id === "normal" ? 13 : opt.id === "grande" ? 17 : 21, color: fonte === opt.id ? "#E4002B" : "var(--text-1)" }}>Aa</span>
+              <span className="text-xs font-semibold" style={{ color: fonte === opt.id ? "#E4002B" : "var(--text-2)" }}>{opt.label}</span>
               <span style={{ fontSize: 10, color: "#64748b" }}>{opt.sub}</span>
             </button>
           ))}
@@ -528,8 +563,11 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
           style={{ background: fontSaved ? "rgba(34,197,94,0.15)" : "var(--overlay-sm)", border: `1px solid ${fontSaved ? "rgba(34,197,94,0.3)" : "var(--border-1)"}`, color: fontSaved ? "#4ade80" : "var(--text-1)" }}
         >
           {savingFont ? <Loader2 size={14} className="animate-spin" /> : fontSaved ? <CheckCircle size={14} /> : null}
-          {savingFont ? "Salvando..." : fontSaved ? "Salvo!" : "Salvar fonte"}
+          {savingFont ? "Salvando..." : fontSaved ? "Salvo!" : "Salvar tamanho da letra"}
         </button>
+        {fontError && (
+          <p className="text-xs mt-1.5" style={{ color: "#ef4444" }}>{fontError}</p>
+        )}
       </div>
 
       {/* Layout de impressão */}
@@ -537,7 +575,7 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
         <p className="text-xs font-semibold mb-3" style={{ color: "#64748b" }}>LAYOUT DO CUPOM</p>
 
         <div className="grid grid-cols-3 gap-2 mb-4">
-          {LAYOUT_PREVIEWS.map(opt => (
+          {buildLayoutPreviews(fonte).map(opt => (
             <button
               key={opt.id}
               onClick={() => setLayout(opt.id)}
@@ -551,25 +589,6 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
               </div>
             </button>
           ))}
-        </div>
-
-        {/* Destaque (impressão automática) */}
-        <div className="mb-3">
-          <p className="text-xs font-semibold mb-2" style={{ color: "#64748b" }}>TAMANHO DO DESTAQUE (nome, total, pagamento — impressão automática)</p>
-          <div className="grid grid-cols-3 gap-2">
-            {DESTAQUE_OPTS.map(opt => (
-              <button
-                key={opt.id}
-                onClick={() => setDestaque(opt.id)}
-                className="flex flex-col items-center justify-center gap-1 py-3 rounded-xl"
-                style={{ background: destaque === opt.id ? "rgba(228,0,43,0.08)" : "var(--overlay-sm)", border: `1px solid ${destaque === opt.id ? "rgba(228,0,43,0.4)" : "var(--border-1)"}` }}
-              >
-                <span className="font-black" style={{ fontSize: opt.id === "normal" ? 13 : opt.id === "grande" ? 17 : 21, color: destaque === opt.id ? "#E4002B" : "var(--text-1)" }}>Aa</span>
-                <span className="text-xs font-semibold" style={{ color: destaque === opt.id ? "#E4002B" : "var(--text-2)" }}>{opt.label}</span>
-              </button>
-            ))}
-          </div>
-          <p className="text-xs mt-1.5" style={{ color: "#374151" }}>Diferente do tamanho de fonte acima — esse é o que vale pro agente de impressão local, não pra reimpressão pelo navegador.</p>
         </div>
 
         {/* Logo */}
@@ -603,7 +622,7 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
           style={{ background: layoutSaved ? "rgba(34,197,94,0.15)" : "var(--overlay-sm)", border: `1px solid ${layoutSaved ? "rgba(34,197,94,0.3)" : "var(--border-1)"}`, color: layoutSaved ? "#4ade80" : "var(--text-1)" }}
         >
           {savingLayout ? <Loader2 size={14} className="animate-spin" /> : layoutSaved ? <CheckCircle size={14} /> : null}
-          {savingLayout ? "Salvando..." : layoutSaved ? "Salvo!" : "Salvar layout e destaque"}
+          {savingLayout ? "Salvando..." : layoutSaved ? "Salvo!" : "Salvar layout"}
         </button>
         {layoutError && (
           <p className="text-xs mt-1.5" style={{ color: "#ef4444" }}>{layoutError}</p>
