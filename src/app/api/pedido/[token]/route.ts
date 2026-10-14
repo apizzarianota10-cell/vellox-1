@@ -12,26 +12,47 @@ export async function GET(
 
   const supabase = createAdminClient();
 
+  // configuracao_loja.empresa_id aponta pra auth.users, não pra empresas — o
+  // embed aninhado empresas(configuracao_loja(...)) não existe pro PostgREST
+  // e derrubava a consulta inteira (todo pedido virava "não encontrado").
+  // Por isso o telefone da loja vem numa consulta separada.
   const { data, error } = await supabase
     .from("pedidos")
     .select(`
-      id, tracking_token, status, created_at, updated_at,
+      id, empresa_id, tracking_token, status, created_at, updated_at,
       cliente_nome, tipo_pedido,
       endereco_entrega, bairro,
       descricao_itens, observacoes,
       valor_pedido, valor_motoboy, forma_pagamento, troco_para,
       avaliacao_nota, avaliacao_comentario,
       motoboy:motoboys(nome, telefone, latitude, longitude),
-      empresa:empresas(nome, configuracao_loja(telefone_contato))
+      empresa:empresas(nome)
     `)
     .eq("tracking_token", token)
-    .single();
+    .maybeSingle();
 
-  if (error || !data) {
+  if (error) {
+    console.error("Erro ao buscar pedido (rastreio):", error.code, error.message);
+    return NextResponse.json({ error: "Erro ao buscar o pedido" }, { status: 500 });
+  }
+  if (!data) {
     return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
   }
 
-  return NextResponse.json({ pedido: data }, {
+  const { data: cfg } = await supabase
+    .from("configuracao_loja")
+    .select("telefone_contato")
+    .eq("empresa_id", data.empresa_id)
+    .maybeSingle();
+
+  const { empresa_id: _empresaId, ...publico } = data;
+  const empresa = Array.isArray(publico.empresa) ? publico.empresa[0] : publico.empresa;
+  const pedido = {
+    ...publico,
+    empresa: empresa ? { ...empresa, configuracao_loja: { telefone_contato: cfg?.telefone_contato ?? null } } : null,
+  };
+
+  return NextResponse.json({ pedido }, {
     headers: { "Cache-Control": "no-store" },
   });
 }
