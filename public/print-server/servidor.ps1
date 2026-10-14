@@ -1,5 +1,5 @@
 # Vellox Print Server - PowerShell (sem Node.js)
-$Versao = "v10"
+$Versao = "v11"
 
 # Impressora termica usa a propria codepage (normalmente CP850/CP860), que
 # NAO bate com os bytes que [int][char] produz pra acentos - "O" (211)
@@ -113,8 +113,10 @@ public class WinPrint {
 function Build-EscPos($p) {
     $b = New-Object System.Collections.Generic.List[byte]
     $W = if ($tamanhoPapel -eq "58mm") { 32 } else { 48 }
+    $script:bigN = 0
     function xB { param([byte[]]$v) foreach ($x in $v) { $b.Add($x) } }
     function xT { param([string]$s)
+        AjustaBig $s
         foreach ($c in $s.ToCharArray()) {
             if ($script:AccentMap.ContainsKey($c)) {
                 foreach ($mc in $script:AccentMap[$c].ToCharArray()) { $b.Add([byte][int]$mc) }
@@ -137,7 +139,27 @@ function Build-EscPos($p) {
              elseif ($fonte -eq "normal") { 1 }
              elseif ($fonte -eq "extra_grande") { 34 }
              else { 17 }
+        $script:bigN = $n
         xB @(29,33,$n)
+    }
+    # Se o texto de destaque nao cabe no tamanho escolhido (3x3 no 80mm = 16
+    # colunas), a impressora quebrava no meio da palavra e ficava gigante.
+    # Desce so aquela linha pro maior tamanho que cabe.
+    function AjustaBig { param([string]$s)
+        if (-not $script:bigN) { return }
+        foreach ($c in @(34, 17, 1)) {
+            if ($c -gt $script:bigN) { continue }
+            $mult = ($c -shr 4) + 1
+            if ($s.Length -le [Math]::Floor($W / $mult) -or $c -eq 1) {
+                if ($c -ne $script:bigN) { xB @(29,33,$c) }
+                return
+            }
+        }
+    }
+    # Nome do cliente e sabores: so altura dupla + negrito (GS ! 0x01), largura
+    # normal. Em 2x2/3x3 viravam letras enormes que estouravam a linha.
+    function Medio { param([bool]$on)
+        if ($on) { xB @(29,33,1); Bold $true } else { Bold $false; xB @(29,33,0) }
     }
     function Align { param([int]$a) xB @(27,97,$a) }
     function Sep   { xT ("="*$W); xN }
@@ -189,11 +211,10 @@ function Build-EscPos($p) {
         xT ("   " + $linha); xN
     }
 
-    # Linha de sabor em letra grande (sempre 2x2, GS ! 0x11, independente de
-    # $fonte: em 3x3 no 58mm sobram ~7 colunas e os nomes quebram no meio).
-    # Largura dupla = metade das colunas. " - Sabor", continuacao recuada.
+    # Linha de sabor em altura dupla (Medio), largura normal: " - Sabor",
+    # continuacao recuada.
     function xWrapSabor { param([string]$s)
-        $cols = [Math]::Max([Math]::Floor($W / 2) - 3, 4)
+        $cols = [Math]::Max($W - 3, 8)
         $linha = $s
         $pref = " - "
         while ($linha.Length -gt $cols) {
@@ -251,9 +272,9 @@ function Build-EscPos($p) {
                 for ($k = 0; $k -lt $segs.Count; $k++) {
                     if ($k -eq $iSab) {
                         $sabores = @($segs[$k] -split '/' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-                        xB @(29,33,17)
+                        Medio $true
                         foreach ($sab in $sabores) { xWrapSabor $sab }
-                        xB @(29,33,0)
+                        Medio $false
                     } else {
                         xWrapIndent $segs[$k]
                     }
@@ -310,9 +331,9 @@ function Build-EscPos($p) {
         Align 0
         Sep
 
-        Big $true
-        xT $p.cliente_nome; xN
-        Big $false
+        Medio $true
+        xWrap ([string]$p.cliente_nome)
+        Medio $false
         if ($p.cliente_telefone) { xT "Tel: $($p.cliente_telefone)"; xN }
         if ($p.tipo_pedido -eq "entrega") {
             xWrap "End: $($p.endereco_entrega)$(if($p.bairro){", $($p.bairro)"})"
@@ -360,7 +381,9 @@ function Build-EscPos($p) {
         Align 0
         DSep
 
-        xT "$tag $($p.cliente_nome)"; xN
+        Medio $true
+        xWrap "$tag $($p.cliente_nome)"
+        Medio $false
         if ($p.cliente_telefone) { xT $p.cliente_telefone; xN }
         if ($p.tipo_pedido -eq "entrega") { xWrap "$($p.endereco_entrega)$(if($p.bairro){", $($p.bairro)"})" }
         DSep
@@ -402,9 +425,9 @@ function Build-EscPos($p) {
         Align 0
         Sep
 
-        Big $true
-        xT "> $($p.cliente_nome)"; xN
-        Big $false
+        Medio $true
+        xWrap "> $($p.cliente_nome)"
+        Medio $false
         if ($p.cliente_telefone) { xT "Tel: $($p.cliente_telefone)"; xN }
         DSep
 

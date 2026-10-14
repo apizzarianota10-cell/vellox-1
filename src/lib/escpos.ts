@@ -11,6 +11,9 @@ const BOLD_ON   = [ESC, 0x45, 0x01];
 const BOLD_OFF  = [ESC, 0x45, 0x00];
 const BIG       = [ESC, 0x21, 0x30]; // double width + height
 const NORMAL    = [ESC, 0x21, 0x00];
+// Nome do cliente e sabores: altura dupla + negrito, largura normal (em
+// largura dupla ficavam enormes e quebravam no meio da palavra).
+const MEDIO     = [ESC, 0x21, 0x18];
 const CUT       = [GS,  0x56, 0x41, 0x03];
 
 type LayoutOpt = "classico" | "moderno" | "compacto";
@@ -120,8 +123,8 @@ export function parseItemLine(line: string): ItemParsed | null {
 }
 
 // Cada item vira um bloco próprio: nome+preço numa linha, detalhes (variação/
-// adicional) recuados embaixo e cada sabor numa linha própria em letra grande
-// (largura dupla = metade das colunas). `descricao_itens` insere uma linha em
+// adicional) recuados embaixo e cada sabor numa linha própria em altura dupla
+// + negrito (MEDIO). `descricao_itens` insere uma linha em
 // branco entre blocos para os produtos não ficarem colados uns nos outros
 // (exceto no compacto, que fica sem respiro entre eles pra caber mais no rolo).
 function itemBlock(line: string, cols: number, prefix: string): number[] {
@@ -138,12 +141,11 @@ function itemBlock(line: string, cols: number, prefix: string): number[] {
     for (const l of wrapLines(qtdNome, cols)) out.push(...txt(l), LF);
     out.push(...txt(precoTxt), LF);
   }
-  const bigCols = Math.floor(cols / 2);
   for (const d of parsed.detalhes) {
     if (d.sabor) {
       // " - " + texto; continuação recuada 3 pra alinhar com o nome do sabor
-      const ls = wrapLines(d.texto, Math.max(bigCols - 3, 4));
-      out.push(...BIG);
+      const ls = wrapLines(d.texto, Math.max(cols - 3, 8));
+      out.push(...MEDIO);
       ls.forEach((l, i) => out.push(...txt((i === 0 ? " - " : "   ") + l), LF));
       out.push(...NORMAL);
     } else {
@@ -195,7 +197,7 @@ function buildClassico(pedido: Pedido, empresaNome: string, W: number, bigW: num
     ...ln("PEDIDO #" + pedido.id.slice(0, 8).toUpperCase()),
     ...BOLD_OFF,
     ...sep(),
-    ...wrap("CLIENTE: " + pedido.cliente_nome, W),
+    ...MEDIO, ...wrap("CLIENTE: " + pedido.cliente_nome, W), ...NORMAL,
     ...(pedido.cliente_telefone ? wrap("TEL: " + pedido.cliente_telefone, W) : []),
     ...sep(),
     ...BOLD_ON,
@@ -250,9 +252,9 @@ function buildModerno(pedido: Pedido, empresaNome: string, W: number, bigW: numb
     ...BOLD_OFF,
     ...ln("PEDIDO #" + pedido.id.slice(0, 8).toUpperCase()),
     ...sep("="),
-    ...LEFT, ...BOLD_ON,
+    ...LEFT, ...MEDIO,
     ...wrap("> " + pedido.cliente_nome, W),
-    ...BOLD_OFF,
+    ...NORMAL, ...BOLD_OFF,
     ...(pedido.cliente_telefone ? wrap("Tel: " + pedido.cliente_telefone, W) : []),
     ...sep(),
     ...(pedido.tipo_pedido === "entrega"
@@ -295,9 +297,9 @@ function buildCompacto(pedido: Pedido, empresaNome: string, W: number, bigW: num
     ...NORMAL, ...BOLD_OFF,
     ...ln(`${dataC} | #${pedido.id.slice(0, 8).toUpperCase()}`),
     ...sep(),
-    ...LEFT, ...BOLD_ON,
+    ...LEFT, ...MEDIO,
     ...wrap(`${tipo} ${pedido.cliente_nome}`, W),
-    ...BOLD_OFF,
+    ...NORMAL, ...BOLD_OFF,
     ...(pedido.cliente_telefone ? wrap(pedido.cliente_telefone, W) : []),
     ...(pedido.tipo_pedido === "entrega" ? wrap(pedido.endereco_entrega + (pedido.bairro ? `, ${pedido.bairro}` : ""), W) : []),
     ...sep(),

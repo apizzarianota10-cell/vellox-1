@@ -169,8 +169,8 @@ export function formatReceipt(
     : "";
 
   const itemDetailStyle = `${LFT}font-size:${fs - 1}px;font-weight:700;padding-left:12px;`;
-  // Sabores em letra grande, um por linha (pedido do lojista pra cozinha ler de longe)
-  const saborStyle = `${LFT}font-size:${fsBig + 2}px;font-weight:900;padding-left:8px;`;
+  // Sabores um por linha, em negrito no tamanho do nome do item.
+  const saborStyle = `${LFT}font-size:${fsBig}px;font-weight:900;padding-left:8px;`;
   const detalhesHtml = (p: ItemParsed) =>
     p.detalhes.map(d => d.sabor
       ? `<div style="${saborStyle}">- ${d.texto}</div>`
