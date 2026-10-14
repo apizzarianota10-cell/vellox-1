@@ -13,7 +13,8 @@ import { LAYOUT_PREVIEWS } from "@/lib/printLayoutPreviews";
 // impressão automática e reimpressão (liam fontes diferentes). v3: corrigido
 // o agente de impressão desktop (servidor.ps1) cortando valores e trocando
 // acento por caractere errado — precisa rodar o atualizador pra pegar isso.
-const SEEN_KEY = "vellox_layout_update_v3_seen";
+// v4: sabores um abaixo do outro, em letra grande (agente v10).
+const SEEN_KEY = "vellox_layout_update_v4_seen";
 
 interface Props {
   empresaId: string;
@@ -86,8 +87,8 @@ export default function LayoutUpdateModal({ empresaId, empresaNome }: Props) {
               <Printer size={16} style={{ color: "#E4002B" }} />
             </div>
             <div>
-              <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>Correção no cupom impresso</p>
-              <p className="text-xs" style={{ color: "var(--text-4)" }}>Acentos errados e valor cortado — corrigido</p>
+              <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>Cupom impresso atualizado</p>
+              <p className="text-xs" style={{ color: "var(--text-4)" }}>Sabores um abaixo do outro, em letra grande</p>
             </div>
           </div>
           <button onClick={fechar} style={{ color: "var(--text-4)", flexShrink: 0 }}>
@@ -96,7 +97,7 @@ export default function LayoutUpdateModal({ empresaId, empresaNome }: Props) {
         </div>
 
         <p className="text-xs mt-3 mb-4" style={{ color: "var(--text-3)" }}>
-          Corrigimos bugs no cupom impresso pelo agente desktop: palavras com acento saindo erradas (ex: "SÓ" virando "Sª") e valores cortados (ex: "R$ 49,00" saindo "R$ 4900"). <strong>Pra isso valer no seu PC, baixe o atualizador abaixo</strong> — a correção não se aplica sozinha. Aproveite e confirme o layout também.
+          Em todos os modelos, pizza com mais de um sabor agora sai com cada sabor numa linha, em letra grande — bem mais fácil de ler na cozinha. <strong>Pra isso valer no computador da impressora, baixe o atualizador abaixo</strong> (ou o instalador novo, que já vem configurado pra sua loja). Aproveite e confirme o layout.
         </p>
 
         <div className="grid grid-cols-3 gap-2 mb-4">

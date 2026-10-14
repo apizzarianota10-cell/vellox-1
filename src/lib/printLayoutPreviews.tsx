@@ -1,5 +1,7 @@
 import type { LayoutOpt } from "@/lib/printService";
 
+const SABOR: React.CSSProperties = { fontSize: 10, fontWeight: 900, lineHeight: 1.25, paddingLeft: 4 };
+
 // Miniaturas visuais dos 3 layouts de cupom — usadas na tela de configurações
 // (Automações > Impressão) e no popup de novidades, pra ficarem sempre iguais.
 export const LAYOUT_PREVIEWS: { id: LayoutOpt; label: string; preview: React.ReactNode }[] = [
@@ -14,7 +16,9 @@ export const LAYOUT_PREVIEWS: { id: LayoutOpt; label: string; preview: React.Rea
         <div style={{ fontWeight: 700 }}>João Silva</div>
         <div style={{ borderTop: "1px dashed #000", margin: "2px 0" }} />
         <div style={{ fontSize: 7 }}>ITENS</div>
-        <div>1x Pizza</div>
+        <div>1x Pizza G</div>
+        <div style={SABOR}>- Calabresa</div>
+        <div style={SABOR}>- Mussarela</div>
         <div style={{ borderTop: "1px dashed #000", margin: "2px 0" }} />
         <div style={{ textAlign: "center", fontWeight: 900 }}>TOTAL R$44,90</div>
       </div>
@@ -31,7 +35,9 @@ export const LAYOUT_PREVIEWS: { id: LayoutOpt; label: string; preview: React.Rea
         <div style={{ borderTop: "1px dashed #000", margin: "2px 0" }} />
         <div>{">"} João Silva</div>
         <div style={{ borderTop: "2px solid #000", margin: "2px 0" }} />
-        <div>• 1x Pizza</div>
+        <div>› 1x Pizza G</div>
+        <div style={SABOR}>- Calabresa</div>
+        <div style={SABOR}>- Mussarela</div>
         <div style={{ borderTop: "2px solid #000", margin: "2px 0" }} />
         <div style={{ fontWeight: 900 }}>{">>"} R$44,90 {"<<"}</div>
       </div>
@@ -48,7 +54,9 @@ export const LAYOUT_PREVIEWS: { id: LayoutOpt; label: string; preview: React.Rea
         <div>[DELIVERY] João</div>
         <div>Rua Exemplo, 123</div>
         <div style={{ borderTop: "1px solid #000", margin: "2px 0" }} />
-        <div>1x Pizza</div>
+        <div>1x Pizza G</div>
+        <div style={{ ...SABOR, fontSize: 9 }}>- Calabresa</div>
+        <div style={{ ...SABOR, fontSize: 9 }}>- Mussarela</div>
         <div style={{ borderTop: "1px solid #000", margin: "2px 0" }} />
         <div style={{ fontWeight: 900, fontSize: 8 }}>TOTAL: R$44,90</div>
         <div style={{ fontSize: 6.5 }}>Pgto: PIX</div>

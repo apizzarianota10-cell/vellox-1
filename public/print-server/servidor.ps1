@@ -1,5 +1,5 @@
 # Vellox Print Server - PowerShell (sem Node.js)
-$Versao = "v9"
+$Versao = "v10"
 
 # Impressora termica usa a propria codepage (normalmente CP850/CP860), que
 # NAO bate com os bytes que [int][char] produz pra acentos - "O" (211)
@@ -189,10 +189,46 @@ function Build-EscPos($p) {
         xT ("   " + $linha); xN
     }
 
+    # Linha de sabor em letra grande (sempre 2x2, GS ! 0x11, independente de
+    # $fonte: em 3x3 no 58mm sobram ~7 colunas e os nomes quebram no meio).
+    # Largura dupla = metade das colunas. " - Sabor", continuacao recuada.
+    function xWrapSabor { param([string]$s)
+        $cols = [Math]::Max([Math]::Floor($W / 2) - 3, 4)
+        $linha = $s
+        $pref = " - "
+        while ($linha.Length -gt $cols) {
+            $corte = $linha.Substring(0, $cols).LastIndexOf(' ')
+            if ($corte -lt 1) { $corte = $cols }
+            xT ($pref + $linha.Substring(0, $corte).TrimEnd()); xN
+            $linha = $linha.Substring($corte).TrimStart()
+            $pref = "   "
+        }
+        xT ($pref + $linha); xN
+    }
+
+    # Mesma regra de src/lib/escpos.ts (indiceSabores): os detalhes vem como
+    # "variacao . Sabor1/Sabor2 . + adicional" (separador " · "); com 2+ segmentos que nao
+    # comecam com "+ ", o 2o e o de sabores; com 1 so, so e sabor se tiver "/".
+    function IndiceSabores { param([string[]]$segs)
+        $nao = @()
+        for ($k = 0; $k -lt $segs.Count; $k++) { if (-not $segs[$k].StartsWith("+ ")) { $nao += $k } }
+        if ($nao.Count -ge 2) { return $nao[1] }
+        if ($nao.Count -eq 1) {
+            $partes = @($segs[$nao[0]] -split '/' | ForEach-Object { $_.Trim() })
+            $validas = @($partes | Where-Object { $_ -and $_ -notmatch '^\d+$' })
+            if ($partes.Count -ge 2 -and $validas.Count -eq $partes.Count) { return $nao[0] }
+        }
+        return -1
+    }
+
     # "Nx Nome (detalhe · detalhe) — R$valor" -> nome/preco numa linha
     # (preco alinhado a direita), detalhes recuados embaixo.
     function ItemBlock { param([string]$line, [string]$prefixo = "")
-        if ($line -match '^(\d+)x\s+(.+?)\s+—\s+R\$\s*([\d.,]+)\s*$') {
+        # Travessao e ponto medio via \u2014/\u00B7 (escape de regex), nao literais:
+        # o instalador baixa este .ps1 sem BOM e o PowerShell 5.1 le como ANSI,
+        # entao o travessao literal aqui virava mojibake e nunca batia com o texto
+        # do pedido (o item caia no fallback com tudo numa linha so).
+        if ($line -match '^(\d+)x\s+(.+?)\s+\u2014\s+R\$\s*([\d.,]+)\s*$') {
             $qtd = $Matches[1]; $nomeCompleto = $Matches[2]; $preco = $Matches[3]
             $nome = $nomeCompleto; $detalhesRaw = ""
             $parenIdx = $nomeCompleto.IndexOf(" (")
@@ -210,7 +246,18 @@ function Build-EscPos($p) {
                 xT $precoTxt; xN
             }
             if ($detalhesRaw) {
-                foreach ($d in ($detalhesRaw -split ' · ')) { xWrapIndent $d }
+                $segs = @($detalhesRaw -split ' \u00B7 ')
+                $iSab = IndiceSabores $segs
+                for ($k = 0; $k -lt $segs.Count; $k++) {
+                    if ($k -eq $iSab) {
+                        $sabores = @($segs[$k] -split '/' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+                        xB @(29,33,17)
+                        foreach ($sab in $sabores) { xWrapSabor $sab }
+                        xB @(29,33,0)
+                    } else {
+                        xWrapIndent $segs[$k]
+                    }
+                }
             }
         } else {
             xWrap "$prefixo$line"
@@ -424,12 +471,12 @@ function Print-Raw { param([byte[]]$bytes)
     Write-Host "  Imprimindo em: $pn" -ForegroundColor Gray
     $h = [IntPtr]::Zero
     if (-not [WinPrint]::OpenPrinter($pn, [ref]$h, [IntPtr]::Zero)) {
-        throw "OpenPrinter falhou para '$pn' (Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error())) — confira se o nome bate exatamente com o das Impressoras do Windows."
+        throw "OpenPrinter falhou para '$pn' (Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error())) - confira se o nome bate exatamente com o das Impressoras do Windows."
     }
     try {
         $di = New-Object WinPrint+DI; $di.n = "Vellox"; $di.t = "RAW"
         if ([WinPrint]::StartDocPrinter($h, 1, [ref]$di) -eq 0) {
-            throw "StartDocPrinter falhou (Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error())) — spooler pode estar parado ou pausado."
+            throw "StartDocPrinter falhou (Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error())) - spooler pode estar parado ou pausado."
         }
         try {
             if (-not [WinPrint]::StartPagePrinter($h)) {
@@ -625,7 +672,7 @@ while ($true) {
                 # get_print_agent_prefs) — fica nisso silenciosamente era o motivo
                 # do layout escolhido no painel nunca "pegar" pra quem tinha
                 # credencial errada. Agora pelo menos fica no log.txt.
-                Write-Host "  [AVISO] get_print_agent_prefs voltou vazio — confira o ID da empresa e o token em config.json." -ForegroundColor Yellow
+                Write-Host "  [AVISO] get_print_agent_prefs voltou vazio - confira o ID da empresa e o token em config.json." -ForegroundColor Yellow
             }
         } catch {
             Write-Host "  [AVISO] Falha ao buscar layout/fonte do painel: $_" -ForegroundColor Yellow

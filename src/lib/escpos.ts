@@ -74,10 +74,28 @@ function wrap(s: string, cols: number): number[] {
 
 function sep(char = "-"): number[] { return ln(char.repeat(getColumns())); }
 
+export type ItemDetalhe = { texto: string; sabor: boolean };
+export type ItemParsed = { qtd: string; nome: string; detalhes: ItemDetalhe[]; preco: string };
+
+// Identifica qual segmento do parêntese é o de sabores. O catálogo e o pedido
+// manual montam "variação · Sabor1/Sabor2 · + adicional, adicional" (nessa
+// ordem, cada parte opcional), então: com variação + sabores, os sabores são o
+// 2º segmento que não começa com "+ "; sozinho, só dá pra afirmar que é sabor
+// se tiver "/" (um único segmento sem "/" pode ser só a variação).
+function indiceSabores(segs: string[]): number {
+  const naoAdicionais = segs.map((s, i) => (s.startsWith("+ ") ? -1 : i)).filter(i => i >= 0);
+  if (naoAdicionais.length >= 2) return naoAdicionais[1];
+  if (naoAdicionais.length === 1) {
+    const partes = segs[naoAdicionais[0]].split("/").map(s => s.trim());
+    if (partes.length >= 2 && partes.every(s => s && !/^\d+$/.test(s))) return naoAdicionais[0];
+  }
+  return -1;
+}
+
 // Reconhece uma linha de item no formato "Nx Nome (detalhe · detalhe) — R$valor"
 // (é assim que o catálogo e o pedido manual montam `descricao_itens`).
 // Itens fora desse formato (texto livre, pedidos colados) caem no fallback.
-function parseItemLine(line: string): { qtd: string; nome: string; detalhes: string[]; preco: string } | null {
+export function parseItemLine(line: string): ItemParsed | null {
   const m = line.match(/^(\d+)x\s+(.+?)\s+—\s+R\$\s*([\d.,]+)\s*$/);
   if (!m) return null;
   const [, qtd, nomeCompleto, preco] = m;
@@ -88,13 +106,24 @@ function parseItemLine(line: string): { qtd: string; nome: string; detalhes: str
     nome = nomeCompleto.slice(0, parenIdx);
     detalhesRaw = nomeCompleto.slice(parenIdx + 2, -1);
   }
-  return { qtd, nome, detalhes: detalhesRaw ? detalhesRaw.split(" · ") : [], preco };
+  const segs = detalhesRaw ? detalhesRaw.split(" · ") : [];
+  const iSab = indiceSabores(segs);
+  const detalhes: ItemDetalhe[] = [];
+  segs.forEach((s, i) => {
+    if (i === iSab) {
+      for (const sab of s.split("/")) if (sab.trim()) detalhes.push({ texto: sab.trim(), sabor: true });
+    } else {
+      detalhes.push({ texto: s, sabor: false });
+    }
+  });
+  return { qtd, nome, detalhes, preco };
 }
 
-// Cada item vira um bloco próprio: nome+preço numa linha, detalhes (sabor/borda/
-// adicional) recuados embaixo. `descricao_itens` insere uma linha em branco
-// entre blocos para os produtos não ficarem colados uns nos outros (exceto no
-// compacto, que fica sem respiro entre eles pra caber mais no rolo).
+// Cada item vira um bloco próprio: nome+preço numa linha, detalhes (variação/
+// adicional) recuados embaixo e cada sabor numa linha própria em letra grande
+// (largura dupla = metade das colunas). `descricao_itens` insere uma linha em
+// branco entre blocos para os produtos não ficarem colados uns nos outros
+// (exceto no compacto, que fica sem respiro entre eles pra caber mais no rolo).
 function itemBlock(line: string, cols: number, prefix: string): number[] {
   const parsed = parseItemLine(line);
   if (!parsed) return wrap((prefix ? "• " : "") + (line || " "), cols);
@@ -109,8 +138,17 @@ function itemBlock(line: string, cols: number, prefix: string): number[] {
     for (const l of wrapLines(qtdNome, cols)) out.push(...txt(l), LF);
     out.push(...txt(precoTxt), LF);
   }
+  const bigCols = Math.floor(cols / 2);
   for (const d of parsed.detalhes) {
-    for (const l of wrapLines(d, Math.max(cols - 3, 8))) out.push(...txt("   " + l), LF);
+    if (d.sabor) {
+      // " - " + texto; continuação recuada 3 pra alinhar com o nome do sabor
+      const ls = wrapLines(d.texto, Math.max(bigCols - 3, 4));
+      out.push(...BIG);
+      ls.forEach((l, i) => out.push(...txt((i === 0 ? " - " : "   ") + l), LF));
+      out.push(...NORMAL);
+    } else {
+      for (const l of wrapLines(d.texto, Math.max(cols - 3, 8))) out.push(...txt("   " + l), LF);
+    }
   }
   return out;
 }

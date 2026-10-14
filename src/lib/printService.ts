@@ -1,5 +1,5 @@
 import type { Pedido } from "@/types";
-import { buildReceipt } from "@/lib/escpos";
+import { buildReceipt, parseItemLine, type ItemParsed } from "@/lib/escpos";
 import { printViaUsb, getSavedPrinterName } from "@/lib/usbPrinter";
 
 const PRINTED_KEY    = "vellox-printed-orders";
@@ -70,7 +70,7 @@ export function buildTestPedido(empresaId: string): Pedido {
     cliente_telefone: "(11) 99999-9999",
     endereco_entrega: "Rua Exemplo, 123 — Centro",
     endereco_lat:     null, endereco_lng: null,
-    descricao_itens:  "1x Pizza Margherita\n1x Coca-Cola 2L",
+    descricao_itens:  "1x Pizza Grande (Grande · Calabresa/Mussarela) — R$39,90\n1x Coca-Cola 2L — R$5,00",
     valor_pedido:     44.90, valor_motoboy: 5.00,
     forma_pagamento:  "pix", troco_para: null,
     status:           "em_fila",
@@ -106,25 +106,6 @@ const PGTO_LABELS: Record<string, string> = {
   pix:            "PIX",
   ja_pago:        "Já pago",
 };
-
-// Reconhece uma linha de item no formato "Nx Nome (detalhe · detalhe) — R$valor"
-// (é assim que o catálogo e o pedido manual montam `descricao_itens`).
-// Itens fora desse formato (texto livre, pedidos colados) caem no fallback de cada layout.
-function parseItemLine(line: string): { qtd: string; nome: string; detalhes: string[]; preco: string } | null {
-  const m = line.match(/^(\d+)x\s+(.+?)\s+—\s+R\$\s*([\d.,]+)\s*$/);
-  if (!m) return null;
-  const [, qtd, nomeCompleto, preco] = m;
-  let nome = nomeCompleto;
-  let detalhesRaw = "";
-  const parenIdx = nomeCompleto.indexOf(" (");
-  if (parenIdx !== -1 && nomeCompleto.endsWith(")")) {
-    nome = nomeCompleto.slice(0, parenIdx);
-    detalhesRaw = nomeCompleto.slice(parenIdx + 2, -1);
-  }
-  return { qtd, nome, detalhes: detalhesRaw ? detalhesRaw.split(" · ") : [], preco };
-}
-
-type ItemParsed = { qtd: string; nome: string; detalhes: string[]; preco: string };
 
 // Monta os itens como blocos independentes (nome+preço / detalhes / divisor),
 // para não ficar um produto colado no outro.
@@ -188,12 +169,18 @@ export function formatReceipt(
     : "";
 
   const itemDetailStyle = `${LFT}font-size:${fs - 1}px;font-weight:700;padding-left:12px;`;
+  // Sabores em letra grande, um por linha (pedido do lojista pra cozinha ler de longe)
+  const saborStyle = `${LFT}font-size:${fsBig + 2}px;font-weight:900;padding-left:8px;`;
+  const detalhesHtml = (p: ItemParsed) =>
+    p.detalhes.map(d => d.sabor
+      ? `<div style="${saborStyle}">- ${d.texto}</div>`
+      : `<div style="${itemDetailStyle}">${d.texto}</div>`).join("");
 
   const itensClassico = buildItensBlocks(
     pedido.descricao_itens,
     p => `
 <div style="${W}display:flex;justify-content:space-between;gap:6px;font-size:${fsBig}px;font-weight:900;"><span>${p.qtd}x ${p.nome}</span><span>R$${p.preco}</span></div>
-${p.detalhes.map(d => `<div style="${itemDetailStyle}">${d}</div>`).join("")}`,
+${detalhesHtml(p)}`,
     line => `<div style="${VAL}">${line}</div>`,
     `<div style="border-top:1px dotted #000;margin:4px 0;"></div>`,
   );
@@ -202,7 +189,7 @@ ${p.detalhes.map(d => `<div style="${itemDetailStyle}">${d}</div>`).join("")}`,
     pedido.descricao_itens,
     p => `
 <div style="${W}display:flex;justify-content:space-between;gap:6px;font-size:${fsBig}px;font-weight:900;"><span>› ${p.qtd}x ${p.nome}</span><span>R$${p.preco}</span></div>
-${p.detalhes.map(d => `<div style="${itemDetailStyle}">${d}</div>`).join("")}`,
+${detalhesHtml(p)}`,
     line => `<div style="${VAL}">• ${line}</div>`,
     `<div style="border-top:1px dashed #000;margin:4px 0;"></div>`,
   );
@@ -210,9 +197,20 @@ ${p.detalhes.map(d => `<div style="${itemDetailStyle}">${d}</div>`).join("")}`,
   const itensCompacto = buildItensBlocks(
     pedido.descricao_itens,
     p => {
-      const det = p.detalhes.length
-        ? `<div style="${LFT}font-size:${Math.max(fs - 2, 7)}px;font-weight:700;padding-left:8px;">${p.detalhes.join(" · ")}</div>`
-        : "";
+      // Compacto mantém variação/adicionais juntos numa linha só; sabores
+      // continuam um por linha, em letra grande.
+      const detStyle = `${LFT}font-size:${Math.max(fs - 2, 7)}px;font-weight:700;padding-left:8px;`;
+      let det = "";
+      let grupo: string[] = [];
+      const fecharGrupo = () => {
+        if (grupo.length) det += `<div style="${detStyle}">${grupo.join(" · ")}</div>`;
+        grupo = [];
+      };
+      for (const d of p.detalhes) {
+        if (d.sabor) { fecharGrupo(); det += `<div style="${LFT}font-size:${fsBig}px;font-weight:900;padding-left:6px;">- ${d.texto}</div>`; }
+        else grupo.push(d.texto);
+      }
+      fecharGrupo();
       return `<div style="${W}display:flex;justify-content:space-between;gap:4px;font-size:${Math.max(fs - 1, 8)}px;font-weight:900;"><span>${p.qtd}x ${p.nome}</span><span>R$${p.preco}</span></div>${det}`;
     },
     line => `<div style="${LFT}font-size:${Math.max(fs - 1, 8)}px;font-weight:700;">${line}</div>`,
