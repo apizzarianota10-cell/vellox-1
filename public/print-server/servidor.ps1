@@ -1,5 +1,5 @@
 # Vellox Print Server - PowerShell (sem Node.js)
-$Versao = "v13"
+$Versao = "v14"
 
 # Impressora termica usa a propria codepage (normalmente CP850/CP860), que
 # NAO bate com os bytes que [int][char] produz pra acentos - "O" (211)
@@ -22,6 +22,7 @@ $script:AccentMap = @{
     [char]0x00E7='c'; [char]0x00C7='C'; [char]0x00F1='n'; [char]0x00D1='N'
     [char]0x2014='-'; [char]0x2013='-'; [char]0x2018="'"; [char]0x2019="'"
     [char]0x201C='"'; [char]0x201D='"'; [char]0x2026='...'
+    [char]0x00B7='.'; [char]0x2022='-'; [char]0x00BA='o'; [char]0x00AA='a'; [char]0x00B0='o'
 }
 
 # Roda oculto (-WindowStyle Hidden) — sem janela pra ver a tela ou pausar
@@ -115,12 +116,17 @@ public class WinPrint {
 function Build-EscPos($p) {
     $b = New-Object System.Collections.Generic.List[byte]
     # Um tamanho so pro cupom inteiro (configuracoes_print_agent.fonte):
-    # normal = 1x, grande = altura dupla (mesmas colunas), extra_grande = 2x2
-    # (metade das colunas). Toda quebra/separador/coluna usa o $W efetivo, entao
-    # nenhuma linha passa da largura e a impressora nunca corta no meio.
+    # normal = Fonte A 1x; grande = Fonte B (9 pontos de largura) em 2x2 - letra
+    # mais alta e proporcional, sem esticar, com 2/3 das colunas; extra_grande =
+    # Fonte A 2x2 (metade das colunas). Altura dupla sozinha (GS ! 1) esticava a
+    # letra e ficava feia. $esp = ESC 3 (espaco entre linhas) proporcional a
+    # altura. Toda quebra/separador/coluna usa o $W efetivo, entao nenhuma
+    # linha passa da largura e a impressora nunca corta no meio.
     $base = if ($tamanhoPapel -eq "58mm") { 32 } else { 48 }
-    $tam = if ($fonte -eq "normal") { 0 } elseif ($fonte -eq "extra_grande") { 17 } else { 1 }
-    $W = if ($tam -eq 17) { [int]($base / 2) } else { $base }
+    $fontB = if ($fonte -eq "grande") { 1 } else { 0 }
+    $tam = if ($fonte -eq "normal") { 0 } else { 17 }
+    $esp = if ($fonte -eq "grande") { 44 } elseif ($fonte -eq "extra_grande") { 60 } else { 0 }
+    $W = if ($fonte -eq "grande") { [int][Math]::Floor($base * 2 / 3) } elseif ($fonte -eq "extra_grande") { [int]($base / 2) } else { [int]$base }
     function xB { param([byte[]]$v) foreach ($x in $v) { $b.Add($x) } }
     function xT { param([string]$s)
         foreach ($c in $s.ToCharArray()) {
@@ -133,8 +139,8 @@ function Build-EscPos($p) {
         }
     }
     function xN { param([int]$n=1) for($i=0;$i -lt $n;$i++){$b.Add([byte]10)} }
-    # ESC @ zera o GS ! - o tamanho e reaplicado logo depois de todo Init.
-    function Init  { xB @(27,64); xB @(29,33,$tam) }
+    # ESC @ zera fonte/tamanho/espacamento - tudo e reaplicado logo depois.
+    function Init  { xB @(27,64); xB @(27,77,$fontB); xB @(29,33,$tam); if ($esp -gt 0) { xB @(27,51,$esp) } }
     function Bold  { param([bool]$on) xB @(27,69,$(if($on){1}else{0})) }
     function Align { param([int]$a) xB @(27,97,$a) }
     function Sep   { xT ("="*$W); xN }
@@ -172,13 +178,18 @@ function Build-EscPos($p) {
     function xWrapPref { param([string]$s, [string]$pref, [string]$cont)
         foreach ($l in (WrapLinhas $s $pref $cont)) { xT $l; xN }
     }
-    function xWrap       { param([string]$s) xWrapPref $s "" "" }
-    function xWrapIndent { param([string]$s) xWrapPref $s "   " "   " }
-    function xWrapSabor  { param([string]$s) xWrapPref $s " - " "   " }
+    function xWrap { param([string]$s) xWrapPref $s "" "" }
     # Primeira variante que cabe inteira numa linha; senao quebra a ultima.
     function xFit { param([string[]]$opcoes)
         foreach ($o in $opcoes) { if ((Len $o) -le $W) { xT $o; xN; return } }
         xWrap $opcoes[-1]
+    }
+    # Separador com titulo centralizado: "------ ITENS ------".
+    function Titulo { param([string]$t, [string]$ch = "-")
+        $s = " $t "
+        if ($s.Length -ge $W) { xFit @($t); return }
+        $esq = [int][Math]::Floor(($W - $s.Length) / 2)
+        xT (($ch * $esq) + $s + ($ch * ($W - $s.Length - $esq))); xN
     }
     # Valor alinhado a direita na ultima linha do rotulo (quebrado por palavra);
     # se nao couber ali, vai sozinho pra linha de baixo.
@@ -203,69 +214,104 @@ function Build-EscPos($p) {
         if ((Len $j) -le $W) { xT $j; xN } else { xWrap $a; xWrap $c }
     }
 
-    # Mesma regra de src/lib/escpos.ts (indiceSabores): os detalhes vem como
-    # "variacao . Sabor1/Sabor2 . + adicional" (separador " . "); com 2+ segmentos que nao
-    # comecam com "+ ", o 2o e o de sabores; com 1 so, so e sabor se tiver "/".
-    function IndiceSabores { param([string[]]$segs)
-        $nao = @()
-        for ($k = 0; $k -lt $segs.Count; $k++) { if (-not $segs[$k].StartsWith("+ ")) { $nao += $k } }
-        if ($nao.Count -ge 2) { return $nao[1] }
-        if ($nao.Count -eq 1) {
-            $partes = @($segs[$nao[0]] -split '/' | ForEach-Object { $_.Trim() })
-            $validas = @($partes | Where-Object { $_ -and $_ -notmatch '^\d+$' })
-            if ($partes.Count -ge 2 -and $validas.Count -eq $partes.Count) { return $nao[0] }
-        }
-        return -1
-    }
-
-    # "Nx Nome (detalhe . detalhe) - R$valor" -> nome e preco na mesma linha
-    # (preco a direita) quando cabe, senao preco na linha de baixo; sabores um
-    # por linha e demais detalhes recuados embaixo.
-    function ItemBlock { param([string]$line, [string]$prefixo = "")
-        # Travessao e ponto medio via \u2014/\u00B7 (escape de regex), nao literais:
-        # o instalador baixa este .ps1 sem BOM e o PowerShell 5.1 le como ANSI.
-        if ($line -match '^(\d+)x\s+(.+?)\s+\u2014\s+R\$\s*([\d.,]+)\s*$') {
-            $qtd = $Matches[1]; $nomeCompleto = $Matches[2]; $preco = $Matches[3]
-            $nome = $nomeCompleto; $detalhesRaw = ""
-            $parenIdx = $nomeCompleto.IndexOf(" (")
-            if ($parenIdx -ge 0 -and $nomeCompleto.EndsWith(")")) {
-                $nome = $nomeCompleto.Substring(0, $parenIdx)
-                $detalhesRaw = $nomeCompleto.Substring($parenIdx + 2, $nomeCompleto.Length - $parenIdx - 3)
+    # Mesmas regras de src/lib/escpos.ts (parseItemLine) - manter os dois iguais.
+    # "/" so separa sabores quando colado em letra dos dois lados: "Frango c/
+    # Catupiry", "s/ cebola", "1/2" e "c/Catupiry" (abreviacao de uma letra)
+    # ficam inteiros - o catalogo junta os sabores com "/" sem espaco.
+    function SplitSabores { param([string]$seg)
+        $out = New-Object System.Collections.Generic.List[string]
+        $sb = New-Object System.Text.StringBuilder
+        for ($i = 0; $i -lt $seg.Length; $i++) {
+            $ch = $seg[$i]
+            if ($ch -eq '/') {
+                $prev = if ($i -gt 0) { $seg[$i-1] } else { [char]' ' }
+                $next = if ($i + 1 -lt $seg.Length) { $seg[$i+1] } else { [char]' ' }
+                $abrev = [char]::IsLetter($prev) -and ($i -lt 2 -or [char]::IsWhiteSpace($seg[$i-2]))
+                $corta = (-not [char]::IsWhiteSpace($prev)) -and (-not [char]::IsWhiteSpace($next)) -and (-not ([char]::IsDigit($prev) -and [char]::IsDigit($next))) -and (-not $abrev)
+                if ($corta) { $out.Add($sb.ToString()); [void]$sb.Clear(); continue }
             }
-            Cols "$prefixo$($qtd)x $nome" ("R$" + $preco)
-            if ($detalhesRaw) {
-                $segs = @($detalhesRaw -split ' \u00B7 ')
-                $iSab = IndiceSabores $segs
-                for ($k = 0; $k -lt $segs.Count; $k++) {
-                    if ($k -eq $iSab) {
-                        $sabores = @($segs[$k] -split '/' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
-                        # 2+ sabores numerados e continuacao recuada sob o texto,
-                        # pra uma quebra de linha nunca parecer outro sabor.
-                        if ($sabores.Count -ge 2) {
-                            for ($j = 0; $j -lt $sabores.Count; $j++) {
-                                $num = "$($j + 1). "
-                                xWrapPref $sabores[$j] $num (" " * $num.Length)
-                            }
-                        } else {
-                            foreach ($sab in $sabores) { xWrapSabor $sab }
-                        }
-                    } else {
-                        xWrapIndent $segs[$k]
-                    }
+            [void]$sb.Append($ch)
+        }
+        $out.Add($sb.ToString())
+        # Sem a virgula de proposito: quem chama embrulha em @(), e ",@()" aqui
+        # viraria array dentro de array.
+        return @($out | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    }
+    # O bloco de detalhes e o ULTIMO "(...)" da linha, casado parentese a
+    # parentese - assim "Pizza (G) (Grande . Calabresa/Mussarela)" mantem o
+    # "(G)" no nome e um sabor "Calabresa (sem cebola)" nao quebra nada.
+    function SeparaDetalhes { param([string]$s)
+        if (-not $s.EndsWith(")")) { return @($s, "") }
+        $depth = 0
+        for ($i = $s.Length - 1; $i -ge 0; $i--) {
+            if ($s[$i] -eq ')') { $depth++ }
+            elseif ($s[$i] -eq '(') {
+                $depth--
+                if ($depth -eq 0) {
+                    if ($i -gt 0 -and $s[$i-1] -eq ' ') { return @($s.Substring(0, $i).TrimEnd(), $s.Substring($i + 1, $s.Length - $i - 2)) }
+                    break
                 }
             }
-        } else {
-            xWrap "$prefixo$line"
         }
+        return @($s, "")
+    }
+    # "Nx Nome (variacao . Sabor1/Sabor2 . + adicional, adicional) - R$valor"
+    # (travessao e ponto medio via \u2014/\u00B7, nao literais: o instalador
+    # baixa este .ps1 sem BOM e o PowerShell 5.1 le como ANSI). Cada parte do
+    # parentese e opcional: com variacao + sabores, os sabores sao o 2o segmento
+    # que nao comeca com "+ "; sozinho, so e sabor se tiver "/".
+    function ParseItem { param([string]$line)
+        if ($line -notmatch '^(\d+)\s*x\s+(.+?)\s+\u2014\s+R\$\s*([\d.,]+)$') { return $null }
+        $qtd = $Matches[1]; $preco = $Matches[3]
+        $sep = SeparaDetalhes $Matches[2]
+        $nome = $sep[0]
+        $segs = @()
+        if ($sep[1]) { $segs = @($sep[1] -split ' \u00B7 ' | ForEach-Object { $_.Trim() } | Where-Object { $_ }) }
+        $adic = @(); $outros = @()
+        foreach ($s in $segs) {
+            if ($s.StartsWith("+ ")) { $adic += @($s.Substring(2) -split ', ' | ForEach-Object { $_.Trim() } | Where-Object { $_ }) }
+            else { $outros += $s }
+        }
+        $sabores = @(); $detalhes = @($outros)
+        if ($outros.Count -ge 2) {
+            $sabores = @(SplitSabores $outros[1])
+            $detalhes = @($outros[0]) + @($outros | Select-Object -Skip 2)
+        } elseif ($outros.Count -eq 1) {
+            $pt = @(SplitSabores $outros[0])
+            if ($pt.Count -ge 2) { $sabores = $pt; $detalhes = @() }
+        }
+        return @{ qtd = $qtd; nome = $nome; preco = $preco; detalhes = $detalhes; sabores = $sabores; adicionais = $adic; pizza = ($nome -match 'pizza|brotinho') }
     }
 
-    # Cada item vira um bloco proprio, com uma linha em branco entre eles.
-    function ItemsSection { param([string]$descricaoItens, [string]$prefixo = "")
+    # Cada item vira um bloco: nome+preco (preco a direita quando cabe, senao
+    # na linha de baixo), variacao recuada, bloco de sabores com titulo
+    # ("MEIO A MEIO:" + "1/2 Sabor" em pizza; "N SABORES:" numerado no resto) e
+    # adicionais um por linha com "+ ". Continuacao recuada sob o texto, pra
+    # uma quebra de linha nunca parecer outro sabor.
+    function ItemBlock { param([string]$line)
+        $it = ParseItem $line
+        if (-not $it) { xWrap $line; return }
+        Cols "$($it.qtd)x $($it.nome)" ("R$" + $it.preco)
+        foreach ($d in @($it.detalhes)) { xWrapPref $d "  " "  " }
+        $n = @($it.sabores).Count
+        if ($n -ge 1) {
+            $tit = if ($n -eq 1) { "SABOR:" } elseif ($it.pizza -and $n -eq 2) { "MEIO A MEIO:" } else { "$n SABORES:" }
+            xWrapPref $tit "  " "  "
+            for ($j = 0; $j -lt $n; $j++) {
+                $pref = if ($n -eq 1) { "  - " } elseif ($it.pizza) { "  1/$n " } else { "  $($j + 1). " }
+                xWrapPref $it.sabores[$j] $pref (" " * $pref.Length)
+            }
+        }
+        foreach ($a in @($it.adicionais)) { xWrapPref $a "  + " "    " }
+    }
+
+    # Uma linha em branco entre itens, menos no compacto.
+    function ItemsSection { param([string]$descricaoItens)
         if (-not $descricaoItens) { return }
-        $linhas = @($descricaoItens -split "`n" | Where-Object { $_.Trim() })
+        $linhas = @($descricaoItens -split "`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
         for ($i = 0; $i -lt $linhas.Count; $i++) {
-            ItemBlock $linhas[$i].Trim() $prefixo
-            if ($i -lt $linhas.Count - 1) { xN }
+            ItemBlock $linhas[$i]
+            if ($layout -ne "compacto" -and $i -lt $linhas.Count - 1) { xN }
         }
     }
 
@@ -275,7 +321,7 @@ function Build-EscPos($p) {
     $total = [double]$p.valor_pedido + [double]$p.valor_motoboy
     $pgtoMap = @{dinheiro="Dinheiro";cartao_credito="Cartao de Credito";cartao_debito="Cartao de Debito";pix="PIX";ja_pago="Ja pago"}
     $pgto = if ($pgtoMap.ContainsKey($p.forma_pagamento)) { $pgtoMap[$p.forma_pagamento] } else { "$($p.forma_pagamento)" }
-    # Mesma prioridade do cupom "reimprimir" (src/lib/printService.ts, layout moderno):
+    # Mesma prioridade do cupom "reimprimir" (src/lib/printService.ts):
     # retirada vence, depois ja pago, senao delivery.
     $tipo = if ($p.tipo_pedido -eq "retirada") { "RETIRADA" }
             elseif ($p.forma_pagamento -eq "ja_pago") { "JA PAGO" }
@@ -284,6 +330,14 @@ function Build-EscPos($p) {
     $numero = "PEDIDO #$($p.id.Substring(0,8).ToUpper())"
     $endereco = "$($p.endereco_entrega)$(if($p.bairro){", $($p.bairro)"})"
     $troco = if ($p.troco_para) { "Troco p/ $(Rs $p.troco_para)" } else { "" }
+    function Entrega {
+        if ($p.tipo_pedido -eq "entrega") {
+            xWrap "End: $($p.endereco_entrega)"
+            if ($p.bairro) { xWrap "Bairro: $($p.bairro)" }
+        } else {
+            Align 1; xFit @("*** RETIRADA NO LOCAL ***", "RETIRADA NO LOCAL"); Align 0
+        }
+    }
 
     # Layout espelhando o cupom "reimprimir" (formatReceipt) - classico,
     # moderno ou compacto. Tudo no mesmo tamanho e em negrito; so Align muda.
@@ -304,25 +358,18 @@ function Build-EscPos($p) {
         Align 0
         Sep
 
-        xWrap ([string]$p.cliente_nome)
+        xWrap "Cliente: $($p.cliente_nome)"
         if ($p.cliente_telefone) { xWrap "Tel: $($p.cliente_telefone)" }
-        if ($p.tipo_pedido -eq "entrega") {
-            xWrap "End: $endereco"
-        } else {
-            Align 1; xFit @("*** RETIRADA NO LOCAL ***", "RETIRADA NO LOCAL"); Align 0
-        }
-        Sep
+        Entrega
+        Titulo "ITENS" "-"
 
-        xT "ITENS"; xN
         ItemsSection $p.descricao_itens
-        if ($p.observacoes) { xWrap "Obs: $($p.observacoes)" }
+        if ($p.observacoes) { DSep; xWrap "Obs: $($p.observacoes)" }
         Sep
 
         Cols "Subtotal:" (Rs $p.valor_pedido)
         if ([double]$p.valor_motoboy -gt 0) { Cols "Entrega:" (Rs $p.valor_motoboy) }
-        Sep
-
-        Align 1; xFit @("TOTAL: $(Rs $total)", "TOTAL $((Rs $total).Replace(' ',''))"); Align 0
+        Cols "TOTAL:" (Rs $total)
         Sep
 
         xWrap "Pgto: $pgto"
@@ -333,15 +380,13 @@ function Build-EscPos($p) {
         xT "appvellox.online"; xN
 
     } elseif ($layout -eq "compacto") {
-        $tag = "[$tipo]"
-
         Align 1
         xWrap $loja
         xPar $data "#$($p.id.Substring(0,8).ToUpper())"
         Align 0
         DSep
 
-        xWrap "$tag $($p.cliente_nome)"
+        xWrap "[$tipo] $($p.cliente_nome)"
         if ($p.cliente_telefone) { xWrap $p.cliente_telefone }
         if ($p.tipo_pedido -eq "entrega") { xWrap $endereco }
         DSep
@@ -365,10 +410,7 @@ function Build-EscPos($p) {
         Align 1
         xWrap $loja
         xWrap $data
-        Align 0
         Sep
-
-        Align 1
         xFit @("[ $tipo ]")
         xFit @($numero)
         Align 0
@@ -377,20 +419,11 @@ function Build-EscPos($p) {
         xWrap "> $($p.cliente_nome)"
         if ($p.cliente_telefone) { xWrap "Tel: $($p.cliente_telefone)" }
         DSep
+        Entrega
+        Titulo "ITENS" "="
 
-        if ($p.tipo_pedido -eq "entrega") {
-            xWrap "End: $endereco"
-        } else {
-            Align 1; xFit @("*** RETIRADA NO LOCAL ***", "RETIRADA NO LOCAL"); Align 0
-        }
-        Sep
-
-        xT "ITENS"; xN
-        ItemsSection $p.descricao_itens "- "
-        if ($p.observacoes) {
-            DSep
-            xWrap "Obs: $($p.observacoes)"
-        }
+        ItemsSection $p.descricao_itens
+        if ($p.observacoes) { DSep; xWrap "Obs: $($p.observacoes)" }
         Sep
 
         Cols "Subtotal:" (Rs $p.valor_pedido)

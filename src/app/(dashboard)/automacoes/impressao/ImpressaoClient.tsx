@@ -33,7 +33,7 @@ interface Props {
 
 const FONTE_OPTS: { id: FonteOpt; label: string; sub: string }[] = [
   { id: "normal",       label: "Normal",       sub: "Letra padrão" },
-  { id: "grande",       label: "Grande",       sub: "Altura dupla" },
+  { id: "grande",       label: "Grande",       sub: "Maior, proporcional" },
   { id: "extra_grande", label: "Extra grande", sub: "2x — menos colunas" },
 ];
 

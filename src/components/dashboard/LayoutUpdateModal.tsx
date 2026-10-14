@@ -16,7 +16,8 @@ import { buildLayoutPreviews } from "@/lib/printLayoutPreviews";
 // v4: sabores um abaixo do outro (agente v10). v5: nome/sabores em altura
 // dupla e destaque que nao cabe desce de tamanho sozinho (agente v11).
 // v6: cupom inteiro num tamanho so (config "Tamanho da letra"), sabores numerados (agente v13).
-const SEEN_KEY = "vellox_layout_update_v6_seen";
+// v7: fonte proporcional (sem letra esticada) e bloco MEIO A MEIO (agente v14).
+const SEEN_KEY = "vellox_layout_update_v7_seen";
 
 interface Props {
   empresaId: string;
@@ -92,7 +93,7 @@ export default function LayoutUpdateModal({ empresaId, empresaNome, fonte }: Pro
             </div>
             <div>
               <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>Cupom impresso atualizado</p>
-              <p className="text-xs" style={{ color: "var(--text-4)" }}>Letras do mesmo tamanho no cupom inteiro</p>
+              <p className="text-xs" style={{ color: "var(--text-4)" }}>Cupom novo: letra mais bonita e meio a meio claro</p>
             </div>
           </div>
           <button onClick={fechar} style={{ color: "var(--text-4)", flexShrink: 0 }}>
@@ -101,7 +102,7 @@ export default function LayoutUpdateModal({ empresaId, empresaNome, fonte }: Pro
         </div>
 
         <p className="text-xs mt-3 mb-4" style={{ color: "var(--text-3)" }}>
-          O cupom inteiro agora sai num tamanho só, que você escolhe em Configurações → "Tamanho da letra". Sabores saem numerados (1., 2.), um por linha, sem cortar palavra no meio. <strong>Pra isso valer no computador da impressora, baixe o atualizador abaixo</strong> (depois dele, as próximas atualizações chegam sozinhas). Aproveite e confirme o layout.
+          O cupom inteiro agora sai num tamanho só, que você escolhe em Configurações → "Tamanho da letra". A letra não sai mais esticada, e pizza com mais de um sabor mostra "MEIO A MEIO" com cada metade numa linha (1/2 Calabresa, 1/2 Mussarela). <strong>Pra isso valer no computador da impressora, baixe o atualizador abaixo</strong> (depois dele, as próximas atualizações chegam sozinhas). Aproveite e confirme o layout.
         </p>
 
         <div className="grid grid-cols-3 gap-2 mb-4">

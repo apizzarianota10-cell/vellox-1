@@ -14,7 +14,7 @@ const CUT       = [GS,  0x56, 0x41, 0x03];
 type LayoutOpt = "classico" | "moderno" | "compacto";
 
 // Tamanho da letra do cupom inteiro (configuracoes_print_agent.fonte) — mesmo
-// mapeamento do servidor.ps1: um GS ! só, aplicado uma vez depois do INIT.
+// mapeamento do servidor.ps1, aplicado uma vez depois do INIT.
 export type FonteOpt = "normal" | "grande" | "extra_grande";
 const FONTE_KEY = "vellox-receipt-fonte";
 
@@ -34,7 +34,15 @@ export function saveFonte(f: FonteOpt): void {
   try { localStorage.setItem(FONTE_KEY, f); } catch {}
 }
 
-const GS_TAMANHO: Record<FonteOpt, number> = { normal: 0x00, grande: 0x01, extra_grande: 0x11 };
+// normal = Fonte A 1x; grande = Fonte B (9 pontos de largura) em 2x2 — letra
+// mais alta e proporcional, sem esticar, com 2/3 das colunas; extra_grande =
+// Fonte A 2x2. Altura dupla sozinha (GS ! 1) esticava a letra e ficava feia.
+// `esp` = ESC 3 (espaço entre linhas) proporcional à altura da letra.
+const FONTES: Record<FonteOpt, { fontB: number; gs: number; esp: number; cols: (base: number) => number }> = {
+  normal:       { fontB: 0, gs: 0x00, esp: 0,  cols: b => b },
+  grande:       { fontB: 1, gs: 0x11, esp: 44, cols: b => Math.floor(b * 2 / 3) },
+  extra_grande: { fontB: 0, gs: 0x11, esp: 60, cols: b => b / 2 },
+};
 
 function getBaseColumns(): number {
   try {
@@ -54,19 +62,32 @@ function getLayout(): LayoutOpt {
   return "classico";
 }
 
+// Acento e pontuação tipográfica viram ASCII antes de ir pra impressora (mesma
+// regra do servidor.ps1): a codepage da térmica varia e byte > 127 sai errado.
+const ESPECIAIS: Record<string, string> = {
+  "—": "-", "–": "-", "‘": "'", "’": "'", "“": '"', "”": '"',
+  "…": "...", "·": ".", "•": "-", "º": "o", "ª": "a", "°": "o",
+};
+export function fold(s: string): string {
+  let out = "";
+  for (const ch of s.normalize("NFD")) {
+    const code = ch.codePointAt(0) ?? 0;
+    if (code >= 0x300 && code <= 0x36F) continue;
+    out += code < 128 ? ch : (ESPECIAIS[ch] ?? "?");
+  }
+  return out;
+}
+
 function txt(s: string): number[] {
   const bytes: number[] = [];
-  for (const ch of s) {
-    const code = ch.codePointAt(0) ?? 0x3F;
-    bytes.push(code < 256 ? code : 0x3F);
-  }
+  for (const ch of fold(s)) bytes.push(ch.charCodeAt(0));
   return bytes;
 }
 
 // Quebra texto em linhas de `cols` chars sem cortar palavra ao meio
 // (só quebra uma palavra isoladamente se ela sozinha já for maior que `cols`)
 function wrapLines(s: string, cols: number): string[] {
-  const words = s.split(" ").filter(w => w);
+  const words = fold(s).split(" ").filter(w => w);
   const lines: string[] = [];
   let cur = "";
   for (const w of words) {
@@ -86,7 +107,7 @@ function wrapLines(s: string, cols: number): string[] {
 }
 
 // Todas as linhas do cupom passam por aqui com a largura efetiva (W já
-// dividido quando a letra é 2x de largura), então nada passa da linha.
+// reduzido quando a letra é mais larga), então nada passa da linha.
 function makeR(W: number) {
   const wrap = (s: string): number[] => {
     const out: number[] = [];
@@ -100,13 +121,21 @@ function makeR(W: number) {
   };
   // Primeira variante que cabe inteira numa linha; senão quebra a última.
   const fit = (...opcoes: string[]): number[] => {
-    const ok = opcoes.find(o => o.length <= W);
+    const ok = opcoes.find(o => fold(o).length <= W);
     return ok !== undefined ? [...txt(ok), LF] : wrap(opcoes[opcoes.length - 1]);
   };
   const sep = (char = "-"): number[] => [...txt(char.repeat(W)), LF];
+  // Separador com título centralizado: "------ ITENS ------".
+  const titulo = (t: string, char = "-"): number[] => {
+    const s = ` ${t} `;
+    if (s.length >= W) return fit(t);
+    const esq = Math.floor((W - s.length) / 2);
+    return [...txt(char.repeat(esq) + s + char.repeat(W - s.length - esq)), LF];
+  };
   // Valor à direita na última linha do rótulo; se não couber, sozinho embaixo.
   const row = (label: string, value: string): number[] => {
     const ls = wrapLines(label, W);
+    value = fold(value);
     const out: number[] = [];
     ls.slice(0, -1).forEach(l => out.push(...txt(l), LF));
     const ult = ls[ls.length - 1];
@@ -117,81 +146,125 @@ function makeR(W: number) {
   };
   // Duas partes juntas com " | " se couber, senão uma por linha.
   const par = (a: string, b?: string): number[] =>
-    !b ? wrap(a) : `${a} | ${b}`.length <= W ? [...txt(`${a} | ${b}`), LF] : [...wrap(a), ...wrap(b)];
-  return { W, wrap, wrapPref, fit, sep, row, par };
+    !b ? wrap(a) : fold(`${a} | ${b}`).length <= W ? [...txt(`${a} | ${b}`), LF] : [...wrap(a), ...wrap(b)];
+  return { W, wrap, wrapPref, fit, sep, titulo, row, par };
 }
 type R = ReturnType<typeof makeR>;
 
-export type ItemDetalhe = { texto: string; sabor: boolean };
-export type ItemParsed = { qtd: string; nome: string; detalhes: ItemDetalhe[]; preco: string };
+export type ItemParsed = {
+  qtd: string; nome: string; preco: string;
+  detalhes: string[];   // variação e outros segmentos que não são sabor nem adicional
+  sabores: string[];
+  adicionais: string[];
+  pizza: boolean;       // nome parece pizza → sabores em frações ("1/2 Calabresa")
+};
 
-// Identifica qual segmento do parêntese é o de sabores. O catálogo e o pedido
-// manual montam "variação · Sabor1/Sabor2 · + adicional, adicional" (nessa
-// ordem, cada parte opcional), então: com variação + sabores, os sabores são o
-// 2º segmento que não começa com "+ "; sozinho, só dá pra afirmar que é sabor
-// se tiver "/" (um único segmento sem "/" pode ser só a variação).
-function indiceSabores(segs: string[]): number {
-  const naoAdicionais = segs.map((s, i) => (s.startsWith("+ ") ? -1 : i)).filter(i => i >= 0);
-  if (naoAdicionais.length >= 2) return naoAdicionais[1];
-  if (naoAdicionais.length === 1) {
-    const partes = segs[naoAdicionais[0]].split("/").map(s => s.trim());
-    if (partes.length >= 2 && partes.every(s => s && !/^\d+$/.test(s))) return naoAdicionais[0];
+// "/" só separa sabores quando colado em letra dos dois lados: "Frango c/
+// Catupiry", "s/ cebola", "1/2" e "c/Catupiry" (abreviação de uma letra) ficam
+// inteiros — o catálogo junta os sabores com "/" sem espaço.
+export function splitSabores(seg: string): string[] {
+  const out: string[] = [];
+  let cur = "";
+  for (let i = 0; i < seg.length; i++) {
+    const ch = seg[i];
+    if (ch === "/") {
+      const prev = seg[i - 1] ?? " ";
+      const next = seg[i + 1] ?? " ";
+      const abrev = /[A-Za-z]/.test(prev) && (i < 2 || /\s/.test(seg[i - 2]));
+      const corta = !/\s/.test(prev) && !/\s/.test(next) && !(/\d/.test(prev) && /\d/.test(next)) && !abrev;
+      if (corta) { out.push(cur); cur = ""; continue; }
+    }
+    cur += ch;
   }
-  return -1;
+  out.push(cur);
+  return out.map(s => s.trim()).filter(Boolean);
 }
 
-// Reconhece uma linha de item no formato "Nx Nome (detalhe · detalhe) — R$valor"
-// (é assim que o catálogo e o pedido manual montam `descricao_itens`).
+// O bloco de detalhes é o ÚLTIMO "(...)" da linha, casado parêntese a
+// parêntese — assim "Pizza (G) (Grande · Calabresa/Mussarela)" mantém o "(G)"
+// no nome e um sabor "Calabresa (sem cebola)" não quebra nada.
+function separaDetalhes(nomeCompleto: string): [string, string] {
+  if (!nomeCompleto.endsWith(")")) return [nomeCompleto, ""];
+  let depth = 0;
+  for (let i = nomeCompleto.length - 1; i >= 0; i--) {
+    const ch = nomeCompleto[i];
+    if (ch === ")") depth++;
+    else if (ch === "(") {
+      depth--;
+      if (depth === 0) {
+        if (i > 0 && nomeCompleto[i - 1] === " ") return [nomeCompleto.slice(0, i).trimEnd(), nomeCompleto.slice(i + 1, -1)];
+        break;
+      }
+    }
+  }
+  return [nomeCompleto, ""];
+}
+
+// Reconhece uma linha de item no formato "Nx Nome (variação · Sabor1/Sabor2 ·
+// + adicional, adicional) — R$valor" (é assim que o catálogo e o pedido manual
+// montam `descricao_itens`; cada parte do parêntese é opcional). Com variação
+// e sabores, os sabores são o 2º segmento que não começa com "+ "; sozinho, só
+// é sabor se tiver "/" (um segmento único sem "/" pode ser só a variação).
 // Itens fora desse formato (texto livre, pedidos colados) caem no fallback.
 export function parseItemLine(line: string): ItemParsed | null {
-  const m = line.match(/^(\d+)x\s+(.+?)\s+—\s+R\$\s*([\d.,]+)\s*$/);
+  const m = line.trim().match(/^(\d+)\s*x\s+(.+?)\s+—\s+R\$\s*([\d.,]+)$/);
   if (!m) return null;
   const [, qtd, nomeCompleto, preco] = m;
-  let nome = nomeCompleto;
-  let detalhesRaw = "";
-  const parenIdx = nomeCompleto.indexOf(" (");
-  if (parenIdx !== -1 && nomeCompleto.endsWith(")")) {
-    nome = nomeCompleto.slice(0, parenIdx);
-    detalhesRaw = nomeCompleto.slice(parenIdx + 2, -1);
+  const [nome, detalhesRaw] = separaDetalhes(nomeCompleto);
+  const segs = detalhesRaw ? detalhesRaw.split(" · ").map(s => s.trim()).filter(Boolean) : [];
+  const adicionais: string[] = [];
+  const outros: string[] = [];
+  for (const s of segs) {
+    if (s.startsWith("+ ")) adicionais.push(...s.slice(2).split(", ").map(a => a.trim()).filter(Boolean));
+    else outros.push(s);
   }
-  const segs = detalhesRaw ? detalhesRaw.split(" · ") : [];
-  const iSab = indiceSabores(segs);
-  const detalhes: ItemDetalhe[] = [];
-  segs.forEach((s, i) => {
-    if (i === iSab) {
-      for (const sab of s.split("/")) if (sab.trim()) detalhes.push({ texto: sab.trim(), sabor: true });
-    } else {
-      detalhes.push({ texto: s, sabor: false });
-    }
-  });
-  return { qtd, nome, detalhes, preco };
+  let sabores: string[] = [];
+  let detalhes = outros;
+  if (outros.length >= 2) {
+    sabores = splitSabores(outros[1]);
+    detalhes = [outros[0], ...outros.slice(2)];
+  } else if (outros.length === 1) {
+    const partes = splitSabores(outros[0]);
+    if (partes.length >= 2) { sabores = partes; detalhes = []; }
+  }
+  return { qtd, nome, preco, detalhes, sabores, adicionais, pizza: /pizza|brotinho/i.test(nome) };
 }
 
-// Cada item vira um bloco próprio: nome+preço, cada sabor numa linha própria
-// (" - Sabor") e variação/adicionais recuados embaixo — tudo no mesmo tamanho.
-function itemBlock(r: R, line: string, prefix: string): number[] {
-  const parsed = parseItemLine(line);
-  if (!parsed) return r.wrap(prefix + (line || " "));
+// Título do bloco de sabores e marcador de cada linha — o pizzaiolo lê
+// "MEIO A MEIO: 1/2 Calabresa / 1/2 Mussarela" de relance.
+export function tituloSabores(p: ItemParsed): string {
+  const n = p.sabores.length;
+  return n === 1 ? "SABOR:" : p.pizza && n === 2 ? "MEIO A MEIO:" : `${n} SABORES:`;
+}
+export function marcaSabor(p: ItemParsed, i: number): string {
+  const n = p.sabores.length;
+  return n === 1 ? "- " : p.pizza ? `1/${n} ` : `${i + 1}. `;
+}
 
-  const out: number[] = [...r.row(`${prefix}${parsed.qtd}x ${parsed.nome}`, `R$${parsed.preco}`)];
-  // 2+ sabores numerados, continuação recuada sob o texto — uma quebra de
-  // linha nunca parece outro sabor.
-  const multi = parsed.detalhes.filter(d => d.sabor).length >= 2;
-  let n = 0;
-  for (const d of parsed.detalhes) {
-    if (!d.sabor) { out.push(...r.wrapPref(d.texto, "   ", "   ")); continue; }
-    const pref = multi ? `${++n}. ` : " - ";
-    out.push(...r.wrapPref(d.texto, pref, " ".repeat(pref.length)));
+// Cada item vira um bloco próprio: nome+preço, variação recuada, bloco de
+// sabores com título, adicionais um por linha com "+ " — tudo no mesmo tamanho.
+function itemBlock(r: R, line: string): number[] {
+  const p = parseItemLine(line);
+  if (!p) return r.wrap(line || " ");
+
+  const out: number[] = [...r.row(`${p.qtd}x ${p.nome}`, `R$${p.preco}`)];
+  for (const d of p.detalhes) out.push(...r.wrapPref(d, "  ", "  "));
+  if (p.sabores.length) {
+    out.push(...r.wrapPref(tituloSabores(p), "  ", "  "));
+    p.sabores.forEach((s, i) => {
+      const pref = "  " + marcaSabor(p, i);
+      out.push(...r.wrapPref(s, pref, " ".repeat(pref.length)));
+    });
   }
+  for (const a of p.adicionais) out.push(...r.wrapPref(a, "  + ", "    "));
   return out;
 }
 
 function itemsSection(r: R, descricaoItens: string | null | undefined, layout: LayoutOpt): number[] {
-  const prefix = layout === "moderno" ? "- " : "";
-  const linhas = (descricaoItens ?? "---").split("\n");
+  const linhas = (descricaoItens ?? "---").split("\n").map(l => l.trim()).filter(Boolean);
   const out: number[] = [];
   linhas.forEach((l, i) => {
-    out.push(...itemBlock(r, l, prefix));
+    out.push(...itemBlock(r, l));
     if (layout !== "compacto" && i < linhas.length - 1) out.push(LF);
   });
   return out;
@@ -199,8 +272,8 @@ function itemsSection(r: R, descricaoItens: string | null | undefined, layout: L
 
 const PGTO_LABELS: Record<string, string> = {
   dinheiro:      "Dinheiro",
-  cartao_credito:"Cartao Credito",
-  cartao_debito: "Cartao Debito",
+  cartao_credito:"Cartao de Credito",
+  cartao_debito: "Cartao de Debito",
   pix:           "PIX",
   ja_pago:       "Ja pago",
 };
@@ -209,129 +282,108 @@ const rs = (v: number) => "R$ " + v.toFixed(2).replace(".", ",");
 const dataCurta = (iso: string) => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(",", "");
 const totalOpcoes = (total: number) => [`TOTAL: ${rs(total)}`, `TOTAL ${rs(total).replace(" ", "")}`];
 
-function buildClassico(r: R, pedido: Pedido, empresaNome: string): number[] {
-  const total = pedido.valor_pedido + pedido.valor_motoboy;
-  const pgto  = pedido.forma_pagamento
-    ? (PGTO_LABELS[pedido.forma_pagamento] ?? pedido.forma_pagamento)
-    : "---";
-
-  return [
-    ...CENTER, ...BOLD_ON,
-    ...r.wrap(empresaNome.toUpperCase()),
-    ...BOLD_OFF,
-    ...r.wrap(dataCurta(pedido.created_at)),
-    ...r.sep(),
-    ...LEFT, ...BOLD_ON,
-    ...r.fit("PEDIDO #" + pedido.id.slice(0, 8).toUpperCase()),
-    ...BOLD_OFF,
-    ...r.sep(),
-    ...BOLD_ON, ...r.wrap("CLIENTE: " + pedido.cliente_nome), ...BOLD_OFF,
-    ...(pedido.cliente_telefone ? r.wrap("TEL: " + pedido.cliente_telefone) : []),
-    ...r.sep(),
-    ...BOLD_ON,
-    ...r.fit(pedido.tipo_pedido === "entrega" ? "** DELIVERY **" : "** RETIRADA **"),
-    ...BOLD_OFF,
-    ...(pedido.tipo_pedido === "entrega"
-      ? [
-          ...r.wrap("END: " + pedido.endereco_entrega),
-          ...(pedido.bairro ? r.wrap("BAI: " + pedido.bairro) : []),
-        ]
-      : []),
-    ...r.sep(),
-    ...BOLD_ON, ...r.fit("ITENS:"), ...BOLD_OFF,
-    ...itemsSection(r, pedido.descricao_itens, "classico"),
-    ...(pedido.observacoes ? r.wrap("OBS: " + pedido.observacoes) : []),
-    ...r.sep(),
-    ...r.row("Subtotal:", rs(pedido.valor_pedido)),
-    ...(pedido.valor_motoboy > 0 ? r.row("Entrega:", rs(pedido.valor_motoboy)) : []),
-    ...BOLD_ON,
-    ...r.row("TOTAL:", rs(total)),
-    ...BOLD_OFF,
-    ...r.sep(),
-    ...BOLD_ON, ...r.wrap("PGTO: " + pgto), ...BOLD_OFF,
-    ...(pedido.troco_para ? r.wrap("Troco p/ " + rs(pedido.troco_para)) : []),
-    ...r.sep(),
-    ...CENTER,
-    ...r.fit("Vellox - appvellox.online", "appvellox.online"),
-  ];
+type Comum = { total: number; pgto: string; tipo: string; loja: string; numero: string; endereco: string; troco: string };
+function comum(pedido: Pedido, empresaNome: string): Comum {
+  return {
+    total:    pedido.valor_pedido + pedido.valor_motoboy,
+    pgto:     pedido.forma_pagamento ? (PGTO_LABELS[pedido.forma_pagamento] ?? pedido.forma_pagamento) : "---",
+    // Mesma prioridade do cupom HTML: retirada vence, depois já pago, senão delivery.
+    tipo:     pedido.tipo_pedido === "retirada" ? "RETIRADA" : pedido.forma_pagamento === "ja_pago" ? "JA PAGO" : "DELIVERY",
+    loja:     (empresaNome || "PEDIDO").toUpperCase(),
+    numero:   "PEDIDO #" + pedido.id.slice(0, 8).toUpperCase(),
+    endereco: pedido.endereco_entrega + (pedido.bairro ? `, ${pedido.bairro}` : ""),
+    troco:    pedido.troco_para ? `Troco p/ ${rs(pedido.troco_para)}` : "",
+  };
 }
 
-function buildModerno(r: R, pedido: Pedido, empresaNome: string): number[] {
-  const total = pedido.valor_pedido + pedido.valor_motoboy;
-  const pgto  = pedido.forma_pagamento
-    ? (PGTO_LABELS[pedido.forma_pagamento] ?? pedido.forma_pagamento)
-    : "---";
-  const tipo = pedido.tipo_pedido === "retirada" ? "RETIRADA" : pedido.forma_pagamento === "ja_pago" ? "JA PAGO" : "DELIVERY";
+const retiradaCentro = (r: R) => [...CENTER, ...r.fit("*** RETIRADA NO LOCAL ***", "RETIRADA NO LOCAL"), ...LEFT];
 
+function buildClassico(r: R, pedido: Pedido, c: Comum): number[] {
+  const headerText = pedido.forma_pagamento === "ja_pago" ? "* JA PAGO *" : pedido.tipo_pedido === "retirada" ? "-- RETIRADA --" : "- DELIVERY -";
   return [
-    ...r.sep("="),
-    ...CENTER, ...BOLD_ON,
-    ...r.wrap(empresaNome.toUpperCase()),
-    ...BOLD_OFF,
+    ...CENTER,
+    ...r.wrap(c.loja),
     ...r.wrap(dataCurta(pedido.created_at)),
     ...r.sep("="),
-    ...BOLD_ON,
-    ...r.fit(`[ ${tipo} ]`),
-    ...BOLD_OFF,
-    ...r.fit("PEDIDO #" + pedido.id.slice(0, 8).toUpperCase()),
+    ...r.fit(headerText),
+    ...r.fit(c.numero),
+    ...LEFT,
     ...r.sep("="),
-    ...LEFT, ...BOLD_ON,
-    ...r.wrap("> " + pedido.cliente_nome),
-    ...BOLD_OFF,
+    ...r.wrap("Cliente: " + pedido.cliente_nome),
     ...(pedido.cliente_telefone ? r.wrap("Tel: " + pedido.cliente_telefone) : []),
-    ...r.sep(),
     ...(pedido.tipo_pedido === "entrega"
-      ? r.wrap("End: " + pedido.endereco_entrega + (pedido.bairro ? `, ${pedido.bairro}` : ""))
-      : [...BOLD_ON, ...CENTER, ...r.fit("*** RETIRADA NO LOCAL ***", "RETIRADA NO LOCAL"), ...LEFT, ...BOLD_OFF]),
-    ...r.sep("="),
-    ...BOLD_ON, ...r.fit("ITENS"), ...BOLD_OFF,
-    ...itemsSection(r, pedido.descricao_itens, "moderno"),
-    ...(pedido.observacoes ? [...r.sep(), ...BOLD_ON, ...r.fit("Obs:"), ...BOLD_OFF, ...r.wrap(pedido.observacoes)] : []),
+      ? [...r.wrap("End: " + pedido.endereco_entrega), ...(pedido.bairro ? r.wrap("Bairro: " + pedido.bairro) : [])]
+      : retiradaCentro(r)),
+    ...r.titulo("ITENS", "-"),
+    ...itemsSection(r, pedido.descricao_itens, "classico"),
+    ...(pedido.observacoes ? [...r.sep("-"), ...r.wrap("Obs: " + pedido.observacoes)] : []),
     ...r.sep("="),
     ...r.row("Subtotal:", rs(pedido.valor_pedido)),
     ...(pedido.valor_motoboy > 0 ? r.row("Entrega:", rs(pedido.valor_motoboy)) : []),
+    ...r.row("TOTAL:", rs(c.total)),
     ...r.sep("="),
-    ...CENTER, ...BOLD_ON,
-    ...r.fit(`>> TOTAL: ${rs(total)} <<`, ...totalOpcoes(total)),
-    ...BOLD_OFF,
-    ...r.sep("="),
-    ...LEFT,
-    ...r.wrap("Pgto: " + pgto),
-    ...(pedido.troco_para ? r.wrap("Troco p/ " + rs(pedido.troco_para)) : []),
+    ...r.wrap("Pgto: " + c.pgto),
+    ...(c.troco ? r.wrap(c.troco) : []),
     ...r.sep("="),
     ...CENTER,
     ...r.fit("appvellox.online"),
   ];
 }
 
-function buildCompacto(r: R, pedido: Pedido, empresaNome: string): number[] {
-  const total = pedido.valor_pedido + pedido.valor_motoboy;
-  const pgto  = pedido.forma_pagamento
-    ? (PGTO_LABELS[pedido.forma_pagamento] ?? pedido.forma_pagamento)
-    : "---";
-  const tipo  = pedido.tipo_pedido === "retirada" ? "[RETIRADA]" : pedido.forma_pagamento === "ja_pago" ? "[JA PAGO]" : "[DELIVERY]";
-
+function buildModerno(r: R, pedido: Pedido, c: Comum): number[] {
   return [
-    ...CENTER, ...BOLD_ON,
-    ...r.wrap(empresaNome.toUpperCase()),
-    ...BOLD_OFF,
+    ...r.sep("="),
+    ...CENTER,
+    ...r.wrap(c.loja),
+    ...r.wrap(dataCurta(pedido.created_at)),
+    ...r.sep("="),
+    ...r.fit(`[ ${c.tipo} ]`),
+    ...r.fit(c.numero),
+    ...LEFT,
+    ...r.sep("="),
+    ...r.wrap("> " + pedido.cliente_nome),
+    ...(pedido.cliente_telefone ? r.wrap("Tel: " + pedido.cliente_telefone) : []),
+    ...r.sep("-"),
+    ...(pedido.tipo_pedido === "entrega"
+      ? [...r.wrap("End: " + pedido.endereco_entrega), ...(pedido.bairro ? r.wrap("Bairro: " + pedido.bairro) : [])]
+      : retiradaCentro(r)),
+    ...r.titulo("ITENS", "="),
+    ...itemsSection(r, pedido.descricao_itens, "moderno"),
+    ...(pedido.observacoes ? [...r.sep("-"), ...r.wrap("Obs: " + pedido.observacoes)] : []),
+    ...r.sep("="),
+    ...r.row("Subtotal:", rs(pedido.valor_pedido)),
+    ...(pedido.valor_motoboy > 0 ? r.row("Entrega:", rs(pedido.valor_motoboy)) : []),
+    ...r.sep("="),
+    ...CENTER,
+    ...r.fit(`>> TOTAL: ${rs(c.total)} <<`, ...totalOpcoes(c.total)),
+    ...LEFT,
+    ...r.sep("="),
+    ...r.wrap("Pgto: " + c.pgto),
+    ...(c.troco ? r.wrap(c.troco) : []),
+    ...r.sep("="),
+    ...CENTER,
+    ...r.fit("appvellox.online"),
+  ];
+}
+
+function buildCompacto(r: R, pedido: Pedido, c: Comum): number[] {
+  return [
+    ...CENTER,
+    ...r.wrap(c.loja),
     ...r.par(dataCurta(pedido.created_at), `#${pedido.id.slice(0, 8).toUpperCase()}`),
-    ...r.sep(),
-    ...LEFT, ...BOLD_ON,
-    ...r.wrap(`${tipo} ${pedido.cliente_nome}`),
-    ...BOLD_OFF,
+    ...LEFT,
+    ...r.sep("-"),
+    ...r.wrap(`[${c.tipo}] ${pedido.cliente_nome}`),
     ...(pedido.cliente_telefone ? r.wrap(pedido.cliente_telefone) : []),
-    ...(pedido.tipo_pedido === "entrega" ? r.wrap(pedido.endereco_entrega + (pedido.bairro ? `, ${pedido.bairro}` : "")) : []),
-    ...r.sep(),
+    ...(pedido.tipo_pedido === "entrega" ? r.wrap(c.endereco) : []),
+    ...r.sep("-"),
     ...itemsSection(r, pedido.descricao_itens, "compacto"),
     ...(pedido.observacoes ? r.wrap("Obs: " + pedido.observacoes) : []),
-    ...r.sep(),
+    ...r.sep("-"),
     ...r.par(`Sub: ${rs(pedido.valor_pedido)}`, pedido.valor_motoboy > 0 ? `Entr: ${rs(pedido.valor_motoboy)}` : undefined),
-    ...BOLD_ON,
-    ...r.fit(...totalOpcoes(total)),
-    ...BOLD_OFF,
-    ...r.par(`Pgto: ${pgto}`, pedido.troco_para ? `Troco p/ ${rs(pedido.troco_para)}` : undefined),
-    ...r.sep(),
+    ...r.fit(...totalOpcoes(c.total)),
+    ...r.par(`Pgto: ${c.pgto}`, c.troco || undefined),
+    ...r.sep("-"),
     ...CENTER,
     ...r.fit("appvellox.online"),
   ];
@@ -344,15 +396,20 @@ export function buildReceipt(
   fonteOverride?: FonteOpt,
 ): Uint8Array {
   const fonte  = fonteOverride ?? getSavedFonte();
-  const W      = fonte === "extra_grande" ? getBaseColumns() / 2 : getBaseColumns();
-  const r      = makeR(W);
+  const f      = FONTES[fonte];
+  const r      = makeR(f.cols(getBaseColumns()));
   const layout = layoutOverride ?? getLayout();
+  const c      = comum(pedido, empresaNome);
 
-  const body = layout === "moderno" ? buildModerno(r, pedido, empresaNome)
-    : layout === "compacto" ? buildCompacto(r, pedido, empresaNome)
-    : buildClassico(r, pedido, empresaNome);
+  const body = layout === "moderno" ? buildModerno(r, pedido, c)
+    : layout === "compacto" ? buildCompacto(r, pedido, c)
+    : buildClassico(r, pedido, c);
 
-  // ESC @ zera o GS ! — o tamanho vem logo depois, uma vez só pro cupom todo.
-  const buf: number[] = [...INIT, GS, 0x21, GS_TAMANHO[fonte], ...body, LF, LF, ...CUT];
+  // ESC @ zera fonte/tamanho — tudo vem logo depois, uma vez só pro cupom todo,
+  // em negrito (Fonte A sem ênfase sai clara/fina na térmica).
+  const buf: number[] = [
+    ...INIT, ESC, 0x4D, f.fontB, GS, 0x21, f.gs, ...(f.esp ? [ESC, 0x33, f.esp] : []),
+    ...BOLD_ON, ...body, ...BOLD_OFF, LF, LF, ...CUT,
+  ];
   return new Uint8Array(buf);
 }

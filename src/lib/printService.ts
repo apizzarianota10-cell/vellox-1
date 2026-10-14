@@ -1,5 +1,5 @@
 import type { Pedido } from "@/types";
-import { buildReceipt, parseItemLine, getSavedFonte, type ItemParsed, type FonteOpt } from "@/lib/escpos";
+import { buildReceipt, parseItemLine, tituloSabores, marcaSabor, getSavedFonte, type ItemParsed, type FonteOpt } from "@/lib/escpos";
 import { printViaUsb, getSavedPrinterName } from "@/lib/usbPrinter";
 
 export { getSavedFonte, saveFonte, isFonteOpt, type FonteOpt } from "@/lib/escpos";
@@ -23,10 +23,10 @@ export function savePaperSize(size: PaperSize): void {
 }
 
 // Um tamanho só pro cupom HTML inteiro, na mesma escala do ESC/POS
-// (extra_grande ≈ 24 colunas no 80mm / 16 no 58mm).
+// (normal 1x : grande ~1.4x : extra_grande 2x — Fonte A, Fonte B 2x2, Fonte A 2x2).
 export const FONTE_PX: Record<PaperSize, Record<FonteOpt, number>> = {
-  "80mm": { normal: 12, grande: 15, extra_grande: 18 },
-  "58mm": { normal: 10, grande: 12, extra_grande: 15 },
+  "80mm": { normal: 12, grande: 16, extra_grande: 21 },
+  "58mm": { normal: 10, grande: 13, extra_grande: 17 },
 };
 
 const LAYOUT_KEY = "vellox-receipt-layout";
@@ -161,61 +161,31 @@ export function formatReceipt(
     ? `<div style="${CTR}margin-bottom:4px"><img src="${logoUrl}" style="max-width:${Math.round(bodyW * 0.65)}px;max-height:64px;object-fit:contain;" /></div>`
     : "";
 
-  const itemDetailStyle = `${VAL}padding-left:1.5em;`;
-  // Marcador numa coluna própria: o texto quebrado alinha embaixo do texto,
-  // nunca embaixo do número (senão parece outro sabor).
-  const saborHtml = (marca: string, texto: string) =>
-    `<div style="${W}display:flex;font-weight:900;"><span style="flex:none;white-space:pre;">${marca}</span><span style="flex:1;min-width:0;">${texto}</span></div>`;
-  const sabores = (p: ItemParsed) => {
-    const multi = p.detalhes.filter(d => d.sabor).length >= 2;
-    let n = 0;
-    return (texto: string) => saborHtml(multi ? `${++n}. ` : " - ", texto);
+  // Mesmo bloco de item do ESC/POS (escpos.ts itemBlock): nome+preço, variação
+  // recuada, bloco de sabores com título ("MEIO A MEIO:" + "1/2 Sabor"),
+  // adicionais um por linha com "+ ". Marcador numa coluna própria: o texto
+  // quebrado alinha embaixo do texto, nunca embaixo do marcador.
+  const IND = `padding-left:1.4em;`;
+  const marcado = (marca: string, texto: string) =>
+    `<div style="${W}display:flex;${IND}font-weight:900;"><span style="flex:none;white-space:pre;">${marca}</span><span style="flex:1;min-width:0;">${texto}</span></div>`;
+  const itemHeader = (p: ItemParsed) =>
+    `<div style="${W}display:flex;justify-content:space-between;align-items:flex-end;gap:6px;font-weight:900;"><span>${p.qtd}x ${p.nome}</span><span style="white-space:nowrap">R$${p.preco}</span></div>`;
+  const itemHtml = (p: ItemParsed) => {
+    let h = itemHeader(p);
+    for (const d of p.detalhes) h += `<div style="${VAL}${IND}">${d}</div>`;
+    if (p.sabores.length) {
+      h += `<div style="${STR}${IND}letter-spacing:0.03em;">${tituloSabores(p)}</div>`;
+      p.sabores.forEach((s, i) => { h += marcado(marcaSabor(p, i), s); });
+    }
+    for (const a of p.adicionais) h += marcado("+ ", a);
+    return h;
   };
-  const detalhesHtml = (p: ItemParsed) => {
-    const sab = sabores(p);
-    return p.detalhes.map(d => d.sabor
-      ? sab(d.texto)
-      : `<div style="${itemDetailStyle}">${d.texto}</div>`).join("");
-  };
-  const itemHeader = (p: ItemParsed, prefix = "") =>
-    `<div style="${W}display:flex;justify-content:space-between;align-items:flex-end;gap:6px;font-weight:900;"><span>${prefix}${p.qtd}x ${p.nome}</span><span style="white-space:nowrap">R$${p.preco}</span></div>`;
+  const itensHtml = (divider: string) =>
+    buildItensBlocks(pedido.descricao_itens, itemHtml, line => `<div style="${VAL}">${line}</div>`, divider);
 
-  const itensClassico = buildItensBlocks(
-    pedido.descricao_itens,
-    p => itemHeader(p) + detalhesHtml(p),
-    line => `<div style="${VAL}">${line}</div>`,
-    `<div style="border-top:1px dotted #000;margin:4px 0;"></div>`,
-  );
-
-  const itensModerno = buildItensBlocks(
-    pedido.descricao_itens,
-    p => itemHeader(p, "› ") + detalhesHtml(p),
-    line => `<div style="${VAL}">• ${line}</div>`,
-    `<div style="border-top:1px dashed #000;margin:4px 0;"></div>`,
-  );
-
-  const itensCompacto = buildItensBlocks(
-    pedido.descricao_itens,
-    p => {
-      // Compacto mantém variação/adicionais juntos numa linha só; sabores
-      // continuam um por linha.
-      const sab = sabores(p);
-      let det = "";
-      let grupo: string[] = [];
-      const fecharGrupo = () => {
-        if (grupo.length) det += `<div style="${itemDetailStyle}">${grupo.join(" · ")}</div>`;
-        grupo = [];
-      };
-      for (const d of p.detalhes) {
-        if (d.sabor) { fecharGrupo(); det += sab(d.texto); }
-        else grupo.push(d.texto);
-      }
-      fecharGrupo();
-      return itemHeader(p) + det;
-    },
-    line => `<div style="${VAL}">${line}</div>`,
-    `<div style="height:3px"></div>`,
-  );
+  const itensClassico = itensHtml(`<div style="height:5px"></div>`);
+  const itensModerno  = itensHtml(`<div style="border-top:1px dashed #000;margin:4px 0;"></div>`);
+  const itensCompacto = itensHtml(`<div style="height:2px"></div>`);
 
   // ── Layout bodies ─────────────────────────────────────────────────────────
   let body = "";
@@ -238,10 +208,10 @@ ${SEP}
 ${pedido.cliente_telefone ? `<div style="${VAL}">Tel: ${pedido.cliente_telefone}</div>` : ""}
 ${DSEP}
 ${pedido.tipo_pedido === "entrega"
-  ? `<div style="${VAL}">End: ${pedido.endereco_entrega}${pedido.bairro ? `, ${pedido.bairro}` : ""}</div>`
+  ? `<div style="${VAL}">End: ${pedido.endereco_entrega}</div>${pedido.bairro ? `<div style="${VAL}">Bairro: ${pedido.bairro}</div>` : ""}`
   : `<div style="${CTRB}">*** RETIRADA NO LOCAL ***</div>`}
 ${SEP}
-<div style="${LBL}margin-top:0;">ITENS</div>
+<div style="${CTRB}letter-spacing:0.05em;">== ITENS ==</div>
 ${itensModerno}
 ${pedido.observacoes ? `${DSEP}<div style="${LBL}">Obs:</div><div style="${VAL}">${pedido.observacoes}</div>` : ""}
 ${SEP}
@@ -293,7 +263,7 @@ ${SEP}
 ${pedido.cliente_telefone ? `<div style="${VAL}">${pedido.cliente_telefone}</div>` : ""}
 ${SEP}
 ${pedido.tipo_pedido === "entrega"
-  ? `<div style="${LBL}">Endereço</div><div style="${VAL}">${pedido.endereco_entrega}${pedido.bairro ? `, ${pedido.bairro}` : ""}</div>`
+  ? `<div style="${LBL}">Endereço</div><div style="${VAL}">${pedido.endereco_entrega}</div>${pedido.bairro ? `<div style="${VAL}">Bairro: ${pedido.bairro}</div>` : ""}`
   : `<div style="${CTRB}">*** RETIRADA NO LOCAL ***</div>`}
 ${SEP}
 <div style="${LBL}">Itens</div>
@@ -302,8 +272,7 @@ ${pedido.observacoes ? `${SEP}<div style="${LBL}">Obs</div><div style="${VAL}">$
 ${SEP}
 ${priceRow("Subtotal:", `R$ ${pedido.valor_pedido.toFixed(2).replace(".", ",")}`)}
 ${pedido.valor_motoboy > 0 ? priceRow("Entrega:", `R$ ${pedido.valor_motoboy.toFixed(2).replace(".", ",")}`) : ""}
-${SEP}
-<div style="${CTRB}">TOTAL: R$ ${total.toFixed(2).replace(".", ",")}</div>
+${priceRow("TOTAL:", `R$ ${total.toFixed(2).replace(".", ",")}`, 900)}
 ${SEP}
 <div style="${LBL}">Pagamento</div>
 <div style="${STR}">${pgto}</div>
@@ -317,7 +286,7 @@ ${SEP}
 <title>${empresaNome}</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-size:inherit;word-break:normal;overflow-wrap:break-word}
-html,body{width:${bodyW}px;font-family:"Courier New",Courier,monospace;font-size:${fs}px;font-weight:700;line-height:1.4;color:#000;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+html,body{width:${bodyW}px;font-family:Consolas,"Lucida Console","Liberation Mono","DejaVu Sans Mono","Courier New",monospace;font-size:${fs}px;font-weight:700;line-height:1.3;color:#000;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 span{min-width:0}
 @media print{@page{margin:0;size:${paperSize} auto}html,body{padding-bottom:60px}}
 </style>
