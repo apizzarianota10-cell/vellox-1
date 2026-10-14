@@ -1,5 +1,5 @@
 # Vellox Print Server - PowerShell (sem Node.js)
-$Versao = "v14"
+$Versao = "v15"
 
 # Impressora termica usa a propria codepage (normalmente CP850/CP860), que
 # NAO bate com os bytes que [int][char] produz pra acentos - "O" (211)
@@ -260,6 +260,27 @@ function Build-EscPos($p) {
     # baixa este .ps1 sem BOM e o PowerShell 5.1 le como ANSI). Cada parte do
     # parentese e opcional: com variacao + sabores, os sabores sao o 2o segmento
     # que nao comeca com "+ "; sozinho, so e sabor se tiver "/".
+    # Tamanho (variacao) ja esta no nome do produto ("Pizza Grande"+"Grande",
+    # "Pizza G"/"Pizza (G)"+"Grande")? Entao a linha do tamanho so repete o
+    # nome e sai. Se o nome nao diz o tamanho ("Pizza"+"Grande"), fica.
+    function SemAcento([string]$s) {
+        $f = $s.Normalize([Text.NormalizationForm]::FormD)
+        $sb = New-Object System.Text.StringBuilder
+        foreach ($c in $f.ToCharArray()) {
+            if ([Globalization.CharUnicodeInfo]::GetUnicodeCategory($c) -ne [Globalization.UnicodeCategory]::NonSpacingMark) { [void]$sb.Append($c) }
+        }
+        return $sb.ToString().ToLower()
+    }
+    function DetalheRepeteNome([string]$det, [string]$nome) {
+        $d = (SemAcento $det).Trim(); $n = SemAcento $nome
+        if (-not $d) { return $true }
+        $tok = @($n -split '[^a-z0-9]+' | Where-Object { $_ })
+        $dt  = @($d -split '[^a-z0-9]+' | Where-Object { $_ })
+        if ((" " + ($tok -join " ") + " ").Contains(" " + ($dt -join " ") + " ")) { return $true }
+        if ($d -notmatch '\s') { foreach ($t in $tok) { if ($t.Length -eq 1 -and $t -eq $d.Substring(0, 1)) { return $true } } }
+        return $false
+    }
+
     function ParseItem { param([string]$line)
         if ($line -notmatch '^(\d+)\s*x\s+(.+?)\s+\u2014\s+R\$\s*([\d.,]+)$') { return $null }
         $qtd = $Matches[1]; $preco = $Matches[3]
@@ -280,6 +301,7 @@ function Build-EscPos($p) {
             $pt = @(SplitSabores $outros[0])
             if ($pt.Count -ge 2) { $sabores = $pt; $detalhes = @() }
         }
+        $detalhes = @($detalhes | Where-Object { -not (DetalheRepeteNome $_ $nome) })
         return @{ qtd = $qtd; nome = $nome; preco = $preco; detalhes = $detalhes; sabores = $sabores; adicionais = $adic; pizza = ($nome -match 'pizza|brotinho') }
     }
 

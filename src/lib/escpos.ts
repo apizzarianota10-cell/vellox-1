@@ -200,6 +200,22 @@ function separaDetalhes(nomeCompleto: string): [string, string] {
   return [nomeCompleto, ""];
 }
 
+// O tamanho (variação) já está no nome do produto? "Pizza Grande"+"Grande" ou
+// "Pizza G"/"Pizza (G)"+"Grande" — aí a linha do tamanho só repete o nome. Se
+// o nome não diz o tamanho ("Pizza"+"Grande"), a linha continua (a cozinha
+// precisa dela).
+function semAcento(s: string) {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+export function detalheRepeteNome(detalhe: string, nome: string): boolean {
+  const d = semAcento(detalhe).trim();
+  const n = semAcento(nome);
+  if (!d) return true;
+  const tokens = n.split(/[^a-z0-9]+/).filter(Boolean);
+  if (` ${tokens.join(" ")} `.includes(` ${d.split(/[^a-z0-9]+/).filter(Boolean).join(" ")} `)) return true;
+  return !/\s/.test(d) && tokens.some(t => t.length === 1 && t === d[0]);
+}
+
 // Reconhece uma linha de item no formato "Nx Nome (variação · Sabor1/Sabor2 ·
 // + adicional, adicional) — R$valor" (é assim que o catálogo e o pedido manual
 // montam `descricao_itens`; cada parte do parêntese é opcional). Com variação
@@ -227,6 +243,7 @@ export function parseItemLine(line: string): ItemParsed | null {
     const partes = splitSabores(outros[0]);
     if (partes.length >= 2) { sabores = partes; detalhes = []; }
   }
+  detalhes = detalhes.filter(d => !detalheRepeteNome(d, nome));
   return { qtd, nome, preco, detalhes, sabores, adicionais, pizza: /pizza|brotinho/i.test(nome) };
 }
 

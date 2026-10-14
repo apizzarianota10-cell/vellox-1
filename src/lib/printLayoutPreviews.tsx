@@ -21,7 +21,6 @@ function ItemPizza() {
   return (
     <>
       <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 900 }}><span>1x Pizza G</span><span>R$44,90</span></div>
-      <div style={{ paddingLeft: "1.4em" }}>Grande</div>
       <div style={{ paddingLeft: "1.4em", fontWeight: 900 }}>MEIO A MEIO:</div>
       <Marcado marca="1/2 ">Calabresa</Marcado>
       <Marcado marca="1/2 ">Mussarela</Marcado>
