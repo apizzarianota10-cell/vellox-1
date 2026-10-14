@@ -39,9 +39,14 @@ const DESTAQUE_OPTS: { id: Destaque; label: string }[] = [
 ];
 
 // Versão atual do servidor.ps1 (public/print-server/servidor.ps1, variável
-// $Versao no topo do arquivo) — mantenha os dois em sincronia a cada mudança
-// no script, pra esse aviso ficar confiável.
-const VERSAO_AGENTE_ATUAL = "v11";
+// $Versao no topo do arquivo) — lida do próprio arquivo publicado (mesma
+// fonte que o agente usa pra se auto-atualizar), então não precisa manter
+// número nenhum em sincronia à mão. A partir da v12 o agente se atualiza sozinho.
+const VERSAO_AUTO_UPDATE = 12;
+function numVersao(v: string | null | undefined) {
+  const m = v?.match(/v(\d+)/);
+  return m ? Number(m[1]) : 0;
+}
 
 export default function ImpressaoClient({ empresa, initialConfig }: Props) {
   const supabase = createClient();
@@ -78,6 +83,14 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
     versao:    initialConfig?.agent_versao ?? null,
   });
   const [agora, setAgora] = useState(() => Date.now());
+  const [versaoMaisNova, setVersaoMaisNova] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/print-server/servidor.ps1", { cache: "no-store" })
+      .then(r => r.text())
+      .then(t => { const m = t.match(/^\$Versao = "(v\d+)"/m); if (m) setVersaoMaisNova(m[1]); })
+      .catch(() => {});
+  }, []);
 
   // Sem isso, o status ficava congelado no que veio do servidor ao abrir a
   // página: o dono instalava o agente e continuava vendo "offline" até dar F5.
@@ -306,7 +319,8 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
         const lastSeen = agentStatus.last_seen;
         const agentOnline = !!lastSeen && agora - new Date(lastSeen).getTime() < 30_000;
         const versaoAtual = agentStatus.versao;
-        const desatualizado = agentOnline && versaoAtual != null && versaoAtual !== VERSAO_AGENTE_ATUAL;
+        const desatualizado = agentOnline && !!versaoAtual && !!versaoMaisNova && numVersao(versaoAtual) < numVersao(versaoMaisNova);
+        const atualizaSozinho = numVersao(versaoAtual) >= VERSAO_AUTO_UPDATE;
         return (
           <div className="rounded-2xl p-4" style={{ background: "var(--bg-2)", border: "1px solid var(--border-1)" }}>
             <div className="flex items-center justify-between">
@@ -333,7 +347,9 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
               <div className="flex items-center gap-2 mt-2 px-3 py-2 rounded-xl" style={{ background: "rgba(228,0,43,0.08)", border: "1px solid rgba(228,0,43,0.2)" }}>
                 <AlertCircle size={13} style={{ color: "#E4002B", flexShrink: 0 }} />
                 <span className="text-xs font-semibold" style={{ color: "#E4002B" }}>
-                  Versão desatualizada (atual é {VERSAO_AGENTE_ATUAL}) — baixa o &quot;atualizador&quot; abaixo.
+                  {atualizaSozinho
+                    ? <>Nova versão {versaoMaisNova} disponível — o agente se atualiza sozinho em até 30 min.</>
+                    : <>Versão desatualizada (atual é {versaoMaisNova}) — baixa o &quot;atualizador&quot; abaixo. Depois dessa, as próximas chegam sozinhas.</>}
                 </span>
               </div>
             )}

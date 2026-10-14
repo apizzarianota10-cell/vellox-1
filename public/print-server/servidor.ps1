@@ -1,5 +1,5 @@
 # Vellox Print Server - PowerShell (sem Node.js)
-$Versao = "v11"
+$Versao = "v12"
 
 # Impressora termica usa a propria codepage (normalmente CP850/CP860), que
 # NAO bate com os bytes que [int][char] produz pra acentos - "O" (211)
@@ -30,6 +30,8 @@ $script:AccentMap = @{
 # mais recente).
 $logPath = Join-Path $PSScriptRoot "log.txt"
 try { Start-Transcript -Path $logPath -Force | Out-Null } catch {}
+# TLS 1.2 - Windows PowerShell 5.1 nem sempre liga sozinho e o site so aceita 1.2+.
+try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072 } catch {}
 
 $cfgPath = Join-Path $PSScriptRoot "config.json"
 if (-not (Test-Path $cfgPath)) { Write-Host "ERRO: config.json nao encontrado." -ForegroundColor Red; exit 1 }
@@ -656,6 +658,79 @@ $printed = @{}
 $lastCheck = (Get-Date).AddSeconds(-30).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 $layoutRefreshAt = Get-Date # busca o layout já na primeira volta do loop
 
+# -- Auto-atualizacao --------------------------------------------------------
+# A versao oficial e o proprio servidor.ps1 publicado no site (fonte unica,
+# nada pra manter em sincronia a mao). A cada 30 min baixa, le o $Versao dele
+# e, se for MAIOR que o desta copia e o arquivo for valido (tamanho + sintaxe
+# lida como ANSI, igual o PS 5.1 vai ler), um processo auxiliar troca o
+# arquivo depois que este sai e reinicia. Se a versao nova nao ficar de pe,
+# o auxiliar volta a anterior e marca a versao como ruim pra nao tentar de novo.
+$urlServidor   = "https://www.appvellox.online/print-server/servidor.ps1"
+$updateCheckAt = (Get-Date).AddMinutes(2)
+function Num-Versao([string]$v) { if ($v -match 'v(\d+)') { return [int]$Matches[1] }; return 0 }
+
+function Busca-Atualizacao {
+    $novo = Join-Path $PSScriptRoot "servidor.novo.ps1"
+    try {
+        Invoke-WebRequest "$($urlServidor)?t=$([DateTime]::UtcNow.Ticks)" -OutFile $novo -UseBasicParsing -TimeoutSec 30 -ErrorAction Stop
+    } catch { return $null }
+    try {
+        if ((Get-Item $novo).Length -lt 10000) { throw "arquivo baixado pequeno demais" }
+        $txt = [System.IO.File]::ReadAllText($novo, [System.Text.Encoding]::Default)
+        if ($txt -notmatch '(?m)^\$Versao = "(v\d+)"') { throw "arquivo baixado sem numero de versao" }
+        $vNova = $Matches[1]
+        $ruim = Join-Path $PSScriptRoot "versao-ruim.txt"
+        $vRuim = if (Test-Path $ruim) { (Get-Content $ruim -ErrorAction SilentlyContinue | Select-Object -First 1) } else { "" }
+        if ((Num-Versao $vNova) -le (Num-Versao $Versao) -or $vNova -eq $vRuim) {
+            Remove-Item $novo -Force -ErrorAction SilentlyContinue
+            return $null
+        }
+        $errs = $null
+        [void][System.Management.Automation.Language.Parser]::ParseInput($txt, [ref]$null, [ref]$errs)
+        if ($errs -and $errs.Count -gt 0) { throw "versao $vNova com erro de sintaxe" }
+        return $vNova
+    } catch {
+        Write-Host "  [AVISO] Atualizacao ignorada: $($_.Exception.Message)" -ForegroundColor Yellow
+        Remove-Item $novo -Force -ErrorAction SilentlyContinue
+        return $null
+    }
+}
+
+$script:HelperTxt = @'
+param([int]$OldPid, [string]$Dir, [string]$Nova)
+$log = Join-Path $Dir "auto-update.log"
+function L($m) { Add-Content -Path $log -Value ("[{0}] {1}" -f (Get-Date -Format 'dd/MM HH:mm:ss'), $m) }
+function Vivo { @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like '*servidor.ps1*' -and $_.ProcessId -ne $PID }).Count -gt 0 }
+L "Atualizando para $Nova (processo antigo $OldPid)"
+for ($i = 0; $i -lt 60; $i++) { if (-not (Get-Process -Id $OldPid -ErrorAction SilentlyContinue)) { break }; Start-Sleep -Milliseconds 500 }
+if (Get-Process -Id $OldPid -ErrorAction SilentlyContinue) { try { Stop-Process -Id $OldPid -Force -ErrorAction Stop } catch {}; Start-Sleep -Seconds 2 }
+$atual = Join-Path $Dir "servidor.ps1"; $novo = Join-Path $Dir "servidor.novo.ps1"; $bak = Join-Path $Dir "servidor.anterior.ps1"
+$ini = Join-Path $Dir "iniciar.bat"
+if (-not (Test-Path $ini)) { "@echo off`r`npowershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$atual`"" | Out-File -FilePath $ini -Encoding ascii }
+$trocou = $false
+try { Copy-Item $atual $bak -Force -ErrorAction Stop; Move-Item $novo $atual -Force -ErrorAction Stop; $trocou = $true; L "Arquivo trocado." } catch { L "Falha ao trocar o arquivo: $($_.Exception.Message)" }
+Start-Process -FilePath $ini -WindowStyle Hidden
+Start-Sleep -Seconds 25
+if (Vivo) { L "OK: rodando a versao nova."; exit 0 }
+if ($trocou) {
+    L "Versao nova nao ficou de pe - voltando a anterior."
+    Set-Content -Path (Join-Path $Dir "versao-ruim.txt") -Value $Nova
+    try { Copy-Item $bak $atual -Force -ErrorAction Stop } catch { L "Falha ao restaurar: $($_.Exception.Message)" }
+    Start-Process -FilePath $ini -WindowStyle Hidden
+    Start-Sleep -Seconds 15
+}
+if (Vivo) { L "Versao anterior rodando de novo." } else { L "ERRO: nenhum servidor ficou rodando - rode o instalador." }
+'@
+
+function Aplica-Atualizacao([string]$vNova) {
+    Write-Host "[ATUALIZACAO] Versao $vNova disponivel (esta e $Versao). Reiniciando pra atualizar..." -ForegroundColor Cyan
+    $helper = Join-Path $PSScriptRoot "auto-update.ps1"
+    Set-Content -Path $helper -Value $script:HelperTxt -Encoding ASCII
+    Start-Process powershell -WindowStyle Hidden -ArgumentList @(
+        '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$helper`"",
+        '-OldPid', $PID, '-Dir', "`"$PSScriptRoot`"", '-Nova', $vNova)
+}
+
 Write-Host "Aguardando pedidos (verificando a cada 5s)..." -ForegroundColor Green
 Write-Host ""
 
@@ -701,6 +776,15 @@ while ($true) {
             Write-Host "  [AVISO] Falha ao buscar layout/fonte do painel: $_" -ForegroundColor Yellow
         }
         $layoutRefreshAt = (Get-Date).AddSeconds(60)
+    }
+
+    # Entre um ciclo e outro (nunca no meio de uma impressao).
+    if ((Get-Date) -ge $updateCheckAt) {
+        $updateCheckAt = (Get-Date).AddMinutes(30)
+        $vNova = Busca-Atualizacao
+        if ($vNova) {
+            try { Aplica-Atualizacao $vNova; break } catch { Write-Host "  [AVISO] Nao consegui iniciar a atualizacao: $_" -ForegroundColor Yellow }
+        }
     }
 
     try {
