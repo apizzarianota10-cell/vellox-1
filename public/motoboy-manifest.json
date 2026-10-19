@@ -1,0 +1,19 @@
+{
+  "id": "/motoboy",
+  "name": "Vellox Motoboy",
+  "short_name": "Vellox Motoboy",
+  "description": "App do entregador Vellox — receba e entregue pedidos",
+  "lang": "pt-BR",
+  "start_url": "/motoboy",
+  "scope": "/motoboy",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0a0a0a",
+  "theme_color": "#E4002B",
+  "icons": [
+    { "src": "/motoboy-icone?s=192", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/motoboy-icone?s=512", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/motoboy-icone?s=512&m=1", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-vellox.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

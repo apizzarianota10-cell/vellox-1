@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { colunaItensAusente } from "@/lib/pedidoItens";
+import { geocodificarPedido } from "@/lib/geocodePedido";
 import type { PedidoItem } from "@/types";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -193,6 +194,11 @@ export async function POST(req: NextRequest) {
     // depois de já ter respondido ao checkout, pra não atrasar a confirmação
     // na tela do cliente. Best-effort: se a loja não tem Z-API configurado ou
     // o envio falha, /api/whatsapp/notificar já trata isso sem quebrar nada.
+    after(async () => {
+      // Coordenadas + distância da empresa (Nominatim/OSM). Best-effort, depois
+      // da resposta: nunca atrasa nem quebra o checkout.
+      await geocodificarPedido(supabase, data.id);
+    });
     after(async () => {
       try {
         await fetch(`${req.nextUrl.origin}/api/whatsapp/notificar`, {

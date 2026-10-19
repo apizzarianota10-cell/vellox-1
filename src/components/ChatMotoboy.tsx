@@ -62,7 +62,9 @@ export default function ChatMotoboy({ empresaId, motoboyId, motoboyNome, onClose
         if (nova.motoboy_id !== motoboyId) return;
         setMsgs(prev => [...prev, nova]);
         if (nova.remetente === "motoboy") {
-          supabase.from("mensagens").update({ lido: true }).eq("id", nova.id);
+          // O builder do supabase-js é lazy: sem await/then a query nunca executa
+          supabase.from("mensagens").update({ lido: true }).eq("id", nova.id)
+            .then(({ error }) => { if (error) console.warn("[chat] falha ao marcar mensagem como lida:", error.message); });
         }
       })
       .subscribe();

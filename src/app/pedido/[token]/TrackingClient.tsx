@@ -2,12 +2,48 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { CheckCircle, Clock, ChevronRight, Package, Bike, Home, MapPin, Phone, RefreshCw, Zap, Bell, BellRing, X, MessageCircle, Star, Loader2 } from "lucide-react";
+import dynamic from "next/dynamic";
+import { Navigation, CheckCircle, Clock, ChevronRight, Package, Bike, Home, MapPin, Phone, RefreshCw, Zap, Bell, BellRing, X, MessageCircle, Star, Loader2 } from "lucide-react";
 
 type Status =
   | "em_fila" | "em_preparo" | "finalizado"
   | "em_coleta" | "em_rota_de_entrega" | "aguardando_confirmacao"
   | "entregue" | "cancelado";
+
+// Leaflet acessa `window` — só no cliente, e só baixa quando há posição pra mostrar.
+const ClienteRastreioMap = dynamic(() => import("@/components/map/ClienteRastreioMap"), {
+  ssr: false,
+  loading: () => (
+    <div style={{ height: 230, background: "#f1f5f9", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", fontSize: 13 }}>
+      Carregando mapa…
+    </div>
+  ),
+});
+
+const VELOCIDADE_MEDIA_KMH = 25;
+// Distância em linha reta subestima o trajeto real pelas ruas.
+const FATOR_RUAS = 1.3;
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.asin(Math.sqrt(a));
+}
+
+function coordOk(lat: unknown, lng: unknown): boolean {
+  return typeof lat === "number" && typeof lng === "number"
+    && Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0);
+}
+
+function textoHaQuanto(segundos: number): string {
+  if (segundos < 5) return "agora";
+  if (segundos < 60) return `há ${segundos} s`;
+  const min = Math.floor(segundos / 60);
+  return min < 60 ? `há ${min} min` : `há ${Math.floor(min / 60)} h`;
+}
 
 const STATUS_LABELS: Record<Status, string> = {
   em_fila: "Pedido recebido",
@@ -53,13 +89,16 @@ interface Pedido {
   tipo_pedido: "entrega" | "retirada";
   endereco_entrega: string;
   bairro: string | null;
+  endereco_lat: number | null;
+  endereco_lng: number | null;
   descricao_itens: string | null;
   observacoes: string | null;
   valor_pedido: number;
   valor_motoboy: number;
   forma_pagamento: string | null;
   troco_para: number | null;
-  motoboy: { nome: string; telefone: string; latitude: number | null; longitude: number | null } | null;
+  // A API só manda latitude/longitude em em_coleta/em_rota_de_entrega e com posição recente.
+  motoboy: { nome: string; telefone: string | null; latitude: number | null; longitude: number | null; atualizado_em: string | null } | null;
   empresa: { nome: string; configuracao_loja: { telefone_contato: string | null } | { telefone_contato: string | null }[] | null } | null;
   avaliacao_nota: number | null;
   avaliacao_comentario: string | null;
@@ -212,6 +251,8 @@ export default function TrackingClient({ token }: { token: string }) {
   const [toast,   setToast]   = useState<string | null>(null);
   const [notifPerm, setNotifPerm] = useState<NotificationPermission | "unsupported">("default");
 
+  const [agora, setAgora] = useState(() => Date.now());
+
   const prevStatusRef = useRef<Status | null>(null);
   const toastTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -260,6 +301,17 @@ export default function TrackingClient({ token }: { token: string }) {
     const id = setInterval(fetch_, 15_000);
     return () => clearInterval(id);
   }, [fetch_]);
+
+  const temPosicao = !!pedido?.motoboy && coordOk(pedido.motoboy.latitude, pedido.motoboy.longitude)
+    && (pedido.status === "em_coleta" || pedido.status === "em_rota_de_entrega");
+
+  // Relógio do "atualizado há X s" — só roda enquanto o mapa está na tela.
+  useEffect(() => {
+    if (!temPosicao) return;
+    setAgora(Date.now());
+    const id = setInterval(() => setAgora(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [temPosicao]);
 
   if (loading) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f7f7f8", fontFamily: "system-ui,sans-serif" }}>
@@ -430,8 +482,44 @@ export default function TrackingClient({ token }: { token: string }) {
 
         {/* Motoboy card — quando em rota */}
         {pedido.motoboy && (pedido.status === "em_coleta" || pedido.status === "em_rota_de_entrega" || pedido.status === "aguardando_confirmacao") && (
-          <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 2px 20px rgba(0,0,0,0.08)", padding: "16px 20px", marginBottom: 16, animation: "slideUp 0.4s ease" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 2px 20px rgba(0,0,0,0.08)", overflow: "hidden", marginBottom: 16, animation: "slideUp 0.4s ease" }}>
+            {temPosicao && pedido.motoboy.latitude !== null && pedido.motoboy.longitude !== null && (() => {
+              const mbLat = pedido.motoboy.latitude;
+              const mbLng = pedido.motoboy.longitude;
+              const emRota = pedido.status === "em_rota_de_entrega";
+              const destinoOk = emRota && coordOk(pedido.endereco_lat, pedido.endereco_lng);
+              const distKm = destinoOk ? haversineKm(mbLat, mbLng, pedido.endereco_lat!, pedido.endereco_lng!) * FATOR_RUAS : null;
+              const etaMin = distKm !== null ? Math.max(1, Math.round((distKm / VELOCIDADE_MEDIA_KMH) * 60)) : null;
+              const ref = pedido.motoboy.atualizado_em ? new Date(pedido.motoboy.atualizado_em).getTime() : lastUp.getTime();
+              const seg = Math.max(0, Math.round((agora - (Number.isFinite(ref) ? ref : lastUp.getTime())) / 1000));
+              return (
+                <>
+                  <ClienteRastreioMap
+                    motoboyLat={mbLat}
+                    motoboyLng={mbLng}
+                    destinoLat={destinoOk ? pedido.endereco_lat : null}
+                    destinoLng={destinoOk ? pedido.endereco_lng : null}
+                  />
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 20px", borderBottom: "1px solid #f1f5f9", background: "#fafafa" }}>
+                    <Navigation size={14} style={{ color: "#E4002B", flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 800, color: "#0f172a", margin: 0 }}>
+                        {emRota
+                          ? (etaMin !== null
+                              ? (distKm! < 0.15 ? "Chegando!" : `Chega em ~${etaMin} min`)
+                              : "A caminho do seu endereço")
+                          : "Indo buscar seu pedido na loja"}
+                      </p>
+                      <p style={{ fontSize: 11, color: "#94a3b8", margin: "1px 0 0" }}>
+                        {distKm !== null && distKm >= 0.15 ? `${distKm.toFixed(1).replace(".", ",")} km · ` : ""}
+                        Localização atualizada {textoHaQuanto(seg)}
+                      </p>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+            <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 20px" }}>
               <div style={{ width: 48, height: 48, borderRadius: 16, background: "rgba(251,191,36,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <Bike size={22} style={{ color: "#f59e0b" }} />
               </div>

@@ -828,15 +828,23 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
       // Cópia estruturada do carrinho (pedidos.itens) — usada na baixa de estoque
       itens:            itensDoCarrinho(cartItems),
     };
-    let { error: insertErr } = await supabase.from("pedidos").insert(payload);
+    let { data: novoPedido, error: insertErr } = await supabase.from("pedidos").insert(payload).select("id").single();
     // Migration schema_v67 ainda não aplicada (coluna itens não existe): reenvia sem itens
     if (insertErr && colunaItensAusente(insertErr) && "itens" in payload) {
       console.warn("Coluna pedidos.itens ausente (rode supabase/schema_v67.sql) — pedido salvo sem itens estruturados");
       delete payload.itens;
-      ({ error: insertErr } = await supabase.from("pedidos").insert(payload));
+      ({ data: novoPedido, error: insertErr } = await supabase.from("pedidos").insert(payload).select("id").single());
     }
     setSaving(false);
     if (insertErr) { alert("Erro ao criar pedido: " + insertErr.message); return; }
+    // Geocodifica no servidor (lat/lng + distância) — best-effort, não bloqueia
+    if (novoPedido?.id && !isRetirada) {
+      fetch("/api/geocode/pedido", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pedido_id: novoPedido.id }),
+      }).catch(() => {});
+    }
     log(supabase, empresaId, "pedido_criado",
       `Pedido criado para ${form.cliente_nome}`,
       { cliente: form.cliente_nome, valor: parseFloat(form.valor_pedido) || 0 },

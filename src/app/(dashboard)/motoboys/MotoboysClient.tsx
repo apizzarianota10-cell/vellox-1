@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, Wifi, WifiOff, Users, Search, UserCheck, Loader2, X, History, TrendingUp, Package, AlertTriangle, MessageCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { log } from "@/lib/auditoria";
+import { inicioDiaBRT, fimDiaBRT } from "@/lib/dataBRT";
 import ChatMotoboy from "@/components/ChatMotoboy";
+import { Wallet } from "lucide-react";
+import FecharCaixaModal from "./FecharCaixaModal";
+import AcertosHistorico from "./AcertosHistorico";
 import type { Motoboy, MotoboystStatus, Pedido } from "@/types";
 
 const STATUS_CONFIG: Record<MotoboystStatus, { label: string; color: string; bg: string }> = {
@@ -57,6 +61,10 @@ export default function MotoboysClient({ motoboys: initial, empresaId, plano, as
   // Chat
   const [chatMotoboy, setChatMotoboy] = useState<Motoboy | null>(null);
 
+  // Fechamento de caixa (schema_v69)
+  const [caixaMotoboy, setCaixaMotoboy] = useState<Motoboy | null>(null);
+  const [acertosKey, setAcertosKey] = useState(0);
+
   const supabase = createClient();
 
   const [ganhosDia, setGanhosDia] = useState<Record<string, { valor: number; entregas: number }>>({});
@@ -71,14 +79,14 @@ export default function MotoboysClient({ motoboys: initial, empresaId, plano, as
 
   useEffect(() => {
     async function loadGanhos() {
-      const hoje = new Date().toISOString().split("T")[0];
+      // Dia local de Brasília (toISOString() é UTC e "vira" o dia às 21h BRT)
       const { data } = await supabase
         .from("pedidos")
         .select("motoboy_id, valor_motoboy")
         .eq("empresa_id", empresaId)
         .in("status", ["entregue", "aguardando_confirmacao"])
-        .gte("updated_at", `${hoje}T00:00:00`)
-        .lte("updated_at", `${hoje}T23:59:59`);
+        .gte("updated_at", inicioDiaBRT().toISOString())
+        .lt("updated_at", fimDiaBRT().toISOString());
       if (!data) return;
       const g: Record<string, { valor: number; entregas: number }> = {};
       for (const p of data) {
@@ -366,6 +374,12 @@ export default function MotoboysClient({ motoboys: initial, empresaId, plano, as
 
                 {/* Ações */}
                 <div className="flex gap-1 shrink-0">
+                  <button onClick={() => setCaixaMotoboy(m)}
+                    className="flex items-center gap-1.5 px-2 py-2 rounded-lg text-xs font-bold transition-colors"
+                    style={{ color: "#22c55e", background: "rgba(34,197,94,0.08)" }}
+                    title="Fechar caixa">
+                    <Wallet size={14} /><span className="hidden sm:inline">Fechar caixa</span>
+                  </button>
                   <button onClick={() => setChatMotoboy(m)}
                     className="p-2 rounded-lg transition-colors" style={{ color: "var(--text-3)" }}
                     title="Chat"
@@ -424,6 +438,14 @@ export default function MotoboysClient({ motoboys: initial, empresaId, plano, as
           );
         })}
       </div>
+
+      {/* ── Fechamentos de caixa (schema_v69) ── */}
+      {motoboys.length > 0 && <AcertosHistorico empresaId={empresaId} motoboys={motoboys} refreshKey={acertosKey} />}
+      {caixaMotoboy && (
+        <FecharCaixaModal motoboy={caixaMotoboy} empresaId={empresaId}
+          onClose={() => setCaixaMotoboy(null)}
+          onFechado={() => setAcertosKey((k) => k + 1)} />
+      )}
 
       {/* ── Contratar por email ou código ── */}
       <div className="rounded-2xl p-5" style={{ background: "var(--bg-2)", border: "1px solid var(--border-1)" }}>

@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import type { Motoboy, Pedido, PedidoStatus } from "@/types";
+import { inicioDiaBRT, inicioMesBRT } from "@/lib/dataBRT";
+import MeusAcertos from "@/components/motoboy/MeusAcertos";
 
 const MotoboyMapDynamic = dynamic(
   () => import("@/components/map/MotoboyMapLeaflet"),
@@ -49,12 +51,17 @@ const TABS = [
   { key: "perfil",     Icon: User,          label: "Perfil" },
 ] as const;
 
+// Períodos sempre no fuso de Brasília (o celular pode estar em outro fuso)
 function periodStart(p: ReportPeriod): Date {
-  const now = new Date();
-  if (p === "hoje")   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  if (p === "semana") return new Date(now.getTime() - 7 * 86400000);
-  return new Date(now.getFullYear(), now.getMonth(), 1);
+  if (p === "hoje")   return inicioDiaBRT();
+  if (p === "semana") return new Date(Date.now() - 7 * 86400000);
+  return inicioMesBRT();
 }
+
+/** Base (empresa) do motoboy: coordenadas + raio da geofence em metros. */
+interface BaseEmpresa { lat: number; lng: number; raio: number | null; }
+const RAIO_BASE_PADRAO_M = 200;
+const RAIO_BASE_MIN_M    = 100; // GPS de celular erra dezenas de metros
 
 const PAGAMENTO_CFG: Record<string, { label: string; color: string; bg: string }> = {
   dinheiro:       { label: "💵 Dinheiro",  color: "#fbbf24", bg: "rgba(251,191,36,0.12)" },
@@ -261,6 +268,15 @@ export default function MotoboyApp() {
   const [ranking,       setRanking]       = useState<number | null>(null);
   const [period,        setPeriod]        = useState<ReportPeriod>("hoje");
   const [report,        setReport]        = useState<ReportData>({ entregas: 0, ganhos: 0 });
+  // Entregas de HOJE (BRT) — independente do período escolhido na aba Ganhos
+  const [entregasDoDia, setEntregasDoDia] = useState<EntregaHistorico[]>([]);
+  // Avaliação real: média de pedidos.avaliacao_nota (null = sem avaliações)
+  const [avaliacao,     setAvaliacao]     = useState<{ media: number | null; total: number }>({ media: null, total: 0 });
+
+  // ── Base (empresa) para retorno + geofence ────────────────────
+  const [bases, setBases] = useState<Record<string, BaseEmpresa>>({});
+  const basesRef = useRef<Record<string, BaseEmpresa>>({});
+  const baseEmpresaIdRef = useRef<string | null>(null); // empresa da última entrega
 
   // ── Perfil editing ────────────────────────────────────────────
   const [editNome,     setEditNome]     = useState("");
@@ -413,11 +429,13 @@ export default function MotoboyApp() {
     if (tab === "chat") {
       setChatUnread(0);
       if (motoboy) {
+        // O builder do supabase-js é lazy: sem await/then a query nunca executa
         supabase.from("mensagens")
           .update({ lido: true })
           .eq("motoboy_id", motoboy.id)
           .eq("remetente", "empresa")
-          .eq("lido", false);
+          .eq("lido", false)
+          .then(({ error }) => { if (error) console.warn("[chat] falha ao marcar mensagens como lidas:", error.message); });
       }
       setTimeout(() => chatBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
     }
@@ -489,6 +507,9 @@ export default function MotoboyApp() {
       loadReport(motoboyData, "hoje"),
       loadStats(motoboyData),
       loadHistorico(motoboyData.id),
+      loadEntregasDoDia(motoboyData.id),
+      loadAvaliacao(motoboyData.id),
+      loadBases(motoboyData),
       loadConvites(),
       loadEmpresaIds(),
       loadPedidosFila(),
@@ -578,9 +599,84 @@ export default function MotoboyApp() {
     setReport({ entregas: rows.length, ganhos: rows.reduce((s, r) => s + (r.valor_motoboy ?? 0), 0) });
   }, [supabase]); // eslint-disable-line
 
+  // Entregas feitas hoje (dia de Brasília) — alimenta "Ganhos de hoje",
+  // "Distância" e "Pedidos do dia" no Início
+  async function loadEntregasDoDia(motoboyId: string) {
+    const { data, error } = await supabase
+      .from("pedidos")
+      .select("id, cliente_nome, endereco_entrega, valor_motoboy, distancia_km, created_at")
+      .eq("motoboy_id", motoboyId)
+      .eq("status", "entregue")
+      .gte("created_at", inicioDiaBRT().toISOString())
+      .order("created_at", { ascending: false });
+    if (error) { console.warn("[motoboy] falha ao carregar entregas de hoje:", error.message); return; }
+    setEntregasDoDia((data ?? []) as EntregaHistorico[]);
+  }
+
+  // Média real das notas dos clientes (pedidos.avaliacao_nota não nulas)
+  async function loadAvaliacao(motoboyId: string) {
+    const { data, error } = await supabase
+      .from("pedidos")
+      .select("avaliacao_nota")
+      .eq("motoboy_id", motoboyId)
+      .not("avaliacao_nota", "is", null);
+    if (error) { // coluna ausente (schema_v65 não aplicada) → sem avaliação
+      setAvaliacao({ media: null, total: 0 });
+      return;
+    }
+    const notas = (data ?? []).map(r => Number(r.avaliacao_nota)).filter(n => Number.isFinite(n) && n > 0);
+    setAvaliacao({
+      media: notas.length ? notas.reduce((s, n) => s + n, 0) / notas.length : null,
+      total: notas.length,
+    });
+  }
+
+  // Coordenadas das empresas do motoboy (o localStorage só existe no navegador da empresa)
+  async function loadBases(mb: Motoboy) {
+    const novo: Record<string, BaseEmpresa> = {};
+    const add = (id: unknown, lat: unknown, lng: unknown, raio: unknown) => {
+      const la = Number(lat), ln = Number(lng);
+      if (typeof id === "string" && lat != null && lng != null && Number.isFinite(la) && Number.isFinite(ln) && (la !== 0 || ln !== 0)) {
+        const r = raio != null && Number.isFinite(Number(raio)) && Number(raio) > 0 ? Number(raio) : null;
+        novo[id] = { lat: la, lng: ln, raio: r };
+      }
+    };
+
+    // 1) RPC security definer (schema_v68): lat/lng + raio_geofence
+    const { data: rpcData, error: rpcErr } = await supabase.rpc("get_base_motoboy");
+    if (!rpcErr) {
+      ((rpcData ?? []) as { empresa_id: string; lat: number | null; lng: number | null; raio_geofence: number | null }[])
+        .forEach(r => add(r.empresa_id, r.lat, r.lng, r.raio_geofence));
+    } else {
+      // 2) Fallback antes do schema_v68: view pública (sem raio_geofence)
+      const { data: emps } = await supabase.rpc("get_motoboy_empresas");
+      const ids = Array.from(new Set([
+        ...((emps ?? []) as { empresa_id: string }[]).map(r => r.empresa_id),
+        ...(mb.empresa_id ? [mb.empresa_id] : []),
+      ]));
+      if (ids.length > 0) {
+        const { data: pub } = await supabase.from("empresas_publica").select("id, lat, lng").in("id", ids);
+        ((pub ?? []) as { id: string; lat: number | null; lng: number | null }[])
+          .forEach(r => add(r.id, r.lat, r.lng, null));
+      }
+    }
+    basesRef.current = novo;
+    if (!baseEmpresaIdRef.current && mb.empresa_id) baseEmpresaIdRef.current = mb.empresa_id;
+    setBases(novo);
+  }
+
+  /** Base para retorno: empresa da última entrega → empresa principal → qualquer uma. */
+  function getBase(empresaId?: string | null): BaseEmpresa | null {
+    const all = basesRef.current;
+    const id = empresaId ?? baseEmpresaIdRef.current ?? motoboy?.empresa_id ?? null;
+    if (id && all[id]) return all[id];
+    if (motoboy?.empresa_id && all[motoboy.empresa_id]) return all[motoboy.empresa_id];
+    const vals = Object.values(all);
+    return vals.length ? vals[0] : null;
+  }
+
   async function loadStats(mb: Motoboy) {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
+    const hoje = inicioDiaBRT();
 
     const { data } = await supabase
       .from("pedidos")
@@ -789,10 +885,15 @@ export default function MotoboyApp() {
 
     if (tipo === "entrega" && pedido) {
       setIniciandoRota(true);
-      await supabase.from("pedidos").update({ status: "em_rota_de_entrega", updated_at: new Date().toISOString() }).eq("id", pedido.id);
+      const { error } = await supabase.from("pedidos").update({ status: "em_rota_de_entrega", updated_at: new Date().toISOString() }).eq("id", pedido.id);
+      setIniciandoRota(false);
+      if (error) {
+        console.error("[motoboy] falha ao marcar em rota:", error);
+        showToast("Não foi possível marcar o pedido como em rota. Verifique a conexão e tente de novo.", "erro");
+        return;
+      }
       setPedido({ ...pedido, status: "em_rota_de_entrega" });
       setInicioRotaAt(new Date());
-      setIniciandoRota(false);
     } else if (tipo === "retorno") {
       setRetornandoBase(true);
       setChegouBase(false);
@@ -810,11 +911,14 @@ export default function MotoboyApp() {
   }
 
   function iniciarRetorno() {
-    const eLat = parseFloat(localStorage.getItem("empresa_lat") || "0") || null;
-    const eLng = parseFloat(localStorage.getItem("empresa_lng") || "0") || null;
+    const base = getBase();
+    if (!base) {
+      showToast("A empresa ainda não cadastrou a localização. Peça para configurar o endereço no painel.", "erro");
+      return;
+    }
     setNavModal({
-      lat: eLat,
-      lng: eLng,
+      lat: base.lat,
+      lng: base.lng,
       endereco: "Empresa",
       tipo: "retorno",
     });
@@ -822,30 +926,50 @@ export default function MotoboyApp() {
 
   async function confirmarChegadaBase() {
     if (!motoboy) return;
+    const { error } = await supabase.from("motoboys").update({ status: "disponivel", posicao_fila: 999 }).eq("id", motoboy.id);
+    if (error) {
+      console.error("[motoboy] falha ao confirmar retorno:", error);
+      showToast("Não foi possível confirmar o retorno. Verifique a conexão e tente de novo.", "erro");
+      return;
+    }
     setRetornandoBase(false);
     setChegouBase(false);
     setMostraRetorno(false);
     setInicioRotaAt(null);
-    await supabase.from("motoboys").update({ status: "disponivel", posicao_fila: 999 }).eq("id", motoboy.id);
     setMotoboy({ ...motoboy, status: "disponivel" });
   }
 
   async function handleEntregaItemRota(pedidoId: string) {
     if (!rota || !motoboy) return;
     setEntregandoItem(pedidoId);
-    await supabase.from("pedidos")
+    const { error: errPed } = await supabase.from("pedidos")
       .update({ status: "entregue", updated_at: new Date().toISOString() })
       .eq("id", pedidoId);
+    if (errPed) {
+      console.error("[motoboy] falha ao marcar entregue (rota):", errPed);
+      showToast("Não foi possível registrar a entrega. Verifique a conexão e tente de novo.", "erro");
+      setEntregandoItem(null);
+      return;
+    }
+    const empresaDoPedido = rota.pedidos.find(p => p.id === pedidoId)?.empresa_id;
+    if (empresaDoPedido) baseEmpresaIdRef.current = empresaDoPedido;
+    loadEntregasDoDia(motoboy.id);
     const restantes = rota.pedidos.filter(p => p.id !== pedidoId && p.status !== "entregue");
     if (restantes.length === 0) {
-      await supabase.from("delivery_routes").update({ status: "concluida" }).eq("id", rota.id);
-      await supabase.from("motoboys").update({ status: "disponivel", posicao_fila: 999 }).eq("id", motoboy.id);
-      setMotoboy({ ...motoboy, status: "disponivel" });
+      const { error: errRota } = await supabase.from("delivery_routes").update({ status: "concluida" }).eq("id", rota.id);
+      const { error: errMb }   = await supabase.from("motoboys").update({ status: "disponivel", posicao_fila: 999 }).eq("id", motoboy.id);
       setRota(null);
       setMostraRetorno(true);
-      showToast("Rota concluída! ✓", "ok");
+      if (errRota || errMb) {
+        console.error("[motoboy] falha ao concluir rota:", errRota ?? errMb);
+        showToast("Entrega registrada, mas não foi possível concluir a rota/atualizar seu status. Avise a empresa.", "erro");
+      } else {
+        setMotoboy({ ...motoboy, status: "disponivel" });
+        showToast("Rota concluída! ✓", "ok");
+      }
     } else {
-      await supabase.from("delivery_routes").update({ status: "parcialmente_entregue" }).eq("id", rota.id);
+      const { error: errRota } = await supabase.from("delivery_routes").update({ status: "parcialmente_entregue" }).eq("id", rota.id);
+      if (errRota) console.warn("[motoboy] falha ao atualizar status da rota:", errRota.message);
       setRota({
         ...rota,
         status: "parcialmente_entregue",
@@ -859,10 +983,14 @@ export default function MotoboyApp() {
   async function devolverParaFila() {
     if (!pedido || !motoboy) return;
     if (!confirm("Devolver este pedido para a fila?")) return;
-    await Promise.all([
-      supabase.from("pedidos").update({ motoboy_id: null, status: "finalizado" }).eq("id", pedido.id),
-      supabase.from("motoboys").update({ status: "disponivel" }).eq("id", motoboy.id),
-    ]);
+    const { error: errPed } = await supabase.from("pedidos").update({ motoboy_id: null, status: "finalizado" }).eq("id", pedido.id);
+    if (errPed) {
+      console.error("[motoboy] falha ao devolver pedido:", errPed);
+      showToast("Não foi possível devolver o pedido para a fila. Tente de novo.", "erro");
+      return;
+    }
+    const { error: errMb } = await supabase.from("motoboys").update({ status: "disponivel" }).eq("id", motoboy.id);
+    if (errMb) showToast("Pedido devolvido, mas não foi possível atualizar seu status.", "erro");
     setPedido(null);
     setMotoboy({ ...motoboy, status: "disponivel" });
     loadPedidosFila();
@@ -871,9 +999,20 @@ export default function MotoboyApp() {
   async function confirmarEntrega() {
     if (!pedido || !motoboy) return;
     setEntregando(true);
-    await supabase.from("pedidos").update({ status: "entregue", updated_at: new Date().toISOString() }).eq("id", pedido.id);
-    await supabase.from("motoboys").update({ status: "disponivel" }).eq("id", motoboy.id);
-    const novo = { ...motoboy, status: "disponivel" as const };
+    const { error: errPed } = await supabase.from("pedidos").update({ status: "entregue", updated_at: new Date().toISOString() }).eq("id", pedido.id);
+    if (errPed) {
+      console.error("[motoboy] falha ao confirmar entrega:", errPed);
+      showToast("Não foi possível registrar a entrega. Verifique a conexão e tente de novo.", "erro");
+      setEntregando(false);
+      return;
+    }
+    if (pedido.empresa_id) baseEmpresaIdRef.current = pedido.empresa_id;
+    const { error: errMb } = await supabase.from("motoboys").update({ status: "disponivel" }).eq("id", motoboy.id);
+    if (errMb) {
+      console.error("[motoboy] falha ao atualizar status:", errMb);
+      showToast("Entrega registrada, mas não foi possível atualizar seu status para disponível.", "erro");
+    }
+    const novo = errMb ? motoboy : { ...motoboy, status: "disponivel" as const };
     setMotoboy(novo);
     setPedido(null);
     setEntregando(false);
@@ -882,6 +1021,7 @@ export default function MotoboyApp() {
     loadStats(novo);
     loadReport(novo, period);
     loadHistorico(novo.id);
+    loadEntregasDoDia(novo.id);
     loadPedidosFila();
   }
 
@@ -923,19 +1063,26 @@ export default function MotoboyApp() {
     window.open(buildNavUrl(app, pedidoLocal.endereco_lat ?? null, pedidoLocal.endereco_lng ?? null, pedidoLocal.route_address || pedidoLocal.endereco_entrega), "_blank");
 
     // Já salta para em_rota_de_entrega (sem etapa intermediária)
-    await supabase.from("pedidos").update({ status: "em_rota_de_entrega", updated_at: new Date().toISOString() }).eq("id", pedidoId);
+    const { error: errRota } = await supabase.from("pedidos").update({ status: "em_rota_de_entrega", updated_at: new Date().toISOString() }).eq("id", pedidoId);
 
+    // O aceite (RPC) já deu certo: se só a troca de status falhou, o pedido
+    // continua "em coleta" com este motoboy — mostra isso em vez de sucesso falso.
     const novoPedido: Pedido = {
       ...pedidoLocal,
-      status:     "em_rota_de_entrega",
+      status:     errRota ? "em_coleta" : "em_rota_de_entrega",
       motoboy_id: motoboy.id,
       updated_at: new Date().toISOString(),
     };
     setMotoboy({ ...motoboy, status: "em_entrega" });
     setPedido(novoPedido);
-    setInicioRotaAt(new Date());
     setMostraRetorno(false);
-    showToast("Em rota! Boa entrega 🚀", "ok");
+    if (errRota) {
+      console.error("[motoboy] falha ao marcar em rota após aceitar:", errRota);
+      showToast("Pedido aceito, mas não foi possível marcar como em rota. Toque em IR COM WAZE/MAPS de novo.", "erro");
+    } else {
+      setInicioRotaAt(new Date());
+      showToast("Em rota! Boa entrega 🚀", "ok");
+    }
     setAceitando(null);
     loadPedidosFila();
   }
@@ -945,10 +1092,15 @@ export default function MotoboyApp() {
     window.open(buildNavUrl(app, pedido.endereco_lat ?? null, pedido.endereco_lng ?? null, (pedido as unknown as PedidoFila).route_address || pedido.endereco_entrega), "_blank");
     if (pedido.status === "em_coleta") {
       setIniciandoRota(true);
-      await supabase.from("pedidos").update({ status: "em_rota_de_entrega", updated_at: new Date().toISOString() }).eq("id", pedido.id);
+      const { error } = await supabase.from("pedidos").update({ status: "em_rota_de_entrega", updated_at: new Date().toISOString() }).eq("id", pedido.id);
+      setIniciandoRota(false);
+      if (error) {
+        console.error("[motoboy] falha ao marcar em rota:", error);
+        showToast("Não foi possível marcar o pedido como em rota. Verifique a conexão e tente de novo.", "erro");
+        return;
+      }
       setPedido({ ...pedido, status: "em_rota_de_entrega" });
       setInicioRotaAt(new Date());
-      setIniciandoRota(false);
     }
   }
 
@@ -969,6 +1121,9 @@ export default function MotoboyApp() {
             loadPedidosFila(),
             loadReport(motoboyData, "hoje"),
             loadStats(motoboyData),
+            loadEntregasDoDia(motoboyData.id),
+            loadAvaliacao(motoboyData.id),
+            loadBases(motoboyData),
           ]);
           iniciarGPS(motoboyData);
         }
@@ -983,7 +1138,8 @@ export default function MotoboyApp() {
     setUploadingFoto(true);
     try {
       const url = await uploadImage(file, "vellox/motoboys");
-      await supabase.from("motoboys").update({ foto_url: url }).eq("id", motoboy.id);
+      const { error } = await supabase.from("motoboys").update({ foto_url: url }).eq("id", motoboy.id);
+      if (error) throw new Error("não foi possível salvar a foto no perfil");
       setMotoboy({ ...motoboy, foto_url: url });
     } catch (e) {
       alert(`Erro ao enviar foto: ${e instanceof Error ? e.message : "Tente novamente"}`);
@@ -997,11 +1153,17 @@ export default function MotoboyApp() {
     e.preventDefault();
     if (!motoboy) return;
     setSavingPerfil(true);
-    await supabase.from("motoboys").update({
+    const { error } = await supabase.from("motoboys").update({
       nome: editNome.trim(),
       veiculo_tipo: editVeiculo,
       area_atuacao: editArea.trim() || null,
     }).eq("id", motoboy.id);
+    if (error) {
+      console.error("[motoboy] falha ao salvar perfil:", error);
+      setSavingPerfil(false);
+      showToast("Não foi possível salvar o perfil. Verifique a conexão e tente de novo.", "erro");
+      return;
+    }
     setMotoboy({ ...motoboy, nome: editNome.trim(), veiculo_tipo: editVeiculo, area_atuacao: editArea.trim() || null });
     setSavingPerfil(false);
     setPerfilSalvo(true);
@@ -1018,7 +1180,14 @@ export default function MotoboyApp() {
   async function salvarFormaPagamento(pedidoId: string, forma: string) {
     setFormaPagamentoLocal(prev => ({ ...prev, [pedidoId]: forma }));
     setSalvandoPagamento(pedidoId);
-    await supabase.from("pedidos").update({ forma_pagamento: forma }).eq("id", pedidoId);
+    const { error } = await supabase.from("pedidos").update({ forma_pagamento: forma }).eq("id", pedidoId);
+    if (error) {
+      console.error("[motoboy] falha ao salvar forma de pagamento:", error);
+      setFormaPagamentoLocal(prev => { const n = { ...prev }; delete n[pedidoId]; return n; });
+      setSalvandoPagamento(null);
+      showToast("Não foi possível salvar a forma de pagamento. Tente de novo.", "erro");
+      return;
+    }
     if (rota) {
       setRota({ ...rota, pedidos: rota.pedidos.map(p => p.id === pedidoId ? { ...p, forma_pagamento: forma } : p) });
     }
@@ -1032,15 +1201,27 @@ export default function MotoboyApp() {
     if (!motoboy || motoboy.status === "em_entrega") return;
     setTogglingStatus(true);
     const novo = motoboy.status === "offline" ? "disponivel" : "offline";
-    await supabase.from("motoboys").update({ status: novo }).eq("id", motoboy.id);
-    setMotoboy({ ...motoboy, status: novo as typeof motoboy.status });
+    const { error } = await supabase.from("motoboys").update({ status: novo }).eq("id", motoboy.id);
     setTogglingStatus(false);
+    if (error) {
+      console.error("[motoboy] falha ao alterar status:", error);
+      showToast("Não foi possível alterar seu status. Tente de novo.", "erro");
+      return;
+    }
+    setMotoboy({ ...motoboy, status: novo as typeof motoboy.status });
   }
 
-  function handleLogout() {
-    watchRef.current && navigator.geolocation.clearWatch(watchRef.current);
-    if (motoboy) supabase.from("motoboys").update({ status: "offline", latitude: null, longitude: null }).eq("id", motoboy.id);
-    supabase.auth.signOut();
+  async function handleLogout() {
+    if (watchRef.current !== null) { navigator.geolocation.clearWatch(watchRef.current); watchRef.current = null; }
+    // Precisa de await: o builder do supabase-js é lazy, e depois do signOut a
+    // sessão some e o update seria negado pela RLS.
+    if (motoboy) {
+      const { error } = await supabase.from("motoboys")
+        .update({ status: "offline", latitude: null, longitude: null })
+        .eq("id", motoboy.id);
+      if (error) console.warn("[motoboy] falha ao ficar offline no logout:", error.message);
+    }
+    await supabase.auth.signOut();
     localStorage.removeItem(REMEMBER_KEY);
     sessionStorage.removeItem(SESSION_KEY);
     document.cookie = "vellox_mb_device=; max-age=0; path=/; SameSite=Strict";
@@ -1068,12 +1249,14 @@ export default function MotoboyApp() {
         if (mb) await supabase.from("motoboys").update({ latitude: lat, longitude: lng, ultima_localizacao_at: new Date().toISOString() }).eq("id", mb.id);
 
         // Geofence de retorno à base
+        // (coordenadas vêm do banco — basesRef — e não do localStorage, que só
+        // existe no navegador da empresa)
         setRetornandoBase(prev => {
           if (!prev) return prev;
-          const eLat = parseFloat(localStorage.getItem("empresa_lat") || "0");
-          const eLng = parseFloat(localStorage.getItem("empresa_lng") || "0");
-          if (eLat && eLng && haversineKm(lat, lng, eLat, eLng) < 0.2) {
-            setChegouBase(true);
+          const base = getBase();
+          if (base) {
+            const raioM = Math.max(base.raio ?? RAIO_BASE_PADRAO_M, RAIO_BASE_MIN_M);
+            if (haversineKm(lat, lng, base.lat, base.lng) * 1000 < raioM) setChegouBase(true);
           }
           return prev;
         });
@@ -1123,9 +1306,13 @@ export default function MotoboyApp() {
   }
 
   function voltarComApp(app: "waze" | "gmaps") {
-    const eLat = parseFloat(localStorage.getItem("empresa_lat") || "0") || null;
-    const eLng = parseFloat(localStorage.getItem("empresa_lng") || "0") || null;
-    window.open(buildNavUrl(app, eLat, eLng, "empresa"), "_blank");
+    const base = getBase();
+    if (!base) {
+      // Sem coordenadas não dá para navegar (antes mandava o texto "empresa" pro Waze/Maps)
+      showToast("A empresa ainda não cadastrou a localização. Peça para configurar o endereço no painel.", "erro");
+      return;
+    }
+    window.open(buildNavUrl(app, base.lat, base.lng, ""), "_blank");
     setRetornandoBase(true);
     setChegouBase(false);
   }
@@ -1272,7 +1459,12 @@ export default function MotoboyApp() {
     ? (motoboy.status === "em_entrega" ? "Em entrega" : motoboy.status === "disponivel" ? "Disponível" : "Offline")
     : "Aguardando vínculo";
   const badges = getBadges(totalEntregas, kmTotais);
-  const rating = motoboy?.avaliacao_media ?? 5;
+  // Média real das notas dos clientes; null = ainda sem avaliações (nada de 5.00 fixo)
+  const rating: number | null = avaliacao.media;
+  const ratingTxt = rating != null ? rating.toFixed(1) : "–";
+  // Entregas de hoje (BRT) para o Início
+  const ganhosHoje    = entregasDoDia.reduce((s, e) => s + (e.valor_motoboy ?? 0), 0);
+  const distanciaHoje = entregasDoDia.reduce((s, e) => s + (e.distancia_km ?? 0), 0);
 
   // ── Screens ───────────────────────────────────────────────────
 
@@ -1446,9 +1638,9 @@ export default function MotoboyApp() {
               <span className="text-xs font-medium" style={{ color: motoboy ? statusColor : "#fbbf24" }}>{statusLabel}</span>
             </div>
             <div className="flex items-center gap-3 mt-1.5">
-              <StarRating value={rating} size={12} />
+              <StarRating value={rating ?? 0} size={12} />
               <span className="text-xs font-mono" style={{ color: "#94a3b8" }}>
-                {rating.toFixed(1)} · {totalEntregas} entregas
+                {rating != null ? ratingTxt : "Sem avaliações"} · {totalEntregas} entregas
               </span>
             </div>
           </div>
@@ -1478,7 +1670,7 @@ export default function MotoboyApp() {
                 const hora = new Date().getHours();
                 const saudacao = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
                 const primeiroNome = motoboy?.nome?.split(" ")[0] ?? "Motoboy";
-                const totalDistancia = historicoEntregas.reduce((s, e) => s + (e.distancia_km ?? 0), 0);
+                const totalDistancia = distanciaHoje; // só entregas de hoje
                 return (
                 <>
                   {/* ── Hero card ── */}
@@ -1506,10 +1698,10 @@ export default function MotoboyApp() {
                       <div>
                         <p style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.65)", margin: 0, textTransform: "uppercase", letterSpacing: "0.07em" }}>Ganhos de hoje</p>
                         <p style={{ fontSize: 34, fontWeight: 900, color: "#fff", margin: "6px 0 0", lineHeight: 1, letterSpacing: "-0.02em" }}>
-                          R$ {report.ganhos.toFixed(2).replace(".", ",")}
+                          R$ {ganhosHoje.toFixed(2).replace(".", ",")}
                         </p>
                         <p style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", margin: "8px 0 0" }}>
-                          {report.entregas} {report.entregas === 1 ? "entrega realizada" : "entregas realizadas"}
+                          {entregasDoDia.length} {entregasDoDia.length === 1 ? "entrega realizada" : "entregas realizadas"}
                         </p>
                       </div>
                       <div style={{ padding: "8px 10px", borderRadius: 12, background: "rgba(0,0,0,0.2)" }}>
@@ -1521,9 +1713,9 @@ export default function MotoboyApp() {
                   {/* ── Stats grid ── */}
                   <div style={{ display: "flex", gap: 8 }}>
                     {[
-                      { label: "Entregas", value: report.entregas.toString(), icon: <Package size={14} style={{ color: "#E4002B" }} /> },
-                      { label: "Distância", value: totalDistancia > 0 ? `${totalDistancia.toFixed(0)}km` : "–", icon: <Navigation size={14} style={{ color: "#a78bfa" }} /> },
-                      { label: "Avaliação", value: (motoboy?.avaliacao_media ?? 5).toFixed(1), icon: <Star size={14} style={{ color: "#fbbf24" }} /> },
+                      { label: "Entregas", value: entregasDoDia.length.toString(), icon: <Package size={14} style={{ color: "#E4002B" }} /> },
+                      { label: "Distância", value: totalDistancia > 0 ? (totalDistancia < 10 ? `${totalDistancia.toFixed(1)}km` : `${totalDistancia.toFixed(0)}km`) : "–", icon: <Navigation size={14} style={{ color: "#a78bfa" }} /> },
+                      { label: "Avaliação", value: ratingTxt, icon: <Star size={14} style={{ color: "#fbbf24" }} /> },
                       { label: "Na fila", value: pedidosDisp.length.toString(), icon: <Bell size={14} style={{ color: "#60a5fa" }} /> },
                     ].map(({ label, value, icon }) => (
                       <div key={label} style={{ flex: 1, borderRadius: 14, padding: "12px 8px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
@@ -1598,11 +1790,21 @@ export default function MotoboyApp() {
 
                   {/* ── Rota ativa (múltiplos pedidos) ── */}
                   {rota && (() => {
-                    const rotaOrdenada = (coords && rota.pedidos.length >= 2)
-                      ? nearestNeighborRoute(rota.pedidos, coords.lat, coords.lng)
-                      : rota.pedidos.map(p => ({ pedido: p, distKm: p.endereco_lat && p.endereco_lng && coords
-                          ? haversineKm(coords.lat, coords.lng, p.endereco_lat, p.endereco_lng) : null as unknown as number }));
-                    const hasDistances = coords != null;
+                    // Vizinho mais próximo: parte da base (empresa) antes de sair;
+                    // depois de alguma entrega, parte da posição atual do motoboy.
+                    const pendentes = rota.pedidos.filter(p => p.status !== "entregue");
+                    const comCoords = pendentes.filter(p => p.endereco_lat != null && p.endereco_lng != null);
+                    const baseRota  = bases[rota.pedidos[0]?.empresa_id ?? ""] ?? getBase();
+                    const jaEntregou = rota.pedidos.some(p => p.status === "entregue");
+                    const inicio = jaEntregou
+                      ? (coords ?? (baseRota ? { lat: baseRota.lat, lng: baseRota.lng } : null))
+                      : (baseRota ? { lat: baseRota.lat, lng: baseRota.lng } : coords);
+                    const otimizada = inicio != null && comCoords.length >= 2;
+                    const rotaOrdenada = otimizada
+                      ? nearestNeighborRoute(rota.pedidos, inicio.lat, inicio.lng)
+                      : rota.pedidos.map(p => ({ pedido: p, distKm: p.endereco_lat != null && p.endereco_lng != null && inicio
+                          ? haversineKm(inicio.lat, inicio.lng, p.endereco_lat, p.endereco_lng) : 0 }));
+                    const hasDistances = inicio != null && comCoords.length > 0;
                     return (
                       <div style={{ borderRadius: 20, border: "1px solid rgba(167,139,250,0.25)", background: "var(--bg-2)" }}>
                         <div style={{ padding: "12px 20px", borderBottom: "1px solid rgba(167,139,250,0.12)", background: "rgba(167,139,250,0.08)", borderRadius: "20px 20px 0 0", display: "flex", alignItems: "center", gap: 8 }}>
@@ -1610,7 +1812,7 @@ export default function MotoboyApp() {
                           <p style={{ fontSize: 13, fontWeight: 700, color: "#a78bfa", margin: 0, flex: 1 }}>
                             Rota — {rota.pedidos.filter(p => p.status !== "entregue").length}/{rota.pedidos.length} pendentes
                           </p>
-                          {hasDistances && rota.pedidos.filter(p => p.status !== "entregue").length >= 2 && (
+                          {otimizada && (
                             <span style={{ fontSize: 11, color: "#7c3aed", display: "flex", alignItems: "center", gap: 4 }}>
                               <Zap size={10} /> Otimizada
                             </span>
@@ -1929,14 +2131,14 @@ export default function MotoboyApp() {
                   )}
 
                   {/* ── Pedidos do dia (histórico) ── */}
-                  {historicoEntregas.length > 0 && (
+                  {entregasDoDia.length > 0 && (
                     <div style={{ borderRadius: 20, background: "#111", border: "1px solid rgba(255,255,255,0.06)" }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
                         <p style={{ fontSize: 11, fontWeight: 800, color: "#E4002B", textTransform: "uppercase", letterSpacing: "0.08em", margin: 0 }}>Pedidos do dia</p>
-                        <span style={{ fontSize: 11, color: "#4b5563", fontWeight: 600 }}>{historicoEntregas.length} {historicoEntregas.length === 1 ? "entrega" : "entregas"}</span>
+                        <span style={{ fontSize: 11, color: "#4b5563", fontWeight: 600 }}>{entregasDoDia.length} {entregasDoDia.length === 1 ? "entrega" : "entregas"}</span>
                       </div>
                       <div>
-                        {historicoEntregas.slice(0, 5).map((e, i) => (
+                        {entregasDoDia.slice(0, 5).map((e, i) => (
                           <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 18px", borderTop: i > 0 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
                             <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(228,0,43,0.08)", border: "1px solid rgba(228,0,43,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                               <span style={{ fontSize: 11, fontWeight: 800, color: "#E4002B" }}>#{i + 1}</span>
@@ -2390,10 +2592,14 @@ export default function MotoboyApp() {
                   <div className="rounded-2xl p-4" style={{ background: "var(--bg-2)", border: "1px solid var(--border-1)" }}>
                     <p className="text-xs uppercase tracking-wide mb-3" style={{ color: "#94a3b8" }}>Avaliação</p>
                     <div className="flex items-center gap-4">
-                      <span className="text-4xl font-black" style={{ color: "#fbbf24" }}>{rating.toFixed(1)}</span>
+                      <span className="text-4xl font-black" style={{ color: "#fbbf24" }}>{ratingTxt}</span>
                       <div>
-                        <StarRating value={rating} size={20} />
-                        <p className="text-xs mt-1" style={{ color: "#94a3b8" }}>de 5.0 estrelas</p>
+                        <StarRating value={rating ?? 0} size={20} />
+                        <p className="text-xs mt-1" style={{ color: "#94a3b8" }}>
+                          {avaliacao.total > 0
+                            ? `de 5.0 · ${avaliacao.total} ${avaliacao.total === 1 ? "avaliação" : "avaliações"}`
+                            : "Ainda sem avaliações de clientes"}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -2536,6 +2742,9 @@ export default function MotoboyApp() {
                       </div>
                     </div>
                   )}
+
+                  {/* Fechamentos de caixa (acertos com a loja) */}
+                  {motoboy && <MeusAcertos motoboyId={motoboy.id} />}
                 </>
               )}
 

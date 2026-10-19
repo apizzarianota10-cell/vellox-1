@@ -112,6 +112,30 @@ export interface Pedido {
   // Estoque (schema_v67) — opcionais: pedidos legados não têm itens estruturados
   itens?: PedidoItem[] | null;
   estoque_baixado_em?: string | null;
+  // Fechamento de caixa do motoboy (schema_v69) — null = ainda não entrou em acerto
+  acerto_id?: string | null;
+}
+
+// Fechamento de caixa do motoboy (schema_v69)
+export type MotoboyAcertoStatus = "pendente" | "pago";
+
+export interface MotoboyAcerto {
+  id: string;
+  empresa_id: string;
+  motoboy_id: string | null;
+  motoboy_nome: string | null;
+  periodo_inicio: string;
+  periodo_fim: string;
+  qtd_entregas: number;
+  total_taxas: number;
+  total_dinheiro_recebido: number;
+  total_troco: number;
+  /** dinheiro recebido − taxas. > 0: motoboy devolve à loja; < 0: loja paga ao motoboy */
+  valor_a_repassar: number;
+  status: MotoboyAcertoStatus;
+  pago_em: string | null;
+  observacao: string | null;
+  created_at: string;
 }
 
 export interface ConfiguracaoPrintAgent {
