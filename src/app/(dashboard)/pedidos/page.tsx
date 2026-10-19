@@ -30,7 +30,7 @@ export default async function PedidosPage() {
       .order("created_at"),
     supabase
       .from("configuracao_loja")
-      .select("cor_principal, modo_calculo_pizza")
+      .select("cor_principal, modo_calculo_pizza, tempo_entrega")
       .eq("empresa_id", user!.id)
       .single(),
     supabase
@@ -58,6 +58,7 @@ export default async function PedidosPage() {
       produtos={(produtosRes.data ?? []) as Produto[]}
       modoCalculo={(configRes.data?.modo_calculo_pizza ?? "maior_valor") as "maior_valor" | "proporcional"}
       corPrincipal={configRes.data?.cor_principal ?? "#E4002B"}
+      tempoEstimado={configRes.data?.tempo_entrega ?? null}
       layoutImpressao={printPrefsRes.data?.layout as LayoutOpt | undefined}
       fonteImpressao={isFonteOpt(printPrefsRes.data?.fonte) ? printPrefsRes.data?.fonte : undefined}
     />

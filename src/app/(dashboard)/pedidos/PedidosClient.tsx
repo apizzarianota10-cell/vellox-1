@@ -15,6 +15,7 @@ import * as printService from "@/lib/printService";
 import { playSound, getSoundId } from "@/lib/sounds";
 import { itensDoCarrinho, colunaItensAusente } from "@/lib/pedidoItens";
 import AvisarWhatsApp from "@/components/dashboard/AvisarWhatsApp";
+import PreparoAtrasadoModal from "./PreparoAtrasadoModal";
 import type { Pedido, PedidoStatus, Produto, ProdutoVariacao, ProdutoSabor, ProdutoAdicional } from "@/types";
 
 interface CartItem {
@@ -199,6 +200,7 @@ interface Props {
   produtos: Produto[];
   modoCalculo: "maior_valor" | "proporcional";
   corPrincipal: string;
+  tempoEstimado?: string | null;
   layoutImpressao?: printService.LayoutOpt;
   fonteImpressao?: printService.FonteOpt;
 }
@@ -208,7 +210,7 @@ interface NewOrderBanner {
   count: number;
 }
 
-export default function PedidosClient({ pedidos: initial, empresaId, empresaNome, empresaCodigo, empresaLat, empresaLng, empresaCidade, empresaEstado, autoDespacho, produtos, modoCalculo, corPrincipal, layoutImpressao, fonteImpressao }: Props) {
+export default function PedidosClient({ pedidos: initial, empresaId, empresaNome, empresaCodigo, empresaLat, empresaLng, empresaCidade, empresaEstado, autoDespacho, produtos, modoCalculo, corPrincipal, tempoEstimado = null, layoutImpressao, fonteImpressao }: Props) {
   const cor = corPrincipal;
   const router  = useRouter();
   const supabase = createClient();
@@ -1228,6 +1230,14 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
 
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6" style={{ background: "var(--bg-base)", minHeight: "100%" }}>
+
+      {/* ── Pop-up: pedido em preparo além do tempo estimado ── */}
+      <PreparoAtrasadoModal
+        pedidos={pedidos}
+        tempoEstimado={tempoEstimado}
+        onFinalizar={handleAdvance}
+        onCancelar={handleCancel}
+      />
 
       {/* ── Banner: novo pedido ── */}
       {newOrderBanner && (
