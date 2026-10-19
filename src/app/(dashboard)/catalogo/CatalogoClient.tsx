@@ -12,6 +12,7 @@ import {
   ScanLine, Loader2, ChevronRight, ChevronDown, Trophy,
 } from "lucide-react";
 import type { Produto, ConfiguracaoLoja, BairroTaxa, ProdutoVariacao, ProdutoSabor, ProdutoAdicional, CategoriaSabor, CategoriaPreco, CategoriaPrecoTamanho, ProdutoMaisVendido } from "@/types";
+import MaisVendidosModal from "./MaisVendidosModal";
 
 const CATEGORIAS_PADRAO = ["Lanches", "Bebidas", "Combos", "Sobremesas", "Entradas", "Outros"];
 
@@ -71,6 +72,7 @@ export default function CatalogoClient({
   const supabase = createClient();
 
   const [tab, setTab] = useState<Tab>("produtos");
+  const [maisVendidoAberto, setMaisVendidoAberto] = useState<string | null>(null);
   const [produtos, setProdutos] = useState<Produto[]>(initialProdutos);
   const [bairros, setBairros] = useState<BairroTaxa[]>(initialBairros);
   const [novoBairro, setNovoBairro] = useState("");
@@ -1197,7 +1199,10 @@ export default function CatalogoClient({
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {initialMaisVendidos.slice(0, 8).map((item, i) => (
-                    <div key={item.nome} className="rounded-xl px-3 py-2.5" style={{ background: "var(--bg-1)", border: "1px solid var(--border-1)", minWidth: 0 }}>
+                    <button key={item.nome} type="button" onClick={() => setMaisVendidoAberto(item.nome)}
+                      className="rounded-xl px-3 py-2.5 text-left transition-all hover:-translate-y-0.5 hover:shadow-md"
+                      title="Ver o que mais saiu"
+                      style={{ background: "var(--bg-1)", border: "1px solid var(--border-1)", minWidth: 0, cursor: "pointer" }}>
                       <div className="flex items-center gap-1.5 mb-1">
                         <span style={{ fontSize: 10, fontWeight: 800, color: "var(--text-4)" }}>#{i + 1}</span>
                         <span className="truncate" style={{ fontSize: 12, fontWeight: 700, color: "var(--text-1)" }} title={item.nome}>{item.nome}</span>
@@ -1209,10 +1214,17 @@ export default function CatalogoClient({
                           <span style={{ fontSize: 10, fontWeight: 700, color: "#16a34a", marginLeft: "auto" }}>+{item.qtd_hoje} hoje</span>
                         )}
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
+            )}
+            {maisVendidoAberto && (
+              <MaisVendidosModal
+                produtoNome={maisVendidoAberto}
+                empresaId={empresaId}
+                onClose={() => setMaisVendidoAberto(null)}
+              />
             )}
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
