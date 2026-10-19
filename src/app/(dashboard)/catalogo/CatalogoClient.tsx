@@ -1226,7 +1226,7 @@ export default function CatalogoClient({
                       border: `1px solid ${catFilter === c ? (c === "__sabores__" ? "#7c3aed" : cor) : (c === "__sabores__" ? "#ddd6fe" : "var(--border-1)")}`,
                       fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all 0.15s",
                     }}>
-                    {c === "__sabores__" ? "🍕 Sabores" : c}
+                    {c === "__sabores__" ? "Sabores" : c}
                     {c !== "Todos" && c !== "__sabores__" && (
                       <span style={{ marginLeft: 5, opacity: 0.6 }}>
                         ({produtos.filter(p => p.categoria === c).length})

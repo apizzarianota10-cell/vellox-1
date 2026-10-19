@@ -186,69 +186,54 @@ export default function PrintListener({ empresaId, empresaNome, empresaCnpj, lay
   if (!mostrarOffline && !mostrarAtrasados) return null;
 
   return (
-    <div style={{ position: "fixed", top: 16, right: 16, zIndex: 1000, maxWidth: 360, width: "calc(100% - 32px)", display: "flex", flexDirection: "column", gap: 10 }}>
+    // Faixa fina embaixo, centralizada (acima da barra de abas no celular).
+    <div className="fixed left-1/2 -translate-x-1/2 bottom-20 md:bottom-4"
+      style={{ zIndex: 1000, width: "max-content", maxWidth: "calc(100% - 24px)", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
       {mostrarAtrasados && (
-        <div style={{
-          display: "flex", gap: 12, alignItems: "flex-start",
-          background: "#fff", border: "1.5px solid #fde68a", borderRadius: 16,
-          padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.15)",
-        }}>
-          <div style={{
-            width: 34, height: 34, borderRadius: 10, background: "#fffbeb",
-            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        <div
+          title={`${pedidosAtrasados[0]?.cliente_nome ?? ""}${pedidosAtrasados.length > 1 ? ` e mais ${pedidosAtrasados.length - 1}` : ""} — confira se a impressora está ligada e com papel.`}
+          style={{
+            display: "flex", gap: 8, alignItems: "center", maxWidth: "100%",
+            background: "#fff", border: "1px solid #fde68a", borderRadius: 999,
+            padding: "6px 6px 6px 12px", boxShadow: "0 6px 18px rgba(0,0,0,0.12)",
           }}>
-            <AlertTriangle size={17} style={{ color: "#d97706" }} />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: 13, fontWeight: 800, color: "#0f172a", margin: "0 0 4px" }}>
-              {pedidosAtrasados.length === 1
-                ? "1 pedido esperando impressão há mais de 5 min"
-                : `${pedidosAtrasados.length} pedidos esperando impressão há mais de 5 min`}
-            </p>
-            <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 10px", lineHeight: 1.4 }}>
-              {pedidosAtrasados[0]?.cliente_nome}
-              {pedidosAtrasados.length > 1 ? ` e mais ${pedidosAtrasados.length - 1}` : ""} — confira se a impressora está ligada e com papel.
-            </p>
-            <Link href="/pedidos"
-              style={{ fontSize: 12, fontWeight: 700, color: "#d97706", textDecoration: "none" }}>
-              Ver pedidos →
-            </Link>
-          </div>
+          <AlertTriangle size={14} style={{ color: "#d97706", flexShrink: 0 }} />
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {pedidosAtrasados.length === 1 ? "1 pedido" : `${pedidosAtrasados.length} pedidos`} sem imprimir há +5 min
+          </span>
+          <Link href="/pedidos"
+            style={{ fontSize: 12, fontWeight: 800, color: "#d97706", textDecoration: "none", whiteSpace: "nowrap" }}>
+            Ver
+          </Link>
           <button
             onClick={() => setAvisoAtrasadosFechado(true)}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 2, flexShrink: 0 }}>
-            <X size={15} />
+            aria-label="Fechar aviso"
+            style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 4, display: "flex", flexShrink: 0 }}>
+            <X size={13} />
           </button>
         </div>
       )}
       {mostrarOffline && (
-        <div style={{
-          display: "flex", gap: 12, alignItems: "flex-start",
-          background: "#fff", border: "1.5px solid #fecaca", borderRadius: 16,
-          padding: 16, boxShadow: "0 12px 32px rgba(0,0,0,0.15)",
-        }}>
-          <div style={{
-            width: 34, height: 34, borderRadius: 10, background: "#fef2f2",
-            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        <div
+          title="Você está no navegador e o agente de impressão não respondeu — risco do pedido não imprimir sozinho. Abra o app no computador da impressora."
+          style={{
+            display: "flex", gap: 8, alignItems: "center", maxWidth: "100%",
+            background: "#fff", border: "1px solid #fecaca", borderRadius: 999,
+            padding: "6px 6px 6px 12px", boxShadow: "0 6px 18px rgba(0,0,0,0.12)",
           }}>
-            <AlertTriangle size={17} style={{ color: "#ef4444" }} />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: 13, fontWeight: 800, color: "#0f172a", margin: "0 0 4px" }}>
-              Chegou pedido novo, mas o app não está aberto
-            </p>
-            <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 10px", lineHeight: 1.4 }}>
-              Você está no navegador e o Print Agent não respondeu — risco do pedido não imprimir sozinho. Abra o app no computador da impressora.
-            </p>
-            <Link href="/automacoes/impressao"
-              style={{ fontSize: 12, fontWeight: 700, color: "#ef4444", textDecoration: "none" }}>
-              Ver configuração de impressão →
-            </Link>
-          </div>
+          <AlertTriangle size={14} style={{ color: "#ef4444", flexShrink: 0 }} />
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: "#0f172a", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            Pedido novo, mas o app de impressão não respondeu
+          </span>
+          <Link href="/automacoes/impressao"
+            style={{ fontSize: 12, fontWeight: 800, color: "#ef4444", textDecoration: "none", whiteSpace: "nowrap" }}>
+            Ver
+          </Link>
           <button
             onClick={() => setAvisoAgenteOffline(false)}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 2, flexShrink: 0 }}>
-            <X size={15} />
+            aria-label="Fechar aviso"
+            style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", padding: 4, display: "flex", flexShrink: 0 }}>
+            <X size={13} />
           </button>
         </div>
       )}
