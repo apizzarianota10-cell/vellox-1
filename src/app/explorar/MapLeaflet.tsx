@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
+import { TILE_ESCURO } from "@/lib/mapTiles";
 
 interface LojaMap {
   id: string; nome: string; slug: string;
@@ -56,12 +57,9 @@ export default function MapLeaflet({ lojas, userLat, userLng, accent, onPreview 
       });
       mapRef.current = map;
 
-      // Tiles escuros (Carto Dark — sem API key necessária)
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-        attribution: '© <a href="https://www.openstreetmap.org/copyright" style="color:#555">OSM</a> © <a href="https://carto.com/attributions" style="color:#555">CARTO</a>',
-        subdomains: "abcd",
-        maxZoom: 20,
-      }).addTo(map);
+      // Tiles escuros gratuitos sem chave (o CARTO passou a exigir chave) — ver mapTiles.ts
+      L.tileLayer(TILE_ESCURO.url, TILE_ESCURO.options).addTo(map);
+      if (TILE_ESCURO.labels) L.tileLayer(TILE_ESCURO.labels.url, TILE_ESCURO.labels.options).addTo(map);
 
       // Controle de zoom (canto inferior direito)
       L.control.zoom({ position: "bottomright" }).addTo(map);

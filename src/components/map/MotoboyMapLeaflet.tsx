@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import type { Map as LeafletMap, Marker, Polyline } from "leaflet";
+import { TILE_ESCURO } from "@/lib/mapTiles";
 
 const MOTOBOY_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="64" viewBox="0 0 48 64">
   <circle cx="24" cy="24" r="21" fill="#f59e0b" stroke="white" stroke-width="3"/>
@@ -63,10 +64,9 @@ export default function MotoboyMapLeaflet({ coords, destLat, destLng, pedidoId, 
       attributionControl: false,
     });
 
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      subdomains: "abcd",
-      maxZoom: 19,
-    }).addTo(map);
+    // Tiles gratuitos sem chave (o CARTO passou a exigir chave) — ver mapTiles.ts
+    L.tileLayer(TILE_ESCURO.url, TILE_ESCURO.options).addTo(map);
+    if (TILE_ESCURO.labels) L.tileLayer(TILE_ESCURO.labels.url, TILE_ESCURO.labels.options).addTo(map);
 
     mapRef.current = map;
 

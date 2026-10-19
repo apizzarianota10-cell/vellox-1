@@ -15,24 +15,9 @@ import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import type { Map as LeafletMap, Marker, Polyline } from "leaflet";
+import { TILE_CLARO, TILE_OSM, type TileDef } from "@/lib/mapTiles";
 
-const TILE_PROVIDERS = [
-  {
-    url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    options: {
-      subdomains: "abcd",
-      maxZoom: 20,
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OSM</a> © <a href="https://carto.com/attributions">CARTO</a>',
-    },
-  },
-  {
-    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-    options: {
-      maxZoom: 19,
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    },
-  },
-] as const;
+const TILE_PROVIDERS: TileDef[] = [TILE_CLARO, TILE_OSM];
 
 const MOTOBOY_ICON = () => L.divIcon({
   className: "",

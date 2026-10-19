@@ -3,8 +3,8 @@
 /**
  * Mapa de rastreamento ao vivo (painel /mapa).
  *
- * Usa Leaflet + tiles gratuitos sem chave (CARTO dark, com fallback para
- * OpenStreetMap). Antes usava Google Maps JS com NEXT_PUBLIC_GOOGLE_MAPS_KEY,
+ * Usa Leaflet + tiles gratuitos sem chave (Esri cinza-escuro, com fallback
+ * para OpenStreetMap — ver src/lib/mapTiles.ts). Antes usava Google Maps JS com NEXT_PUBLIC_GOOGLE_MAPS_KEY,
  * cuja chave está ausente/restrita (REQUEST_DENIED) — o mapa ficava em branco.
  * Rotas: OSRM público, com fallback para linha reta tracejada.
  */
@@ -15,6 +15,7 @@ import L from "leaflet";
 import type { Map as LeafletMap, Marker, Polyline, TileLayer, LatLngExpression } from "leaflet";
 import { createClient } from "@/lib/supabase/client";
 import type { Motoboy, Pedido } from "@/types";
+import { TILE_ESCURO, TILE_OSM, type TileDef } from "@/lib/mapTiles";
 
 /* ───────────────────────── helpers ───────────────────────── */
 
@@ -22,23 +23,7 @@ const ACTIVE_PEDIDO_STATUS = "em_rota_de_entrega";
 const STALE_MS = 10 * 60 * 1000; // posição sem atualização há 10 min = "sem sinal"
 const DEFAULT_CENTER: [number, number] = [-15.78, -47.93]; // Brasília
 
-const TILE_PROVIDERS = [
-  {
-    url: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-    options: {
-      subdomains: "abcd",
-      maxZoom: 20,
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OSM</a> © <a href="https://carto.com/attributions">CARTO</a>',
-    },
-  },
-  {
-    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-    options: {
-      maxZoom: 19,
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    },
-  },
-] as const;
+const TILE_PROVIDERS: TileDef[] = [TILE_ESCURO, TILE_OSM];
 
 function escapeHtml(s: string | null | undefined) {
   return String(s ?? "")
@@ -240,9 +225,12 @@ export default function TrackingMap({
     let providerIdx = 0;
     let loaded = 0;
     let errors = 0;
+    let labelsLayer: TileLayer | null = null;
     const addTiles = () => {
       const prov = TILE_PROVIDERS[providerIdx];
       const layer = L.tileLayer(prov.url, { ...prov.options });
+      labelsLayer?.remove();
+      labelsLayer = prov.labels ? L.tileLayer(prov.labels.url, { ...prov.labels.options }) : null;
       layer.on("tileload", () => { loaded++; setTileError(false); });
       layer.on("tileerror", () => {
         errors++;
@@ -257,6 +245,7 @@ export default function TrackingMap({
         }
       });
       layer.addTo(map);
+      labelsLayer?.addTo(map);
       tileRef.current = layer;
     };
     addTiles();

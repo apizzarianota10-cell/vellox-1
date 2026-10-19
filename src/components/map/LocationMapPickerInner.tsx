@@ -7,6 +7,7 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { TILE_ESCURO } from "@/lib/mapTiles";
 
 /* ── Child: handles map clicks ── */
 function ClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number) => void }) {
@@ -78,12 +79,9 @@ export default function LocationMapPickerInner({
       zoomControl={false}
       attributionControl={false}
     >
-      <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        subdomains="abcd"
-        maxZoom={20}
-        attribution='© <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> © <a href="https://carto.com/attributions" target="_blank">CARTO</a>'
-      />
+      {/* Tiles gratuitos sem chave (o CARTO passou a exigir chave) — ver mapTiles.ts */}
+      <TileLayer url={TILE_ESCURO.url} {...TILE_ESCURO.options} />
+      {TILE_ESCURO.labels && <TileLayer url={TILE_ESCURO.labels.url} {...TILE_ESCURO.labels.options} />}
 
       <ClickHandler onMapClick={onMapClick} />
       <FlyTo target={flyTarget} />
