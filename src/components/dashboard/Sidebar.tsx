@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Users, Package, Map, LogOut,
   Zap, DollarSign, Settings, Monitor,
   Bell, X, CheckCircle, Bike, ShoppingBag,
-  Store, ChevronDown, Check, Crown, Lock, Menu,
+  Store, ChevronDown, Check, Crown, Lock, Menu, Boxes,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -14,6 +14,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { useLoja } from "@/contexts/LojaContext";
 import { PLANO_LABEL, PLANO_COLOR, KTL_ROUTES } from "@/contexts/PlanoContext";
 import PrintAgentStatus from "@/components/dashboard/PrintAgentStatus";
+import EstoqueBadge, { useEstoqueAlertas } from "@/components/dashboard/EstoqueBadge";
 import type { Plano, Loja } from "@/types";
 
 const NAV_BASE = [
@@ -22,6 +23,7 @@ const NAV_BASE = [
   { href: "/motoboys",      label: "Motoboys",     icon: Users,           color: "#60a5fa" },
   { href: "/pedidos",       label: "Pedidos",      icon: Package,         color: "#FFC72C" },
   { href: "/catalogo",      label: "Catálogo",     icon: ShoppingBag,     color: "#f59e0b" },
+  { href: "/estoque",       label: "Estoque",      icon: Boxes,           color: "#fb923c" },
   { href: "/monitor",       label: "Monitor",      icon: Monitor,         color: "#a78bfa" },
   { href: "/financeiro",    label: "Financeiro",   icon: DollarSign,      color: "#34d399" },
   { href: "/automacoes",    label: "Automações",   icon: Zap,             color: "#E4002B" },
@@ -37,6 +39,7 @@ const NAV_KTL = [
   { href: "/motoboys",      label: "Motoboys",   icon: Users,      color: "#60a5fa" },
   { href: "/financeiro",    label: "Financeiro", icon: DollarSign, color: "#34d399" },
   { href: "/catalogo",      label: "Catálogo",   icon: ShoppingBag, color: "#f59e0b" },
+  { href: "/estoque",       label: "Estoque",    icon: Boxes,      color: "#fb923c" },
   { href: "/automacoes",    label: "Automações", icon: Zap,        color: "#E4002B" },
   { href: "/configuracoes", label: "Config.",    icon: Settings,   color: "#666666" },
 ];
@@ -75,6 +78,7 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
   const pathname = usePathname();
   const supabase = useMemo(() => createClient(), []);
   const { lojaAtiva, setLojaAtiva } = useLoja();
+  const alertasEstoque = useEstoqueAlertas(empresaId);
 
   const channelId   = useRef(`notifs-${empresaId}-${Math.random().toString(36).slice(2, 8)}`);
   const [notifs, setNotifs]           = useState<Notif[]>([]);
@@ -288,6 +292,7 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
           <Icon size={17} />
         </div>
         <span className="flex-1">{label}</span>
+        {href === "/estoque" && <EstoqueBadge count={alertasEstoque} />}
         {isLocked && <Lock size={11} style={{ color: "var(--text-5)", flexShrink: 0 }} />}
         {active && !isLocked && <div className="w-1.5 h-1.5 rounded-full" style={{ background: color, boxShadow: `0 0 6px ${color}` }} />}
       </Link>
@@ -537,12 +542,14 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
                 {(plano === "ktl"
                   ? [
                       { href: "/catalogo",   label: "Catálogo",   icon: ShoppingBag, color: "#f59e0b" },
+                      { href: "/estoque",    label: "Estoque",    icon: Boxes,       color: "#fb923c" },
                       { href: "/financeiro", label: "Financeiro", icon: DollarSign,  color: "#22c55e" },
                       { href: "/automacoes", label: "Automações", icon: Zap,         color: "#E4002B" },
                     ]
                   : [
                       { href: "/mapa",          label: "Mapa",       icon: Map,         color: "#34d399" },
                       { href: "/catalogo",      label: "Catálogo",   icon: ShoppingBag, color: "#f59e0b" },
+                      { href: "/estoque",       label: "Estoque",    icon: Boxes,       color: "#fb923c" },
                       { href: "/financeiro",    label: "Financeiro", icon: DollarSign,  color: "#22c55e" },
                       { href: "/automacoes",    label: "Automações", icon: Zap,         color: "#E4002B" },
                       { href: "/configuracoes", label: "Config.",    icon: Settings,    color: "#94a3b8" },
@@ -568,6 +575,9 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
                         <Icon size={20} style={{ color: isLocked ? "var(--text-5)" : color }} />
                       </div>
                       <span style={{ fontSize: 10, fontWeight: 600, color: isLocked ? "var(--text-5)" : "var(--text-2)", textAlign: "center" }}>{label}</span>
+                      {href === "/estoque" && alertasEstoque > 0 && (
+                        <span style={{ position: "absolute", top: 8, right: 8 }}><EstoqueBadge count={alertasEstoque} /></span>
+                      )}
                       {isLocked && (
                         <Lock size={9} style={{ color: "var(--text-5)", position: "absolute", top: 10, right: 10 }} />
                       )}

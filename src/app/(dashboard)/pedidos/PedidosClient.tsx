@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/client";
 import { log } from "@/lib/auditoria";
 import * as printService from "@/lib/printService";
 import { playSound, getSoundId } from "@/lib/sounds";
+import { itensDoCarrinho, colunaItensAusente } from "@/lib/pedidoItens";
 import type { Pedido, PedidoStatus, Produto, ProdutoVariacao, ProdutoSabor, ProdutoAdicional } from "@/types";
 
 interface CartItem {
@@ -804,7 +805,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
     const navAddress = !isRetirada
       ? [endManual.rua, endManual.numero, endManual.cidade, endManual.estado].filter(Boolean).join(", ")
       : null;
-    const { error: insertErr } = await supabase.from("pedidos").insert({
+    const payload: Record<string, unknown> = {
       empresa_id:       empresaId,
       tipo_pedido:      form.tipo_pedido,
       cliente_nome:     form.cliente_nome,
@@ -821,7 +822,16 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
       troco_para:       form.forma_pagamento === "dinheiro" && form.troco_para ? parseFloat(form.troco_para) : null,
       observacoes:      form.observacoes || null,
       status:           "em_fila",
-    });
+      // Cópia estruturada do carrinho (pedidos.itens) — usada na baixa de estoque
+      itens:            itensDoCarrinho(cartItems),
+    };
+    let { error: insertErr } = await supabase.from("pedidos").insert(payload);
+    // Migration schema_v67 ainda não aplicada (coluna itens não existe): reenvia sem itens
+    if (insertErr && colunaItensAusente(insertErr) && "itens" in payload) {
+      console.warn("Coluna pedidos.itens ausente (rode supabase/schema_v67.sql) — pedido salvo sem itens estruturados");
+      delete payload.itens;
+      ({ error: insertErr } = await supabase.from("pedidos").insert(payload));
+    }
     setSaving(false);
     if (insertErr) { alert("Erro ao criar pedido: " + insertErr.message); return; }
     log(supabase, empresaId, "pedido_criado",

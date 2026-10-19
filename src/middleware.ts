@@ -21,6 +21,7 @@ export function middleware(request: NextRequest) {
   const protectedPrefixes = [
     "/dashboard", "/motoboys", "/pedidos", "/configuracoes",
     "/mapa", "/monitor", "/financeiro", "/catalogo",
+    "/estoque",
   ];
 
   if (protectedPrefixes.some(p => pathname.startsWith(p)) && !hasSession) {

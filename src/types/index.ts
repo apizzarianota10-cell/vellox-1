@@ -69,6 +69,13 @@ export interface Motoboy {
   created_at: string;
 }
 
+// Item estruturado do pedido (pedidos.itens, schema_v67) — base da baixa de estoque
+export interface PedidoItem {
+  produto_id: string;
+  qtd: number;
+  nome: string;
+}
+
 export interface Pedido {
   id: string;
   empresa_id: string;
@@ -102,6 +109,9 @@ export interface Pedido {
   motoboy?: Motoboy;
   avaliacao_nota: number | null;
   avaliacao_comentario: string | null;
+  // Estoque (schema_v67) — opcionais: pedidos legados não têm itens estruturados
+  itens?: PedidoItem[] | null;
+  estoque_baixado_em?: string | null;
 }
 
 export interface ConfiguracaoPrintAgent {
@@ -212,6 +222,10 @@ export interface Produto {
   ordem: number;
   created_at: string;
   categoria_preco_id: string | null;
+  // Estoque (schema_v67)
+  controla_estoque?: boolean;
+  estoque_qtd?: number;
+  estoque_minimo?: number | null;
   produto_variacoes?: ProdutoVariacao[];
   produto_sabores?: ProdutoSabor[];
   produto_adicionais?: ProdutoAdicional[];

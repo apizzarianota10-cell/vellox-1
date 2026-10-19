@@ -1,5 +1,31 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { colunaItensAusente } from "@/lib/pedidoItens";
+import type { PedidoItem } from "@/types";
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_ITENS = 100;
+const MAX_QTD   = 999;
+
+// Valida o formato dos itens estruturados vindos do checkout; descarta os inválidos.
+// A checagem de que os produtos pertencem à loja é feita depois, no banco.
+function sanitizarItens(raw: unknown): PedidoItem[] {
+  if (!Array.isArray(raw)) return [];
+  const out: PedidoItem[] = [];
+  for (const it of raw.slice(0, MAX_ITENS)) {
+    if (!it || typeof it !== "object") continue;
+    const { produto_id, qtd, nome } = it as Record<string, unknown>;
+    if (typeof produto_id !== "string" || !UUID_RE.test(produto_id)) continue;
+    const q = typeof qtd === "number" ? qtd : Number(qtd);
+    if (!Number.isInteger(q) || q < 1 || q > MAX_QTD) continue;
+    out.push({
+      produto_id: produto_id.toLowerCase(),
+      qtd: q,
+      nome: String(nome ?? "").trim().slice(0, MAX_LEN.nome),
+    });
+  }
+  return out;
+}
 
 // Rate limit por IP: protege contra spam/bot, mas generoso o bastante pra não
 // bloquear clientes reais atrás do mesmo IP (rede compartilhada, operadora
@@ -78,38 +104,66 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Empresa não encontrada" }, { status: 404 });
     }
 
+    // Itens estruturados (pedidos.itens): só aceita produtos que pertencem a esta empresa
+    let itens: PedidoItem[] | null = null;
+    const itensValidos = sanitizarItens(body.itens);
+    if (itensValidos.length > 0) {
+      const ids = [...new Set(itensValidos.map(i => i.produto_id))];
+      const { data: produtos, error: prodErr } = await supabase
+        .from("produtos")
+        .select("id")
+        .eq("empresa_id", empresa_id)
+        .in("id", ids);
+      if (prodErr) {
+        // Não derruba o checkout: segue sem itens estruturados (sem baixa de estoque)
+        console.warn("Erro ao validar produtos dos itens (loja/pedido):", prodErr);
+      } else {
+        const daLoja = new Set((produtos ?? []).map(p => String(p.id).toLowerCase()));
+        const filtrados = itensValidos.filter(i => daLoja.has(i.produto_id));
+        itens = filtrados.length ? filtrados : null;
+      }
+    }
+
     // Gera token único de rastreamento (24 chars hex)
     const tokenBytes = new Uint8Array(12);
     crypto.getRandomValues(tokenBytes);
     const tracking_token = Array.from(tokenBytes).map(b => b.toString(16).padStart(2, "0")).join("");
 
     // Insere o pedido
-    const { data, error } = await supabase
-      .from("pedidos")
-      .insert({
-        empresa_id,
-        cliente_nome:     String(cliente_nome).trim().slice(0, MAX_LEN.nome),
-        cliente_telefone: String(cliente_telefone).trim().slice(0, MAX_LEN.telefone),
-        endereco_entrega: String(endereco_entrega ?? "").trim().slice(0, MAX_LEN.endereco),
-        bairro:           bairro ?? null,
-        tipo_pedido:      tipo_pedido ?? "entrega",
-        descricao_itens:  descricao_itens != null ? String(descricao_itens).slice(0, MAX_LEN.itens) : null,
-        observacoes:      observacoes != null ? String(observacoes).slice(0, MAX_LEN.obs) : null,
-        valor_pedido:     Number(valor_pedido) || 0,
-        valor_motoboy:    Number(valor_motoboy) || 0,
-        forma_pagamento:  forma_pagamento ?? null,
-        troco_para:       troco_para ?? null,
-        endereco_lat:     endereco_lat != null ? Number(endereco_lat) : null,
-        endereco_lng:     endereco_lng != null ? Number(endereco_lng) : null,
-        origem:           "catalogo",
-        tracking_token,
-        idempotency_key:  idempotency_key ? String(idempotency_key).slice(0, 100) : null,
-        status:           "em_fila",
-        motoboy_id:       null,
-        route_id:         null,
-      })
-      .select("id, tracking_token")
-      .single();
+    const payload: Record<string, unknown> = {
+      empresa_id,
+      cliente_nome:     String(cliente_nome).trim().slice(0, MAX_LEN.nome),
+      cliente_telefone: String(cliente_telefone).trim().slice(0, MAX_LEN.telefone),
+      endereco_entrega: String(endereco_entrega ?? "").trim().slice(0, MAX_LEN.endereco),
+      bairro:           bairro ?? null,
+      tipo_pedido:      tipo_pedido ?? "entrega",
+      descricao_itens:  descricao_itens != null ? String(descricao_itens).slice(0, MAX_LEN.itens) : null,
+      observacoes:      observacoes != null ? String(observacoes).slice(0, MAX_LEN.obs) : null,
+      valor_pedido:     Number(valor_pedido) || 0,
+      valor_motoboy:    Number(valor_motoboy) || 0,
+      forma_pagamento:  forma_pagamento ?? null,
+      troco_para:       troco_para ?? null,
+      endereco_lat:     endereco_lat != null ? Number(endereco_lat) : null,
+      endereco_lng:     endereco_lng != null ? Number(endereco_lng) : null,
+      origem:           "catalogo",
+      tracking_token,
+      idempotency_key:  idempotency_key ? String(idempotency_key).slice(0, 100) : null,
+      status:           "em_fila",
+      motoboy_id:       null,
+      route_id:         null,
+      itens,
+    };
+
+    const inserir = () => supabase.from("pedidos").insert(payload).select("id, tracking_token").single();
+    let { data, error } = await inserir();
+
+    // Migration schema_v67 ainda não aplicada (coluna itens não existe):
+    // reenvia sem itens pra nunca quebrar o checkout do cliente.
+    if (error && colunaItensAusente(error) && "itens" in payload) {
+      console.warn("Coluna pedidos.itens ausente (rode supabase/schema_v67.sql) — pedido salvo sem itens estruturados");
+      delete payload.itens;
+      ({ data, error } = await inserir());
+    }
 
     if (error) {
       // Chave de idempotência já usada (retry do mesmo checkout, ex: conexão
@@ -128,6 +182,10 @@ export async function POST(req: NextRequest) {
         }
       }
       console.error("Erro ao inserir pedido:", error);
+      return NextResponse.json({ error: "Não foi possível registrar o pedido. Tente novamente." }, { status: 500 });
+    }
+    if (!data) {
+      console.error("Insert de pedido sem retorno (loja/pedido)");
       return NextResponse.json({ error: "Não foi possível registrar o pedido. Tente novamente." }, { status: 500 });
     }
 

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { Produto, ConfiguracaoLoja, Empresa, BairroTaxa, ProdutoVariacao, ProdutoSabor, ProdutoAdicional, PedidoStatus } from "@/types";
 import ImgComFallback from "@/components/ImgComFallback";
+import { itensDoCarrinho } from "@/lib/pedidoItens";
 
 interface PedidoBuscado {
   id: string;
@@ -530,6 +531,8 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
           bairro: form.tipo === "entrega" && form.bairro ? form.bairro : null,
           tipo_pedido: form.tipo,
           descricao_itens: itens,
+          // Cópia estruturada do carrinho (pedidos.itens) — usada na baixa de estoque
+          itens: itensDoCarrinho(cart),
           observacoes: [form.observacoes.trim(), form.referencia.trim() ? `Ref: ${form.referencia.trim()}` : ""].filter(Boolean).join(" | ") || null,
           valor_pedido: subtotal,
           valor_motoboy: taxaEntrega,

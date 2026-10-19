@@ -45,7 +45,7 @@ export const PLANO_COLOR: Record<Plano, { bg: string; text: string; border: stri
 };
 
 // KTL: apenas pedidos, financeiro e catálogo
-export const KTL_ROUTES = ["/pedidos", "/financeiro", "/catalogo", "/motoboys", "/configuracoes", "/automacoes"];
+export const KTL_ROUTES = ["/pedidos", "/financeiro", "/catalogo", "/estoque", "/motoboys", "/configuracoes", "/automacoes"];
 
 export function isKtl(plano: Plano)              { return plano === "ktl"; }
 export function canUseCatalogo(_plano: Plano)    { return true; }
