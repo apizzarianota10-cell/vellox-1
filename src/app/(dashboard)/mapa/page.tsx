@@ -1,6 +1,6 @@
 ﻿import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import TrackingMapClient from "@/components/map/TrackingMapClient";
+import MapaComCidade, { type CidadeMapa } from "@/components/map/MapaComCidade";
 import type { Motoboy, Pedido } from "@/types";
 import { MapPin, Users, Bike, AlertTriangle } from "lucide-react";
 
@@ -31,6 +31,17 @@ export default async function MapaPage() {
     const retry = await supabase.from("empresas").select("lat, lng").eq("id", user.id).maybeSingle();
     empresa = (retry.data as EmpresaLoc | null) ?? null;
   }
+
+  // Cidade do mapa escolhida pelo DDD (schema_v70) — sem a migration, fica só no navegador
+  const [{ data: cidadeRow }, { data: endRow }] = await Promise.all([
+    supabase.from("empresas").select("mapa_ddd, mapa_cidade, mapa_lat, mapa_lng").eq("id", user.id).maybeSingle(),
+    supabase.from("empresas").select("cidade").eq("id", user.id).maybeSingle(),
+  ]);
+  const cr = cidadeRow as { mapa_ddd: string | null; mapa_cidade: string | null; mapa_lat: number | null; mapa_lng: number | null } | null;
+  const [crNome, crUf] = (cr?.mapa_cidade ?? "").split(" - ");
+  const cidadeSalva: CidadeMapa | null = cr?.mapa_ddd && cr.mapa_lat != null && cr.mapa_lng != null
+    ? { ddd: cr.mapa_ddd, cidade: crNome || "", uf: crUf || "", lat: cr.mapa_lat, lng: cr.mapa_lng }
+    : null;
 
   if (motoboysRes.error) console.error("[mapa] motoboys falhou:", motoboysRes.error.message);
 
@@ -86,14 +97,15 @@ export default async function MapaPage() {
       <div className="flex flex-col md:flex-row flex-1 min-h-0">
         {/* Mapa */}
         <div className="flex-1 min-h-[55dvh] md:min-h-0 p-2 md:p-4">
-          <TrackingMapClient
+          <MapaComCidade
             motoboys={motoboys}
             pedidos={pedidos}
             empresaId={user.id}
             empresaLat={empresa?.lat ?? null}
             empresaLng={empresa?.lng ?? null}
             empresaRaio={empresa?.raio_geofence ?? null}
-            height="100%"
+            empresaCidade={(endRow as { cidade?: string | null } | null)?.cidade ?? null}
+            cidadeSalva={cidadeSalva}
           />
         </div>
 

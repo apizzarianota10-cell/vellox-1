@@ -163,6 +163,7 @@ interface Props {
   empresaLat?: number | null;
   empresaLng?: number | null;
   empresaRaio?: number | null;
+  cidadeCentro?: [number, number] | null;
   height?: string;
 }
 
@@ -170,7 +171,7 @@ type LiveStatus = "conectando" | "ao_vivo" | "reconectando" | "sem_internet";
 
 export default function TrackingMap({
   motoboys: initialMotoboys, pedidos: initialPedidos, empresaId,
-  empresaLat, empresaLng, empresaRaio, height = "100%",
+  empresaLat, empresaLng, empresaRaio, cidadeCentro = null, height = "100%",
 }: Props) {
   const mapDivRef      = useRef<HTMLDivElement>(null);
   const mapRef         = useRef<LeafletMap | null>(null);
@@ -190,6 +191,13 @@ export default function TrackingMap({
   const [motoboys, setMotoboys]   = useState<Motoboy[]>(initialMotoboys ?? []);
   const [pedidos,  setPedidos]    = useState<Pedido[]>(initialPedidos ?? []);
 
+  /* ── Cidade escolhida depois do mapa aberto: recentraliza ── */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !cidadeCentro || !validCoord(cidadeCentro[0], cidadeCentro[1])) return;
+    map.setView(cidadeCentro, 13);
+  }, [cidadeCentro?.[0], cidadeCentro?.[1], mapReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /* ── Init map (uma vez) ── */
   useEffect(() => {
     if (!mapDivRef.current || mapRef.current) return;
@@ -207,8 +215,10 @@ export default function TrackingMap({
     }
     companyRef.current = company;
     const firstMb = (initialMotoboys ?? []).find(m => validCoord(m.latitude, m.longitude));
-    const center: [number, number] = company ?? (firstMb ? [firstMb.latitude!, firstMb.longitude!] : DEFAULT_CENTER);
-    const zoom = company || firstMb ? 13 : 4;
+    // A cidade escolhida pelo DDD vem primeiro: é a escolha explícita do dono.
+    const cidadeOk = cidadeCentro && validCoord(cidadeCentro[0], cidadeCentro[1]) ? cidadeCentro : null;
+    const center: [number, number] = cidadeOk ?? company ?? (firstMb ? [firstMb.latitude!, firstMb.longitude!] : DEFAULT_CENTER);
+    const zoom = cidadeOk || company || firstMb ? 13 : 4;
 
     let map: LeafletMap;
     try {

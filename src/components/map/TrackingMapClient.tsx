@@ -25,6 +25,8 @@ interface Props {
   empresaLat?: number | null;
   empresaLng?: number | null;
   empresaRaio?: number | null;
+  /** Centro da cidade escolhida pelo DDD (tem prioridade no enquadramento inicial). */
+  cidadeCentro?: [number, number] | null;
   height?: string;
 }
 

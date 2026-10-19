@@ -90,6 +90,11 @@ async function nominatim(query: string, perto: Coord | null): Promise<Coord | nu
   }
 }
 
+/** Centro de uma cidade ("Palmares", "PE") — usado para centralizar o mapa do painel. */
+export async function geocodificarCidade(cidade: string, uf: string): Promise<Coord | null> {
+  return nominatim(`${cidade.trim()}, ${uf.trim()}, Brasil`, null);
+}
+
 /**
  * Geocodifica um endereço com o contexto (cidade/estado) da empresa.
  * Tenta do mais específico ao mais genérico. Descarta resultados longe demais.
