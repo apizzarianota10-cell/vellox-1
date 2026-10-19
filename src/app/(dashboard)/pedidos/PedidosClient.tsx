@@ -14,6 +14,7 @@ import { log } from "@/lib/auditoria";
 import * as printService from "@/lib/printService";
 import { playSound, getSoundId } from "@/lib/sounds";
 import { itensDoCarrinho, colunaItensAusente } from "@/lib/pedidoItens";
+import AvisarWhatsApp from "@/components/dashboard/AvisarWhatsApp";
 import type { Pedido, PedidoStatus, Produto, ProdutoVariacao, ProdutoSabor, ProdutoAdicional } from "@/types";
 
 interface CartItem {
@@ -1035,6 +1036,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
             </div>
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               <p className="text-xs" style={{ color: "#64748b" }}>{pedido.cliente_telefone}</p>
+              <AvisarWhatsApp pedido={pedido} loja={empresaNome} />
               <span style={{ color: "#1f2937" }}>·</span>
               <p className="text-xs" style={{ color: "#374151" }}>
                 {new Date(pedido.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
@@ -1490,6 +1492,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
 
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                     <p className="text-xs" style={{ color: "#64748b" }}>{pedido.cliente_telefone}</p>
+                    <AvisarWhatsApp pedido={pedido} loja={empresaNome} />
                     <span style={{ color: "#1f2937" }}>·</span>
                     <p className="text-xs" style={{ color: "#374151" }}>
                       {new Date(pedido.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
