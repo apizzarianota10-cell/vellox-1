@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import Anthropic from "@anthropic-ai/sdk";
+import { lerImagemComIA, ErroLeitura } from "@/lib/lerImagemIA";
+
+// Leitura de imagem pela IA pode levar alguns segundos a mais que o padrão.
+export const maxDuration = 60;
 
 interface AdicionalExtraido {
   nome: string;
@@ -8,69 +11,60 @@ interface AdicionalExtraido {
   obrigatorio: boolean;
 }
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const SCHEMA = {
+  type: "object",
+  properties: {
+    adicionais: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          nome: { type: "string" },
+          preco: { type: "number" },
+          obrigatorio: { type: "boolean" },
+        },
+        required: ["nome", "preco", "obrigatorio"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["adicionais"],
+  additionalProperties: false,
+};
+
+const INSTRUCOES = `Extraia desta imagem TODOS os itens extras/adicionais visíveis (bordas recheadas, ingredientes extras, complementos, acompanhamentos etc.).
+Para cada item:
+- nome: nome do item.
+- preco: preço em reais como número (ex.: 5). Se não houver preço, use 0.
+- obrigatorio: true só se a imagem disser que é obrigatório; senão false.`;
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
 
-  const formData = await req.formData();
-  const file = formData.get("imagem") as File | null;
+  let file: File | null = null;
+  try {
+    file = (await req.formData()).get("imagem") as File | null;
+  } catch {
+    return NextResponse.json({ error: "Envio inválido. Tente de novo." }, { status: 400 });
+  }
   if (!file) return NextResponse.json({ error: "Nenhuma imagem enviada" }, { status: 400 });
 
-  const bytes = await file.arrayBuffer();
-  const base64 = Buffer.from(bytes).toString("base64");
-  const mediaType = (file.type || "image/jpeg") as "image/jpeg" | "image/png" | "image/webp" | "image/gif";
-
-  const message = await anthropic.messages.create({
-    model: "claude-haiku-4-5-20251001",
-    max_tokens: 2048,
-    messages: [
-      {
-        role: "user",
-        content: [
-          {
-            type: "image",
-            source: { type: "base64", media_type: mediaType, data: base64 },
-          },
-          {
-            type: "text",
-            text: `Analise esta imagem e extraia TODOS os itens extras/adicionais visíveis (bordas recheadas, ingredientes extras, complementos, acompanhamentos, etc.).
-Para cada item retorne um objeto JSON com:
-- nome: string (nome do item, obrigatório)
-- preco: number (preço em reais como número, ex: 5.00 — se não houver preço use 0)
-- obrigatorio: boolean (true se for obrigatório, senão false)
-
-Responda APENAS com um JSON array válido, sem markdown, sem explicações, sem \`\`\`.
-Exemplo: [{"nome":"Borda de Catupiry","preco":8.00,"obrigatorio":false},{"nome":"Bacon extra","preco":4.50,"obrigatorio":false}]`,
-          },
-        ],
-      },
-    ],
-  });
-
-  const raw = message.content[0].type === "text" ? message.content[0].text.trim() : "";
-
-  let adicionais: AdicionalExtraido[] = [];
   try {
-    const jsonStr = raw.replace(/```json?/g, "").replace(/```/g, "").trim();
-    adicionais = JSON.parse(jsonStr);
-    if (!Array.isArray(adicionais)) throw new Error("Não é array");
-    adicionais = adicionais
-      .filter(a => a && typeof a.nome === "string" && a.nome.trim())
+    const { adicionais: brutos } = await lerImagemComIA<{ adicionais: AdicionalExtraido[] }>(file, INSTRUCOES, SCHEMA);
+    const adicionais = brutos
+      .filter(a => a.nome?.trim())
       .map(a => ({
-        nome: String(a.nome).trim(),
-        preco: typeof a.preco === "number" ? a.preco : parseFloat(String(a.preco)) || 0,
+        nome: a.nome.trim(),
+        preco: Number.isFinite(a.preco) && a.preco > 0 ? Math.round(a.preco * 100) / 100 : 0,
         obrigatorio: Boolean(a.obrigatorio),
       }));
-  } catch {
-    return NextResponse.json({ error: "Não foi possível ler os adicionais. Tente uma foto mais nítida." }, { status: 422 });
+    if (adicionais.length === 0) return NextResponse.json({ error: "Nenhum adicional encontrado na imagem." }, { status: 422 });
+    return NextResponse.json({ adicionais });
+  } catch (err) {
+    if (err instanceof ErroLeitura) return NextResponse.json({ error: err.message }, { status: err.status });
+    console.error("[catalogo/importar-adicionais]", err);
+    return NextResponse.json({ error: "Erro inesperado ao ler a imagem. Tente de novo." }, { status: 500 });
   }
-
-  if (adicionais.length === 0) {
-    return NextResponse.json({ error: "Nenhum adicional encontrado na imagem." }, { status: 422 });
-  }
-
-  return NextResponse.json({ adicionais });
 }

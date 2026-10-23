@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { uploadImage } from "@/lib/uploadImage";
+import { comprimirImagem } from "@/lib/comprimirImagem";
 import ImgComFallback from "@/components/ImgComFallback";
 import {
   Plus, Pencil, Trash2, ToggleLeft, ToggleRight,
@@ -891,7 +892,7 @@ export default function CatalogoClient({
     setImportSaboresList([]);
     try {
       const fd = new FormData();
-      fd.append("imagem", file);
+      fd.append("imagem", await comprimirImagem(file));
       const res = await fetch("/api/catalogo/importar-sabores", { method: "POST", body: fd });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Erro ao processar imagem");
@@ -938,7 +939,7 @@ export default function CatalogoClient({
     setImportAdicionaisList([]);
     try {
       const fd = new FormData();
-      fd.append("imagem", file);
+      fd.append("imagem", await comprimirImagem(file));
       const res = await fetch("/api/catalogo/importar-adicionais", { method: "POST", body: fd });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Erro ao processar imagem");
@@ -1027,7 +1028,7 @@ export default function CatalogoClient({
     setImportPreview(URL.createObjectURL(file));
     try {
       const fd = new FormData();
-      fd.append("imagem", file);
+      fd.append("imagem", await comprimirImagem(file));
       const res = await fetch("/api/catalogo/importar", { method: "POST", body: fd });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Erro ao processar imagem");
