@@ -464,6 +464,18 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
     else                         setDetailStep("adicionais");
   }
 
+  // Adiciona o item escolhido e deixa a tela aberta para escolher outro
+  // (ex.: várias bebidas diferentes, cada uma com seu preço)
+  const [adicionadoAgora, setAdicionadoAgora] = useState<string | null>(null);
+  function adicionarEEscolherOutro() {
+    if (!detailProduto || detailSaboresSel.length === 0) return;
+    addWithConfig(detailProduto, detailVariacao, detailSaboresSel, detailAdicionaisSel, detailQty);
+    setAdicionadoAgora(detailSaboresSel.map(s => s.nome).join(" / "));
+    setDetailSaboresSel([]);
+    setDetailQty(1);
+    setTimeout(() => setAdicionadoAgora(null), 2500);
+  }
+
   function confirmDetail() {
     if (!detailProduto) return;
     addWithConfig(detailProduto, detailVariacao, detailSaboresSel, detailAdicionaisSel, detailQty);
@@ -1799,9 +1811,25 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                       </div>
                     ))}
                   </div>
+                  {adicionadoAgora && (
+                    <div style={{ position: "sticky", bottom: 0, display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 12, background: "#ecfdf5", border: "1px solid #a7f3d0", color: "#047857", fontSize: 13, fontWeight: 700, marginTop: 10 }}>
+                      <CheckCircle size={15} /> {adicionadoAgora} no carrinho — escolha o próximo
+                    </div>
+                  )}
                   {/* Botão flutuante quando sabores preenchidos */}
                   {detailSaboresSel.length >= maxSabores && (
                     <div style={{ position: "sticky", bottom: 0, left: 0, right: 0, paddingTop: 12, background: "linear-gradient(transparent, #fff 30%)" }}>
+                      {maxSabores === 1 && multiSaborStage === null && (
+                        <button onClick={adicionarEEscolherOutro}
+                          style={{
+                            width: "100%", padding: "12px", borderRadius: 14, marginBottom: 8,
+                            background: "#fff", color: cor, border: `2px solid ${cor}`,
+                            fontSize: 14, fontWeight: 800, cursor: "pointer",
+                            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                          }}>
+                          <Plus size={15} /> Adicionar e escolher outro item
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           if (multiSaborStage === "collecting") {
