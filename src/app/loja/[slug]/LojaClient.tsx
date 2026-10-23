@@ -1114,6 +1114,8 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                 <div className="vellox-hscroll" style={{
                   display: "flex", gap: 12, overflowX: "auto", scrollSnapType: "x mandatory",
                   margin: "0 -20px", padding: "2px 20px 8px", WebkitOverflowScrolling: "touch",
+                  // Sem isso o encaixe puxa o 1º card até a borda da tela
+                  scrollPaddingLeft: 20, scrollPaddingRight: 20,
                 }}>
                   {itens.map(p => {
                     const customizable = hasCustomizations(p);
