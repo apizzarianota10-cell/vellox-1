@@ -383,8 +383,9 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
     const without = produtos.filter(p => !p.imagem_url);
     return [...withImg, ...without].slice(0, 12);
   }, [produtos, config?.ordem_categorias]);
-  // Esteira animada só faz sentido com vários itens; com poucos, repetiria o mesmo produto
-  const carrosselAnima = carouselItems.length >= 4;
+  // Fileira que o cliente desliza (sem esteira automática: a esteira cortava
+  // os cards nas bordas da tela). Mantida a opção para reativar se quiser.
+  const carrosselAnima = false;
 
   const totalItems  = cart.reduce((s, i) => s + i.qty, 0);
   const subtotal    = cart.reduce((s, i) => s + i.precoUnit * i.qty, 0);
@@ -931,7 +932,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
             } : {
               // Poucos itens: fileira parada, alinhada com o resto da página
               display: "flex", gap: 12, overflowX: "auto", maxWidth: 720, margin: "0 auto",
-              padding: "2px 20px 4px", scrollSnapType: "x mandatory",
+              padding: "2px 20px 4px", scrollSnapType: "x mandatory", scrollPaddingLeft: 20,
             }}>
               {(carrosselAnima ? [...carouselItems, ...carouselItems] : carouselItems).map((p, i) => {
                 const qty = qtyOf(p.id);
@@ -950,7 +951,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                     key={`${p.id}-${i}`}
                     onClick={() => customizable ? openDetail(p) : addSimple(p)}
                     style={{
-                      width: 172, flexShrink: 0, borderRadius: 18,
+                      width: 172, flexShrink: 0, borderRadius: 18, scrollSnapAlign: "start",
                       background: "#fff", border: "1px solid #f0f0f0",
                       boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
                       overflow: "hidden", cursor: "pointer",
