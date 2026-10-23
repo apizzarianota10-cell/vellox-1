@@ -749,7 +749,12 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
 
   const detailStepIdx    = Math.max(0, detailSteps.indexOf(detailStep));
   const detailIsLastStep = detailStepIdx >= detailSteps.length - 1;
-  const detailCanNext    = detailStep !== "sabores" || detailSaboresSel.length > 0;
+  // Adicionais: "só 1" (produtos.adicionais_unico) e obrigatório (algum adicional marcado como obrigatório)
+  const adicionaisUnico      = !!detailProduto?.adicionais_unico;
+  const adicionaisObrigatorio = detailAdds.some(a => a.obrigatorio);
+  const detailCanNext    = detailStep === "sabores" ? detailSaboresSel.length > 0
+    : detailStep === "adicionais" ? (!adicionaisObrigatorio || detailAdicionaisSel.length > 0)
+    : true;
 
   return (
     <div style={{ minHeight: "100vh", background: "#f7f7f8", fontFamily: "system-ui,sans-serif" }}>
@@ -1864,14 +1869,16 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                 <div>
                   <p style={{ fontSize: 12, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" }}>
                     Adicionais
-                    <span style={{ fontWeight: 500, marginLeft: 6, color: "#94a3b8", textTransform: "none" }}>— opcional</span>
+                    <span style={{ fontWeight: 500, marginLeft: 6, color: adicionaisObrigatorio ? cor : "#94a3b8", textTransform: "none" }}>
+                      — {adicionaisObrigatorio ? (adicionaisUnico ? "escolha 1 (obrigatório)" : "escolha pelo menos 1") : (adicionaisUnico ? "escolha 1 (opcional)" : "opcional")}
+                    </span>
                   </p>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {detailAdds.map(a => {
                       const sel = detailAdicionaisSel.some(x => x.id === a.id);
                       return (
                         <button key={a.id}
-                          onClick={() => setDetailAdicionaisSel(prev => sel ? prev.filter(x => x.id !== a.id) : [...prev, a])}
+                          onClick={() => setDetailAdicionaisSel(prev => sel ? prev.filter(x => x.id !== a.id) : adicionaisUnico ? [a] : [...prev, a])}
                           style={{
                             display: "flex", alignItems: "center", gap: 12,
                             padding: "11px 14px", borderRadius: 12,

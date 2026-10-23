@@ -246,6 +246,8 @@ export interface Produto {
   ordem: number;
   created_at: string;
   categoria_preco_id: string | null;
+  /** Adicionais: true = cliente marca só 1 (schema_v72). */
+  adicionais_unico?: boolean;
   /** Aparece no carrossel "Mais vendidos" da loja (schema_v71). */
   destaque?: boolean;
   // Estoque (schema_v67)

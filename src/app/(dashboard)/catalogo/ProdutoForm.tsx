@@ -86,6 +86,8 @@ export default function ProdutoForm({
   const [novaCategoria, setNovaCategoria] = useState(false);
   const [imagemUrl, setImagemUrl] = useState(produto?.imagem_url ?? "");
   const [ativo, setAtivo] = useState(produto?.ativo ?? true);
+  // Adicionais: cliente marca só 1 (ex.: tipo de feijão) ou vários (schema_v72)
+  const [adicionaisUnico, setAdicionaisUnico] = useState(produto?.adicionais_unico ?? false);
   const [enviandoFoto, setEnviandoFoto] = useState(false);
   const fotoRef = useRef<HTMLInputElement>(null);
 
@@ -134,7 +136,7 @@ export default function ProdutoForm({
   }, [produto, produtos, vinculos]);
 
   function estadoAtual() {
-    return JSON.stringify({ nome, descricao, preco, categoria, imagemUrl, ativo, tamanhos, escolhas, extras, vinculos });
+    return JSON.stringify({ nome, descricao, preco, categoria, imagemUrl, ativo, tamanhos, escolhas, extras, vinculos, adicionaisUnico });
   }
 
   // ── Carrega os filhos do banco (edição) ──
@@ -183,6 +185,7 @@ export default function ProdutoForm({
         nome: produto.nome, descricao: produto.descricao ?? "", preco: precoParaInput(produto.preco),
         categoria: produto.categoria, imagemUrl: produto.imagem_url ?? "", ativo: produto.ativo,
         tamanhos: lt, escolhas: le, extras: lx, vinculos: vinculosOriginais,
+        adicionaisUnico: produto.adicionais_unico ?? false,
       });
       setCarregando(false);
     })();
@@ -237,7 +240,7 @@ export default function ProdutoForm({
   function addTamanho() {
     setTamanhos(t => [...t, { key: novaKey(), nome: "", preco: "", maxEscolhas: t[t.length - 1]?.maxEscolhas ?? 1, ativo: true }]);
   }
-  function addExtra() { setExtras(x => [...x, { key: novaKey(), nome: "", preco: "", obrigatorio: false, ativo: true }]); }
+  function addExtra() { setExtras(x => [...x, { key: novaKey(), nome: "", preco: "", obrigatorio: x.some(e => e.obrigatorio), ativo: true }]); }
 
   function abrirSecao(s: Secao) {
     setAbertas(a => ({ ...a, [s]: true }));
@@ -379,20 +382,35 @@ export default function ProdutoForm({
         ativo,
         tipo,
         ...(vinculosMudaram ? { sabores_vinculo_ids: linhaVinculos } : {}),
+        ...(adicionaisUnico !== (produto?.adicionais_unico ?? false) ? { adicionais_unico: adicionaisUnico } : {}),
       };
+      // Sem a migration schema_v72 a coluna não existe: salva o resto e avisa.
+      const semColunaNova = (e: { code?: string; message?: string } | null) =>
+        !!e && "adicionais_unico" in payload && (e.code === "PGRST204" || e.code === "42703") && /adicionais_unico/.test(e.message ?? "");
 
       let row: Produto;
       if (produtoIdRef.current) {
-        const { data, error } = await supabase.from("produtos").update(payload).eq("id", produtoIdRef.current).select().single();
+        let { data, error } = await supabase.from("produtos").update(payload).eq("id", produtoIdRef.current).select().single();
+        if (semColunaNova(error)) {
+          delete (payload as { adicionais_unico?: boolean }).adicionais_unico;
+          ({ data, error } = await supabase.from("produtos").update(payload).eq("id", produtoIdRef.current).select().single());
+          alert("A opção \"Só 1 / Vários\" dos adicionais precisa do arquivo supabase/schema_v72.sql rodado no Supabase. O resto foi salvo.");
+        }
         if (error) throw error;
         row = data as Produto;
       } else {
-        const { data, error } = await supabase.from("produtos").insert({
+        const novo = () => supabase.from("produtos").insert({
           ...payload,
           empresa_id: empresaId,
           ordem: produtos.length,
           variantes_label: vars && vars.length > 0 ? "Tamanhos" : null,
         }).select().single();
+        let { data, error } = await novo();
+        if (semColunaNova(error)) {
+          delete (payload as { adicionais_unico?: boolean }).adicionais_unico;
+          ({ data, error } = await novo());
+          alert("A opção \"Só 1 / Vários\" dos adicionais precisa do arquivo supabase/schema_v72.sql rodado no Supabase. O resto foi salvo.");
+        }
         if (error) throw error;
         row = data as Produto;
         produtoIdRef.current = row.id;
@@ -780,13 +798,38 @@ export default function ProdutoForm({
                 <SecaoOpcional
                   titulo="Adicionais / extras"
                   exemplo="Ex.: bacon extra + R$ 4,00 · borda recheada · ovo"
-                  explicacao="O cliente pode marcar quantos quiser. Deixe o preço vazio para grátis."
+                  explicacao="Deixe o preço vazio para grátis."
                   aberta={abertas.extras}
                   rotuloAdicionar="+ Adicionar adicionais"
                   onAbrir={() => abrirSecao("extras")}
                   onRemover={() => removerSecao("extras")}
                   cor={cor} travado={travado}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {/* Regras do grupo: quantos o cliente marca e se é obrigatório */}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2" style={{ padding: "8px 10px", borderRadius: 10, background: "var(--bg-2)", border: "1px solid var(--border-1)" }}>
+                      <div className="flex items-center gap-2">
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)" }}>Cliente marca:</span>
+                        <div style={{ display: "inline-flex", borderRadius: 9, border: "1px solid var(--border-1)", overflow: "hidden" }}>
+                          {([[true, "Só 1"], [false, "Vários"]] as const).map(([v, rotulo]) => (
+                            <button key={rotulo} type="button" disabled={travado} onClick={() => setAdicionaisUnico(v)}
+                              style={{
+                                padding: "5px 12px", fontSize: 12, fontWeight: 800, border: "none", cursor: travado ? "default" : "pointer",
+                                background: adicionaisUnico === v ? cor : "var(--bg-1)", color: adicionaisUnico === v ? "#fff" : "var(--text-3)",
+                              }}>{rotulo}</button>
+                          ))}
+                        </div>
+                      </div>
+                      <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 700, color: "var(--text-3)", cursor: "pointer" }}>
+                        <input type="checkbox" checked={extras.some(x => x.obrigatorio)} disabled={travado}
+                          onChange={e => setExtras(t => t.map(x => ({ ...x, obrigatorio: e.target.checked })))}
+                          style={{ width: 14, height: 14, accentColor: cor }} />
+                        Obrigatório escolher
+                      </label>
+                    </div>
+                    <p style={{ fontSize: 11.5, color: "var(--text-4)", margin: "-2px 0 2px", lineHeight: 1.5 }}>
+                      {adicionaisUnico ? "O cliente escolhe uma opção só (ex.: tipo de feijão, acompanhamento)." : "O cliente pode marcar quantos quiser (ex.: bacon + queijo extra)."}
+                      {extras.some(x => x.obrigatorio) ? " Ele precisa escolher pelo menos um para continuar." : ""}
+                    </p>
                     {extras.map((l, i) => (
                       <div key={l.key} style={{ display: "flex", flexDirection: "column", gap: 4, opacity: l.ativo ? 1 : 0.55 }}>
                         <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
@@ -804,20 +847,9 @@ export default function ProdutoForm({
                             onAtivo={() => setExtras(t => t.map(x => x.key === l.key ? { ...x, ativo: !x.ativo } : x))}
                             onRemover={() => setExtras(t => t.filter(x => x.key !== l.key))} />
                         </div>
-                        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-3)", cursor: "pointer", paddingLeft: 2, width: "fit-content" }}>
-                          <input type="checkbox" checked={l.obrigatorio} disabled={travado}
-                            onChange={e => setExtras(t => t.map(x => x.key === l.key ? { ...x, obrigatorio: e.target.checked } : x))}
-                            style={{ width: 14, height: 14, accentColor: cor }} />
-                          Obrigatório
-                        </label>
                       </div>
                     ))}
                     <BotaoAddLinha onClick={addExtra} travado={travado}>Adicionar adicional</BotaoAddLinha>
-                    {extras.some(x => x.obrigatorio) && (
-                      <p style={{ fontSize: 11.5, color: "var(--text-4)", margin: "2px 0 0", lineHeight: 1.5 }}>
-                        Atenção: na loja os adicionais aparecem como opcionais. Se o cliente precisa escolher algo, use “O cliente escolhe”.
-                      </p>
-                    )}
                   </div>
                 </SecaoOpcional>
 
