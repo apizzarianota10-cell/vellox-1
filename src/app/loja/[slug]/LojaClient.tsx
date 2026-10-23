@@ -115,6 +115,17 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
   const [submitting, setSubmitting] = useState(false);
   const [pedidoId, setPedidoId]         = useState<string>("");
   const [trackingToken, setTrackingToken] = useState<string>("");
+
+  // ── "Pedir de novo": último pedido feito neste aparelho, nesta loja ──
+  const chaveUltimo = `vellox-ultimo-pedido:${empresa.id}`;
+  type ItemSalvo = { p: string; v: string | null; s: string[]; a: string[]; q: number };
+  const [ultimoPedido, setUltimoPedido] = useState<{ itens: ItemSalvo[]; quando: string } | null>(null);
+  useEffect(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem(chaveUltimo) ?? "null");
+      if (v && Array.isArray(v.itens) && v.itens.length > 0) setUltimoPedido(v);
+    } catch { /* sem storage */ }
+  }, [chaveUltimo]);
   // Mesma chave em reenvios do mesmo checkout (ex: falha de rede + tentar de
   // novo) — o servidor usa ela pra não criar o pedido duplicado.
   const idempotencyKeyRef = useRef<string | null>(null);
@@ -443,6 +454,36 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
     });
   }
 
+  // Itens do último pedido que ainda existem na loja (produto, tamanho, sabores e adicionais ativos)
+  const ultimoRestauravel = useMemo(() => {
+    if (!ultimoPedido) return [];
+    const saborPorId = new Map<string, ProdutoSabor>();
+    produtos.forEach(p => p.produto_sabores?.forEach(sb => { if (sb.ativo) saborPorId.set(sb.id, sb); }));
+    return ultimoPedido.itens.flatMap(it => {
+      const p = produtos.find(x => x.id === it.p);
+      if (!p) return [];
+      const variacao = it.v ? p.produto_variacoes?.find(v => v.id === it.v && v.ativo) ?? null : null;
+      if (it.v && !variacao) return [];
+      const sabores = it.s.map(id => saborPorId.get(id)).filter((x): x is ProdutoSabor => !!x);
+      if (sabores.length !== it.s.length) return [];
+      const adicionais = it.a.map(id => p.produto_adicionais?.find(ad => ad.id === id && ad.ativo)).filter((x): x is ProdutoAdicional => !!x);
+      return [{ produto: p, variacao, sabores, adicionais, qty: it.q }];
+    });
+  }, [ultimoPedido, produtos]);
+
+  function pedirDeNovo() {
+    ultimoRestauravel.forEach(i => addWithConfig(i.produto, i.variacao, i.sabores, i.adicionais, i.qty));
+    setStep("cart");
+    setCartOpen(true);
+  }
+
+  // "Que tal adicionar?" — sugestões no carrinho (bebidas, sucos, sobremesas que ainda não estão nele)
+  const sugestoesCarrinho = useMemo(() => {
+    const re = /bebida|refri|suco|sobremesa|doce|cerveja|drink|açaí|acai/i;
+    const noCarrinho = new Set(cart.map(i => i.produto.id));
+    return produtos.filter(p => re.test(p.categoria) && !noCarrinho.has(p.id)).slice(0, 8);
+  }, [produtos, cart]);
+
   function removeOne(cartKey: string) {
     setCart(prev => prev.map(i => i.cartKey === cartKey ? { ...i, qty: i.qty - 1 } : i).filter(i => i.qty > 0));
   }
@@ -574,6 +615,12 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
         setPedidoId(json.id);
         setTrackingToken(json.tracking_token ?? "");
         setStep("success");
+        try {
+          const itens: ItemSalvo[] = cart.map(i => ({ p: i.produto.id, v: i.variacao?.id ?? null, s: i.sabores.map(x => x.id), a: i.adicionais.map(x => x.id), q: i.qty }));
+          const salvo = { itens, quando: new Date().toISOString() };
+          localStorage.setItem(chaveUltimo, JSON.stringify(salvo));
+          setUltimoPedido(salvo);
+        } catch { /* sem storage: só não lembra */ }
         setCart([]);
       } else {
         setSubmitError(json.error ?? "Erro ao enviar pedido. Tente novamente.");
@@ -895,6 +942,29 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
           </button>
         </div>
       </div>
+
+      {/* ══ PEDIR DE NOVO ══ */}
+      {ultimoRestauravel.length > 0 && cart.length === 0 && (
+        <section style={{ maxWidth: 720, margin: "0 auto", padding: "16px 20px 0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, background: "#fff", border: `1.5px solid ${cor}30`, borderRadius: 18, padding: 12, boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
+            <div style={{ width: 52, height: 52, borderRadius: 12, overflow: "hidden", flexShrink: 0, background: "#f8fafc" }}>
+              <ImgComFallback src={ultimoRestauravel[0].produto.imagem_url} alt={ultimoRestauravel[0].produto.nome}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                fallback={<div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}><Package size={20} style={{ color: "#cbd5e1" }} /></div>} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 13, fontWeight: 900, color: "#0f172a", margin: 0 }}>Pedir de novo?</p>
+              <p style={{ fontSize: 12, color: "#64748b", margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {ultimoRestauravel.map(i => `${i.qty}x ${i.produto.nome}`).join(", ")}
+              </p>
+            </div>
+            <button onClick={pedirDeNovo}
+              style={{ flexShrink: 0, padding: "10px 14px", borderRadius: 12, background: cor, color: "#fff", border: "none", fontSize: 13, fontWeight: 900, cursor: "pointer", boxShadow: `0 4px 12px ${cor}40` }}>
+              Pedir de novo
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* ══ MAIS VENDIDOS CAROUSEL ══ */}
       {carouselItems.length >= 1 && (
@@ -1342,6 +1412,33 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                     );
                   })}
                 </div>
+                {sugestoesCarrinho.length > 0 && (
+                  <div style={{ padding: "0 0 14px" }}>
+                    <p style={{ fontSize: 14, fontWeight: 900, color: "#0f172a", margin: "0 22px 10px" }}>Que tal adicionar?</p>
+                    <div className="vellox-hscroll" style={{ display: "flex", gap: 10, overflowX: "auto", padding: "0 22px 4px", scrollPaddingLeft: 22, scrollSnapType: "x mandatory" }}>
+                      {sugestoesCarrinho.map(p => (
+                        <div key={p.id} style={{ flex: "0 0 128px", scrollSnapAlign: "start", border: "1px solid #f0f0f0", borderRadius: 14, overflow: "hidden", background: "#fff" }}>
+                          <div style={{ height: 78, background: "#f8fafc" }}>
+                            <ImgComFallback src={p.imagem_url} alt={p.nome} loading="lazy"
+                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                              fallback={<div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}><Package size={20} style={{ color: "#e2e8f0" }} /></div>} />
+                          </div>
+                          <div style={{ padding: "8px 9px 9px" }}>
+                            <p style={{ fontSize: 12, fontWeight: 800, color: "#0f172a", margin: "0 0 6px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.nome}</p>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                              <span style={{ fontSize: 12.5, fontWeight: 900, color: cor }}>R${precoMinimo(p).toFixed(2)}</span>
+                              <button aria-label={`Adicionar ${p.nome}`}
+                                onClick={() => hasCustomizations(p) ? openDetail(p) : addSimple(p)}
+                                style={{ width: 26, height: 26, borderRadius: 8, background: cor, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <Plus size={13} style={{ color: "#fff" }} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div style={{ margin: "0 22px 4px", padding: "12px 16px", background: "#f8fafc", borderRadius: 12 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: taxaEntrega > 0 ? 6 : 0 }}>
                     <span style={{ fontSize: 13, color: "#64748b" }}>Subtotal</span>
