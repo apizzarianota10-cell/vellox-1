@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { Produto, ConfiguracaoLoja, BairroTaxa, ProdutoVariacao, ProdutoSabor, ProdutoAdicional, CategoriaSabor, CategoriaPreco, CategoriaPrecoTamanho, ProdutoMaisVendido } from "@/types";
 import MaisVendidosModal from "./MaisVendidosModal";
+import ProdutoForm from "./ProdutoForm";
 
 const CATEGORIAS_PADRAO = ["Lanches", "Bebidas", "Combos", "Sobremesas", "Entradas", "Outros"];
 
@@ -145,7 +146,6 @@ export default function CatalogoClient({
   const [novoAdicional, setNovoAdicional] = useState({ nome: "", preco: "", obrigatorio: false });
   const [novoAdicionalOutrosProdutos, setNovoAdicionalOutrosProdutos] = useState<string[]>([]);
   const [savingTab, setSavingTab] = useState(false);
-  const [wizardStep, setWizardStep] = useState(0);
   const [editingSaborId, setEditingSaborId] = useState<string | null>(null);
   const [editingSaborForm, setEditingSaborForm] = useState({ nome: "", descricao: "", preco: "", categoria_sabor_id: "", uploadingSaborImg: false });
   const saborImgRef = useRef<HTMLInputElement>(null);
@@ -169,13 +169,9 @@ export default function CatalogoClient({
   const [importSaboresOpen, setImportSaboresOpen] = useState(false);
   const [salvandoSaboresImport, setSalvandoSaboresImport] = useState(false);
 
-  // Choice popup (Produto com variações / Bebida·item simples / Adicional) — Sabor vira a view "🍕 Sabores"
-  const [choiceOpen, setChoiceOpen] = useState(false);
-  const [quickOpen, setQuickOpen] = useState(false);
-  const [quickProdutoId, setQuickProdutoId] = useState("");
-  const [quickAdicional, setQuickAdicional] = useState({ nome: "", preco: "", obrigatorio: false });
-  const [quickAdicionalOutrosProdutos, setQuickAdicionalOutrosProdutos] = useState<string[]>([]);
-  const [savingQuick, setSavingQuick] = useState(false);
+  // Formulário simples de produto (criar/editar) — ProdutoForm.tsx.
+  // O modal antigo (abas) só abre pelo link "Abrir editor avançado".
+  const [produtoFormAberto, setProdutoFormAberto] = useState<{ produto: Produto | null } | null>(null);
 
   // Product image upload
   const [uploading, setUploading] = useState(false);
@@ -283,31 +279,18 @@ export default function CatalogoClient({
     : produtos.filter(p => p.categoria === catFilter);
 
   function openAdd() {
-    setChoiceOpen(true);
+    setProdutoFormAberto({ produto: null });
   }
 
-  function openWizard(opts?: { tipo?: "simples" | "pizza"; categoria?: string }) {
-    setChoiceOpen(false);
-    setEditId(null);
-    setForm({
-      ...EMPTY_FORM,
-      tipo: opts?.tipo ?? EMPTY_FORM.tipo,
-      categoria: opts?.categoria ?? EMPTY_FORM.categoria,
-    });
-    setImgPreview("");
-    setModalTab("basico");
-    setVariacoes([]); setSabores([]); setAdicionais([]);
-    setNovoAdicionalOutrosProdutos([]);
-    setWizardStep(1);
-    setModalOpen(true);
+  function abrirProdutoForm(p: Produto) {
+    setProdutoFormAberto({ produto: p });
   }
 
-  function openQuickAdd() {
-    setChoiceOpen(false);
-    setQuickProdutoId(produtosParaAdicional.length > 0 ? produtosParaAdicional[0].id : "");
-    setQuickAdicional({ nome: "", preco: "", obrigatorio: false });
-    setQuickAdicionalOutrosProdutos([]);
-    setQuickOpen(true);
+  // Cria/atualiza o produto na lista local (o ProdutoForm chama a cada gravação)
+  function upsertProdutoLocal(p: Produto) {
+    setProdutos(prev => prev.some(x => x.id === p.id)
+      ? prev.map(x => x.id === p.id ? { ...x, ...p } : x)
+      : [...prev, p]);
   }
 
   async function copiarAdicionalParaProdutos(nome: string, preco: number, obrigatorio: boolean, produtoIds: string[]) {
@@ -323,35 +306,6 @@ export default function CatalogoClient({
         const doProduto = novos.filter(a => a.produto_id === p.id);
         return doProduto.length > 0 ? { ...p, produto_adicionais: [...(p.produto_adicionais ?? []), ...doProduto] } : p;
       }));
-    }
-  }
-
-  async function handleSaveQuick() {
-    if (!quickProdutoId) return;
-    setSavingQuick(true);
-    try {
-      if (!quickAdicional.nome.trim()) return;
-      const { data: existingAdicionais } = await supabase
-        .from("produto_adicionais").select("ordem").eq("produto_id", quickProdutoId).order("ordem", { ascending: false }).limit(1);
-      const nextOrdem = (existingAdicionais?.[0]?.ordem ?? -1) + 1;
-      const { data: novoAdicionalData } = await supabase.from("produto_adicionais").insert({
-        produto_id: quickProdutoId, nome: quickAdicional.nome.trim(),
-        preco: parseFloat(quickAdicional.preco) || 0,
-        obrigatorio: quickAdicional.obrigatorio,
-        ordem: nextOrdem, ativo: true,
-      }).select().single();
-      if (novoAdicionalData) {
-        setProdutos(prev => prev.map(prod => prod.id === quickProdutoId
-          ? { ...prod, produto_adicionais: [...(prod.produto_adicionais ?? []), novoAdicionalData as ProdutoAdicional] }
-          : prod));
-        await copiarAdicionalParaProdutos(
-          quickAdicional.nome.trim(), parseFloat(quickAdicional.preco) || 0, quickAdicional.obrigatorio,
-          quickAdicionalOutrosProdutos.filter(id => id !== quickProdutoId),
-        );
-      }
-      setQuickOpen(false);
-    } finally {
-      setSavingQuick(false);
     }
   }
 
@@ -371,7 +325,6 @@ export default function CatalogoClient({
     setModalTab(tab);
     setVariacoes([]); setSabores([]); setAdicionais([]);
     setNovoAdicionalOutrosProdutos([]);
-    setWizardStep(0);
     setModalOpen(true);
     setLoadingTabs(true);
     const [{ data: vars }, { data: sabs }, { data: adds }, { data: cats }] = await Promise.all([
@@ -591,7 +544,7 @@ export default function CatalogoClient({
       };
       if (editId) {
         const { data } = await supabase.from("produtos").update(payload).eq("id", editId).select().single();
-        if (data) setProdutos(prev => prev.map(p => p.id === editId ? data as Produto : p));
+        if (data) setProdutos(prev => prev.map(p => p.id === editId ? { ...p, ...(data as Produto) } : p));
       } else {
         const { data } = await supabase.from("produtos").insert({ ...payload, ordem: produtos.length }).select().single();
         if (data) {
@@ -600,17 +553,7 @@ export default function CatalogoClient({
           setEditId(produto.id);
         }
       }
-      if (wizardStep > 0) {
-        // Produto único não tem Tamanhos/Sabores/Adicionais — nome, foto,
-        // descrição e valor bastam, salva e já fecha.
-        if (form.tipo === "simples") {
-          setModalOpen(false);
-        } else {
-          setWizardStep(2);
-        }
-      } else {
-        setModalOpen(false);
-      }
+      setModalOpen(false);
     } finally {
       setSaving(false);
     }
@@ -1078,13 +1021,6 @@ export default function CatalogoClient({
 
   const cor = config.cor_principal;
 
-  // Produto único não usa Tamanhos/Sabores/Adicionais — só o passo 1.
-  const wizardStepSequence = form.tipo === "simples" ? [1] : [1, 2, 3, 4];
-  // Produto único não recebe adicionais — exclui do seletor do "quick-add".
-  const produtosParaAdicional = produtos.filter(p => p.tipo !== "simples");
-  // Só produto "com variações" pode ter sabor.
-  const produtosParaSabor = produtos.filter(p => p.tipo === "pizza");
-
   // ── Importar cardápio ────────────────────────────────────────────
   async function handleImportarCardapio(file: File) {
     setImportando(true);
@@ -1363,7 +1299,7 @@ export default function CatalogoClient({
                         style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, background: addSaborProdutoId === p.id ? cor : "var(--bg-input)", border: `1px solid ${addSaborProdutoId === p.id ? cor : "var(--border-1)"}`, fontSize: 12, fontWeight: 700, color: addSaborProdutoId === p.id ? "#fff" : "var(--text-2)", cursor: "pointer" }}>
                         <Plus size={11} /> Novo sabor
                       </button>
-                      <button onClick={e => { e.stopPropagation(); openEdit(p, "sabores"); }}
+                      <button onClick={e => { e.stopPropagation(); abrirProdutoForm(p); }}
                         style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, background: "var(--bg-input)", border: "1px solid var(--border-1)", fontSize: 12, fontWeight: 700, color: "var(--text-2)", cursor: "pointer" }}>
                         <Pencil size={11} /> Editar sabores
                       </button>
@@ -1519,7 +1455,7 @@ export default function CatalogoClient({
                           style={{ padding: "5px 8px", borderRadius: 8, border: "1px solid var(--border-1)", background: "var(--bg-1)", cursor: "pointer", color: p.ativo ? "#22c55e" : "var(--text-4)" }}>
                           {p.ativo ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
                         </button>
-                        <button onClick={() => openEdit(p)}
+                        <button onClick={() => abrirProdutoForm(p)} title="Editar"
                           style={{ padding: "5px 8px", borderRadius: 8, border: "1px solid var(--border-1)", background: "var(--bg-1)", cursor: "pointer", color: "var(--text-3)" }}>
                           <Pencil size={14} />
                         </button>
@@ -2406,280 +2342,6 @@ export default function CatalogoClient({
       )}
 
       {/* ══════════════════════════════════════════════════════════
-          POPUP ESCOLHA: PRODUTO / SABOR / ADICIONAL
-      ══════════════════════════════════════════════════════════ */}
-      {choiceOpen && (
-        <div style={{
-          position: "fixed", inset: 0, zIndex: 400,
-          background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)",
-          display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
-        }} onClick={e => { if (e.target === e.currentTarget) setChoiceOpen(false); }}>
-          <div style={{
-            background: "var(--bg-1)", borderRadius: 28, padding: "24px 22px 22px",
-            width: "100%", maxWidth: 440, maxHeight: "92vh", overflowY: "auto",
-            boxShadow: "0 32px 80px rgba(0,0,0,0.4)", border: "1px solid var(--border-1)",
-          }}>
-            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20 }}>
-              <div>
-                <p style={{ fontSize: 19, fontWeight: 900, color: "var(--text-1)", margin: 0, letterSpacing: "-0.02em" }}>O que deseja cadastrar?</p>
-                <p style={{ fontSize: 13, color: "var(--text-4)", margin: "4px 0 0" }}>Escolha o caminho mais rápido pro seu caso</p>
-              </div>
-              <button onClick={() => setChoiceOpen(false)}
-                style={{ background: "var(--bg-input)", border: "none", borderRadius: 10, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--text-3)", flexShrink: 0 }}>
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Produto novo — 2 caminhos principais */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {/* Bebida / item simples */}
-              <button onClick={() => openWizard({ tipo: "simples", categoria: "Bebidas" })}
-                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 10px 24px rgba(59,130,246,.22)"; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}
-                style={{
-                  display: "flex", alignItems: "center", gap: 14,
-                  padding: 16, borderRadius: 18,
-                  background: "linear-gradient(135deg, rgba(59,130,246,.14), rgba(59,130,246,.02))",
-                  border: "1.5px solid rgba(59,130,246,.3)",
-                  cursor: "pointer", textAlign: "left", width: "100%",
-                  transition: "transform 0.18s, box-shadow 0.18s",
-                }}>
-                <div style={{
-                  width: 50, height: 50, borderRadius: 15, flexShrink: 0,
-                  background: "linear-gradient(135deg,#60a5fa,#2563eb)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  boxShadow: "0 6px 16px rgba(37,99,235,.4)",
-                }}>
-                  <span style={{ fontSize: 24 }}>🥤</span>
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                    <p style={{ fontSize: 14.5, fontWeight: 800, color: "var(--text-1)", margin: 0 }}>Bebida / item simples</p>
-                    <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.04em", color: "#2563eb", background: "rgba(59,130,246,.15)", borderRadius: 999, padding: "2px 7px", flexShrink: 0 }}>RÁPIDO</span>
-                  </div>
-                  <p style={{ fontSize: 12, color: "var(--text-3)", margin: "3px 0 0", lineHeight: 1.4 }}>Nome, foto, descrição e preço — pronto em 1 tela</p>
-                </div>
-                <ChevronRight size={16} style={{ color: "var(--text-5)", flexShrink: 0 }} />
-              </button>
-
-              {/* Produto com variações */}
-              <button onClick={() => openWizard({ tipo: "pizza" })}
-                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = `0 10px 24px ${cor}38`; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "none"; }}
-                style={{
-                  display: "flex", alignItems: "center", gap: 14,
-                  padding: 16, borderRadius: 18,
-                  background: `linear-gradient(135deg, ${cor}20, ${cor}04)`,
-                  border: `1.5px solid ${cor}45`,
-                  cursor: "pointer", textAlign: "left", width: "100%",
-                  transition: "transform 0.18s, box-shadow 0.18s",
-                }}>
-                <div style={{
-                  width: 50, height: 50, borderRadius: 15, flexShrink: 0,
-                  background: `linear-gradient(135deg, ${cor}, ${cor}cc)`,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  boxShadow: `0 6px 16px ${cor}55`,
-                }}>
-                  <span style={{ fontSize: 24 }}>🍕</span>
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                    <p style={{ fontSize: 14.5, fontWeight: 800, color: "var(--text-1)", margin: 0 }}>Produto com variações</p>
-                    <span style={{ fontSize: 9.5, fontWeight: 800, letterSpacing: "0.04em", color: cor, background: `${cor}1f`, borderRadius: 999, padding: "2px 7px", flexShrink: 0 }}>COMPLETO</span>
-                  </div>
-                  <p style={{ fontSize: 12, color: "var(--text-3)", margin: "3px 0 0", lineHeight: 1.4 }}>Tamanhos, sabores e adicionais — pizzas, combos e opções</p>
-                </div>
-                <ChevronRight size={16} style={{ color: "var(--text-5)", flexShrink: 0 }} />
-              </button>
-            </div>
-
-            {/* Já existe o produto? — ações secundárias */}
-            <p style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.07em", textTransform: "uppercase", color: "var(--text-5)", margin: "20px 0 8px" }}>
-              Já existe o produto?
-            </p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              {/* Sabor — vai pra view "🍕 Sabores", que já cobre add rápido, editar e vincular entre produtos */}
-              <button onClick={() => { setChoiceOpen(false); setCatFilter("__sabores__"); }} disabled={produtosParaSabor.length === 0}
-                onMouseEnter={e => { if (produtosParaSabor.length > 0) e.currentTarget.style.borderColor = "rgba(251,146,60,.55)"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = produtosParaSabor.length === 0 ? "var(--border-1)" : "rgba(251,146,60,.28)"; }}
-                style={{
-                  display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8,
-                  padding: 14, borderRadius: 16,
-                  background: produtosParaSabor.length === 0 ? "var(--bg-input)" : "rgba(251,146,60,0.07)",
-                  border: `1.5px solid ${produtosParaSabor.length === 0 ? "var(--border-1)" : "rgba(251,146,60,0.28)"}`,
-                  cursor: produtosParaSabor.length === 0 ? "not-allowed" : "pointer", textAlign: "left", width: "100%",
-                  opacity: produtosParaSabor.length === 0 ? 0.5 : 1, transition: "border-color 0.18s",
-                }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: 11, flexShrink: 0,
-                  background: "linear-gradient(135deg,#fb923c,#ea580c)", display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  <span style={{ fontSize: 17 }}>🌶️</span>
-                </div>
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 800, color: "var(--text-1)", margin: "0 0 2px" }}>Sabor</p>
-                  <p style={{ fontSize: 11, color: "var(--text-3)", margin: 0, lineHeight: 1.35 }}>Add num produto já existente</p>
-                </div>
-              </button>
-              {/* Adicional */}
-              <button onClick={openQuickAdd} disabled={produtosParaAdicional.length === 0}
-                onMouseEnter={e => { if (produtosParaAdicional.length > 0) e.currentTarget.style.borderColor = "rgba(34,197,94,.55)"; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = produtosParaAdicional.length === 0 ? "var(--border-1)" : "rgba(34,197,94,0.28)"; }}
-                style={{
-                  display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8,
-                  padding: 14, borderRadius: 16,
-                  background: produtosParaAdicional.length === 0 ? "var(--bg-input)" : "rgba(34,197,94,0.07)",
-                  border: `1.5px solid ${produtosParaAdicional.length === 0 ? "var(--border-1)" : "rgba(34,197,94,0.28)"}`,
-                  cursor: produtosParaAdicional.length === 0 ? "not-allowed" : "pointer", textAlign: "left", width: "100%",
-                  opacity: produtosParaAdicional.length === 0 ? 0.5 : 1, transition: "border-color 0.18s",
-                }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: 11, flexShrink: 0,
-                  background: "linear-gradient(135deg,#4ade80,#16a34a)", display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  <span style={{ fontSize: 17 }}>➕</span>
-                </div>
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 800, color: "var(--text-1)", margin: "0 0 2px" }}>Adicional</p>
-                  <p style={{ fontSize: 11, color: "var(--text-3)", margin: 0, lineHeight: 1.35 }}>Add num produto já existente</p>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════
-          MODAL QUICK-ADD SABOR / ADICIONAL
-      ══════════════════════════════════════════════════════════ */}
-      {quickOpen && (
-        <div style={{
-          position: "fixed", inset: 0, zIndex: 400,
-          background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)",
-          display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
-        }} onClick={e => { if (e.target === e.currentTarget) setQuickOpen(false); }}>
-          <div style={{
-            background: "var(--bg-1)", borderRadius: 22, padding: "24px",
-            width: "100%", maxWidth: 440,
-            boxShadow: "0 24px 64px rgba(0,0,0,0.18)",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-              <div>
-                <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-4)", margin: "0 0 3px", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                  ➕ Adicional
-                </p>
-                <p style={{ fontSize: 16, fontWeight: 900, color: "var(--text-1)", margin: 0 }}>
-                  Adicionar item extra
-                </p>
-              </div>
-              <button onClick={() => setQuickOpen(false)}
-                style={{ background: "var(--bg-input)", border: "none", borderRadius: 8, padding: 6, cursor: "pointer", color: "var(--text-3)" }}>
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Produto selector */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", display: "block", marginBottom: 6 }}>
-                Produto vinculado
-              </label>
-              <select
-                value={quickProdutoId}
-                onChange={e => setQuickProdutoId(e.target.value)}
-                style={{
-                  width: "100%", padding: "10px 12px", borderRadius: 10,
-                  border: "1.5px solid var(--border-1)", background: "var(--bg-input)",
-                  fontSize: 13, fontWeight: 600, color: "var(--text-1)",
-                  outline: "none", cursor: "pointer",
-                }}>
-                {produtosParaAdicional.map(p => (
-                  <option key={p.id} value={p.id}>{p.nome}</option>
-                ))}
-              </select>
-            </div>
-
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", display: "block", marginBottom: 6 }}>Nome do adicional *</label>
-              <input
-                value={quickAdicional.nome}
-                onChange={e => setQuickAdicional(a => ({ ...a, nome: e.target.value }))}
-                placeholder="Ex: Bacon extra"
-                style={{
-                  width: "100%", padding: "10px 12px", borderRadius: 10,
-                  border: "1.5px solid var(--border-1)", fontSize: 13, color: "var(--text-1)",
-                  outline: "none", boxSizing: "border-box",
-                }}
-              />
-            </div>
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", display: "block", marginBottom: 6 }}>Preço</label>
-              <input
-                value={quickAdicional.preco}
-                onChange={e => setQuickAdicional(a => ({ ...a, preco: e.target.value }))}
-                placeholder="0,00"
-                type="number" min="0" step="0.01"
-                style={{
-                  width: "100%", padding: "10px 12px", borderRadius: 10,
-                  border: "1.5px solid var(--border-1)", fontSize: 13, color: "var(--text-1)",
-                  outline: "none", boxSizing: "border-box",
-                }}
-              />
-            </div>
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
-                <input
-                  type="checkbox"
-                  checked={quickAdicional.obrigatorio}
-                  onChange={e => setQuickAdicional(a => ({ ...a, obrigatorio: e.target.checked }))}
-                  style={{ width: 16, height: 16, accentColor: cor }}
-                />
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#374151" }}>Adicional obrigatório</span>
-              </label>
-            </div>
-            {produtos.filter(p => p.id !== quickProdutoId && p.tipo !== "simples").length > 0 && (
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 12, fontWeight: 700, color: "var(--text-3)", display: "block", marginBottom: 6 }}>Incluir também em outros produtos (opcional)</label>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 140, overflowY: "auto", padding: 8, borderRadius: 10, border: "1.5px solid var(--border-1)" }}>
-                  {produtos.filter(p => p.id !== quickProdutoId && p.tipo !== "simples").map(p => (
-                    <label key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--text-2)", cursor: "pointer" }}>
-                      <input type="checkbox" checked={quickAdicionalOutrosProdutos.includes(p.id)}
-                        onChange={e => setQuickAdicionalOutrosProdutos(prev => e.target.checked ? [...prev, p.id] : prev.filter(id => id !== p.id))}
-                        style={{ width: 14, height: 14 }} />
-                      {p.nome}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setQuickOpen(false)}
-                style={{
-                  flex: 1, padding: "12px", borderRadius: 12,
-                  background: "var(--bg-input)", border: "1px solid var(--border-1)",
-                  color: "var(--text-3)", fontSize: 13, fontWeight: 700, cursor: "pointer",
-                }}>
-                Cancelar
-              </button>
-              <button
-                onClick={handleSaveQuick}
-                disabled={savingQuick || !quickAdicional.nome.trim()}
-                style={{
-                  flex: 2, padding: "12px", borderRadius: 12,
-                  background: savingQuick ? "var(--text-4)" : cor,
-                  border: "none", color: "#fff", fontSize: 13, fontWeight: 800,
-                  cursor: savingQuick ? "not-allowed" : "pointer",
-                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                }}>
-                {savingQuick ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : null}
-                {savingQuick ? "Salvando..." : "Salvar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════
           MODAL ADD / EDIT PRODUTO
       ══════════════════════════════════════════════════════════ */}
       {modalOpen && (
@@ -2696,49 +2358,22 @@ export default function CatalogoClient({
           }}>
             {/* ── Header ── */}
             <div style={{ padding: "18px 22px 0", borderBottom: "1px solid var(--border-1)" }}>
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: (wizardStep > 0 || editId) ? 14 : 0, paddingBottom: (!editId && wizardStep === 0) ? 18 : 0 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: editId ? 14 : 0, paddingBottom: !editId ? 18 : 0 }}>
                 <div>
-                  {wizardStep > 0 ? (
-                    wizardStepSequence.length > 1 ? (
-                      <>
-                        <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-4)", margin: "0 0 3px", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                          Novo produto — passo {wizardStepSequence.indexOf(wizardStep) + 1} de {wizardStepSequence.length}
-                        </p>
-                        <p style={{ fontSize: 16, fontWeight: 900, color: "var(--text-1)", margin: 0 }}>
-                          {["", "Informações básicas", form.variantes_label || "Variantes", "Sabores", "Adicionais"][wizardStep]}
-                        </p>
-                      </>
-                    ) : (
-                      <p style={{ fontSize: 16, fontWeight: 900, color: "var(--text-1)", margin: 0 }}>
-                        Novo produto
-                      </p>
-                    )
-                  ) : (
-                    <p style={{ fontSize: 16, fontWeight: 900, color: "var(--text-1)", margin: 0 }}>
-                      {editId ? "Editar produto" : "Novo produto"}
-                    </p>
-                  )}
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-4)", margin: "0 0 3px", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                    Editor avançado
+                  </p>
+                  <p style={{ fontSize: 16, fontWeight: 900, color: "var(--text-1)", margin: 0 }}>
+                    {editId ? "Editar produto" : "Novo produto"}
+                  </p>
                 </div>
                 <button onClick={() => setModalOpen(false)}
                   style={{ background: "var(--bg-input)", border: "none", borderRadius: 8, padding: 6, cursor: "pointer", color: "var(--text-3)", marginTop: 2 }}>
                   <X size={16} />
                 </button>
               </div>
-              {/* Wizard progress bars */}
-              {wizardStep > 0 && wizardStepSequence.length > 1 && (
-                <div style={{ display: "flex", gap: 5, paddingBottom: 14 }}>
-                  {wizardStepSequence.map(s => (
-                    <div key={s} style={{
-                      flex: 1, height: 4, borderRadius: 999,
-                      background: s <= wizardStep ? cor : "var(--border-1)",
-                      opacity: s < wizardStep ? 0.45 : 1,
-                      transition: "all 0.3s",
-                    }} />
-                  ))}
-                </div>
-              )}
               {/* Edit mode tabs */}
-              {wizardStep === 0 && editId && (
+              {editId && (
                 <div style={{ display: "flex", gap: 2, paddingBottom: 0 }}>
                   {([ ["basico","Produto"], ["tamanhos", form.variantes_label || "Variantes"], ["sabores","Sabores"], ["adicionais","Adicionais"] ] as [ModalTab, string][])
                     .filter(([key]) => form.tipo === "pizza" || (key !== "tamanhos" && key !== "sabores" && key !== "adicionais"))
@@ -2770,8 +2405,8 @@ export default function CatalogoClient({
               )}
             </div>
 
-            {/* ── STEP 1 / Tab Produto ── */}
-            {(wizardStep === 1 || (wizardStep === 0 && (!editId || modalTab === "basico"))) && (
+            {/* ── Tab Produto ── */}
+            {(!editId || modalTab === "basico") && (
               <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 16 }}>
 
                 {/* Tipo — mostrado no wizard e no edit */}
@@ -2845,8 +2480,8 @@ export default function CatalogoClient({
                     style={{ width: "100%", padding: "11px 13px", borderRadius: 11, border: "1px solid var(--border-1)", fontSize: 14, color: "var(--text-1)", background: "var(--bg-input)" }} />
                 </div>
 
-                {/* Categoria — produto único na criação não precisa escolher (já vem definida pela entrada "Bebida/item simples" ou fica editável depois) */}
-                {!(wizardStep === 1 && form.tipo === "simples") && (
+                {/* Categoria */}
+                {(
                   <>
                     <div>
                       <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.06em", textTransform: "uppercase", display: "block", marginBottom: 7 }}>
@@ -2938,8 +2573,8 @@ export default function CatalogoClient({
                   </div>
                 </div>
 
-                {/* Descrição + Preço — sempre na edição; na criação, só pro fluxo de produto único (nome, foto, descrição, valor) */}
-                {(wizardStep === 0 || (wizardStep === 1 && form.tipo === "simples")) && (
+                {/* Descrição + Preço */}
+                {(
                   <>
                     <div>
                       <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.06em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 5, marginBottom: 7 }}>
@@ -2949,7 +2584,7 @@ export default function CatalogoClient({
                         placeholder="Ingredientes, tamanho, observações…" rows={2}
                         style={{ width: "100%", padding: "10px 13px", borderRadius: 11, border: "1px solid var(--border-1)", fontSize: 13, color: "var(--text-1)", background: "var(--bg-input)", resize: "vertical", fontFamily: "inherit" }} />
                     </div>
-                    {wizardStep === 0 ? (
+                    {(
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                         <div>
                           <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.06em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 5, marginBottom: 7 }}>
@@ -2970,59 +2605,27 @@ export default function CatalogoClient({
                           </div>
                         </div>
                       </div>
-                    ) : (
-                      <div>
-                        <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.06em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 5, marginBottom: 7 }}>
-                          <DollarSign size={11} /> Valor
-                        </label>
-                        <input type="number" min="0" step="0.50" value={form.preco}
-                          onChange={e => setForm(f => ({ ...f, preco: e.target.value }))}
-                          placeholder="0.00"
-                          style={{ width: "100%", padding: "10px 13px", borderRadius: 11, border: "1px solid var(--border-1)", fontSize: 14, color: "var(--text-1)", background: "var(--bg-input)" }} />
-                      </div>
                     )}
                   </>
                 )}
 
                 {/* Action button */}
-                {wizardStep === 1 ? (
-                  <button onClick={handleSave} disabled={saving || !form.nome.trim()}
-                    style={{
-                      width: "100%", padding: "13px", borderRadius: 14,
-                      background: cor, color: "#fff", border: "none",
-                      fontSize: 14, fontWeight: 900, cursor: "pointer",
-                      boxShadow: `0 6px 20px ${cor}40`,
-                      opacity: saving || !form.nome.trim() ? 0.7 : 1,
-                      display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                    }}>
-                    {saving ? "Salvando…" : form.tipo === "simples"
-                      ? <><Check size={16} /><span>Adicionar produto</span></>
-                      : <><span>Próximo</span><ChevronRight size={16} /></>}
-                  </button>
-                ) : (
-                  <button onClick={handleSave} disabled={saving || !form.nome.trim()}
-                    style={{
-                      width: "100%", padding: "13px", borderRadius: 14,
-                      background: cor, color: "#fff", border: "none",
-                      fontSize: 14, fontWeight: 900, cursor: "pointer",
-                      boxShadow: `0 6px 20px ${cor}40`,
-                      opacity: saving || !form.nome.trim() ? 0.7 : 1,
-                    }}>
-                    {saving ? "Salvando…" : editId ? "Salvar alterações" : "Adicionar produto"}
-                  </button>
-                )}
+                <button onClick={handleSave} disabled={saving || !form.nome.trim()}
+                  style={{
+                    width: "100%", padding: "13px", borderRadius: 14,
+                    background: cor, color: "#fff", border: "none",
+                    fontSize: 14, fontWeight: 900, cursor: "pointer",
+                    boxShadow: `0 6px 20px ${cor}40`,
+                    opacity: saving || !form.nome.trim() ? 0.7 : 1,
+                  }}>
+                  {saving ? "Salvando…" : editId ? "Salvar alterações" : "Adicionar produto"}
+                </button>
               </div>
             )}
 
-            {/* ── STEP 2 / Tab Tamanhos ── */}
-            {(wizardStep === 2 || (wizardStep === 0 && editId && modalTab === "tamanhos")) && (
+            {/* ── Tab Tamanhos ── */}
+            {editId && modalTab === "tamanhos" && (
               <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
-                {wizardStep === 2 && (
-                  <button onClick={() => setWizardStep(3)}
-                    style={{ alignSelf: "flex-end", fontSize: 12, fontWeight: 700, color: "var(--text-4)", background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: -4 }}>
-                    Este produto não tem {(form.variantes_label || "variantes").toLowerCase()} — pular →
-                  </button>
-                )}
                 {loadingTabs ? (
                   <div style={{ display: "flex", justifyContent: "center", padding: 20 }}><Loader2 size={20} style={{ color: "var(--text-4)", animation: "spin 1s linear infinite" }} /></div>
                 ) : form.categoria_preco_id ? (() => {
@@ -3136,30 +2739,12 @@ export default function CatalogoClient({
                     </div>
                   </>
                 )}
-                {wizardStep === 2 && (
-                  <div style={{ display: "flex", gap: 10, paddingTop: 4 }}>
-                    <button onClick={() => setWizardStep(1)}
-                      style={{ padding: "11px 16px", borderRadius: 12, border: "1.5px solid var(--border-1)", background: "var(--bg-1)", fontSize: 13, fontWeight: 700, color: "var(--text-3)", cursor: "pointer" }}>
-                      ← Voltar
-                    </button>
-                    <button onClick={() => setWizardStep(3)}
-                      style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "11px 20px", borderRadius: 12, background: cor, color: "#fff", border: "none", fontSize: 13, fontWeight: 800, cursor: "pointer", boxShadow: `0 4px 14px ${cor}40` }}>
-                      Próximo <ChevronRight size={14} />
-                    </button>
-                  </div>
-                )}
               </div>
             )}
 
-            {/* ── STEP 3 / Tab Sabores ── */}
-            {(wizardStep === 3 || (wizardStep === 0 && editId && modalTab === "sabores")) && (
+            {/* ── Tab Sabores ── */}
+            {editId && modalTab === "sabores" && (
               <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
-                {wizardStep === 3 && (
-                  <button onClick={() => setWizardStep(4)}
-                    style={{ alignSelf: "flex-end", fontSize: 12, fontWeight: 700, color: "var(--text-4)", background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: -4 }}>
-                    Este produto não tem sabores — pular →
-                  </button>
-                )}
                 {/* Preço padrão global */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 12, background: "#f0fdf4", border: "1.5px solid #bbf7d0" }}>
                   <div style={{ flex: 1 }}>
@@ -3473,23 +3058,11 @@ export default function CatalogoClient({
                     </div>
                   </>
                 )}
-                {wizardStep === 3 && (
-                  <div style={{ display: "flex", gap: 10, paddingTop: 4 }}>
-                    <button onClick={() => setWizardStep(2)}
-                      style={{ padding: "11px 16px", borderRadius: 12, border: "1.5px solid var(--border-1)", background: "var(--bg-1)", fontSize: 13, fontWeight: 700, color: "var(--text-3)", cursor: "pointer" }}>
-                      ← Voltar
-                    </button>
-                    <button onClick={() => setWizardStep(4)}
-                      style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "11px 20px", borderRadius: 12, background: cor, color: "#fff", border: "none", fontSize: 13, fontWeight: 800, cursor: "pointer", boxShadow: `0 4px 14px ${cor}40` }}>
-                      Próximo <ChevronRight size={14} />
-                    </button>
-                  </div>
-                )}
               </div>
             )}
 
-            {/* ── STEP 4 / Tab Adicionais ── */}
-            {(wizardStep === 4 || (wizardStep === 0 && editId && modalTab === "adicionais")) && (
+            {/* ── Tab Adicionais ── */}
+            {editId && modalTab === "adicionais" && (
               <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
                   <p style={{ fontSize: 12, color: "var(--text-3)", margin: 0 }}>
@@ -3629,23 +3202,32 @@ export default function CatalogoClient({
                     </div>
                   </>
                 )}
-                {wizardStep === 4 && (
-                  <div style={{ display: "flex", gap: 10, paddingTop: 4 }}>
-                    <button onClick={() => setWizardStep(form.tipo === "simples" ? 1 : 3)}
-                      style={{ padding: "11px 16px", borderRadius: 12, border: "1.5px solid var(--border-1)", background: "var(--bg-1)", fontSize: 13, fontWeight: 700, color: "var(--text-3)", cursor: "pointer" }}>
-                      ← Voltar
-                    </button>
-                    <button onClick={() => setModalOpen(false)}
-                      style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "11px 20px", borderRadius: 12, background: cor, color: "#fff", border: "none", fontSize: 13, fontWeight: 800, cursor: "pointer", boxShadow: `0 4px 14px ${cor}40` }}>
-                      <Check size={14} /> Finalizar
-                    </button>
-                  </div>
-                )}
               </div>
             )}
 
           </div>
         </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════
+          FORMULÁRIO SIMPLES DE PRODUTO (criar / editar)
+      ══════════════════════════════════════════════════════════ */}
+      {produtoFormAberto && (
+        <ProdutoForm
+          key={produtoFormAberto.produto?.id ?? "novo"}
+          produto={produtoFormAberto.produto}
+          empresaId={empresaId}
+          cor={cor}
+          categorias={(() => {
+            const usadas = Array.from(new Set(produtos.map(p => p.categoria).filter(Boolean)));
+            return usadas.length > 0 ? usadas : CATEGORIAS_PADRAO;
+          })()}
+          categoriasPreco={categoriasPreco}
+          produtos={produtos}
+          onClose={() => setProdutoFormAberto(null)}
+          onChange={upsertProdutoLocal}
+          onAbrirAvancado={p => { setProdutoFormAberto(null); openEdit(produtos.find(x => x.id === p.id) ?? p); }}
+        />
       )}
       {/* ── Modal de crop do banner (pan + zoom) ── */}
       {bannerCropSrc && (
