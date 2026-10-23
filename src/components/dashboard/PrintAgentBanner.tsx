@@ -5,6 +5,7 @@ import { AlertTriangle, X, Download, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { checkAgentOnlineViaDb } from "@/lib/printAgentOnline";
 import { createClient } from "@/lib/supabase/client";
+import { getMobilePrintMode } from "@/lib/mobilePrint";
 
 const AGENT_URL = "http://localhost:7532";
 // A partir desta versão o agente se atualiza sozinho — abaixo dela, só
@@ -109,6 +110,9 @@ function AvisoSemAgente({ empresaId }: Props) {
   const [dismissed,  setDismissed]  = useState(false);
 
   const check = useCallback(async () => {
+    // Este aparelho imprime pela impressora Bluetooth dele (celular/tablet) —
+    // não precisa do agente do PC, então não assusta com "impressão em risco".
+    if (getMobilePrintMode()) { setOnline(true); return; }
     try {
       const res = await fetch(`${AGENT_URL}/`, { signal: AbortSignal.timeout(2000) });
       if (res.ok) { setOnline(true); return; }

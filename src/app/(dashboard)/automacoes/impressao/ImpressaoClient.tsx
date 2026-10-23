@@ -17,6 +17,9 @@ import {
 } from "@/lib/printService";
 import type { FonteOpt, LayoutOpt } from "@/lib/printService";
 import { buildLayoutPreviews } from "@/lib/printLayoutPreviews";
+import { buildReceipt } from "@/lib/escpos";
+import { getMobilePrintMode, imprimirNoCelular } from "@/lib/mobilePrint";
+import ImprimirPeloCelular from "./ImprimirPeloCelular";
 
 interface Props {
   empresa: { id: string; nome: string; cnpj: string | null };
@@ -303,6 +306,18 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
     setTestResult(null);
     const pedidoTeste = buildTestPedido(empresa.id);
 
+    // Este aparelho imprime pelo celular (Bluetooth/RawBT): o teste vai pelo
+    // mesmo caminho dos pedidos. Sem await antes — o RawBT precisa abrir
+    // ainda dentro do toque.
+    if (getMobilePrintMode()) {
+      const r = await imprimirNoCelular(buildReceipt(pedidoTeste, empresa.nome, layout, fonte), { gesto: true });
+      setTesting(false);
+      setTestResult(r.ok
+        ? { ok: true, msg: "Teste enviado para a impressora do celular. Confira se saiu o papel." }
+        : { ok: false, msg: r.mensagem });
+      return;
+    }
+
     let aviso = "";
     if (creds?.agent_token) {
       try {
@@ -349,6 +364,9 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
           <p className="text-xs" style={{ color: "#64748b" }}>Configurações da impressora térmica</p>
         </div>
       </div>
+
+      {/* Imprimir pelo celular (Android + impressora Bluetooth). No PC é só uma linha. */}
+      <ImprimirPeloCelular empresaId={empresa.id} empresaNome={empresa.nome} layout={layout} fonte={fonte} />
 
       {/* Status do agente de impressão local — atualiza sozinho a cada 10s */}
       {(() => {

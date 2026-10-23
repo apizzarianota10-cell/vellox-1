@@ -1,6 +1,7 @@
 import type { Pedido } from "@/types";
 import { buildReceipt, parseItemLine, tituloSabores, marcaSabor, getSavedFonte, type ItemParsed, type FonteOpt } from "@/lib/escpos";
 import { printViaUsb, getSavedPrinterName } from "@/lib/usbPrinter";
+import { getMobilePrintMode, imprimirNoCelular, pedirToqueParaImprimir } from "@/lib/mobilePrint";
 
 export { getSavedFonte, saveFonte, isFonteOpt, type FonteOpt } from "@/lib/escpos";
 
@@ -307,6 +308,30 @@ export function printOrder(
   layoutOverride?: LayoutOpt,
   fonteOverride?: FonteOpt,
 ): boolean {
+  // Este aparelho (celular) foi configurado para imprimir pela impressora
+  // Bluetooth — manda os mesmos bytes ESC/POS do agente do PC (mesmo
+  // layout/letra). Chamado de um clique (reimprimir, popup, teste), então
+  // pode abrir o RawBT/lista do Bluetooth. Se falhar, mostra o aviso
+  // "Toque para imprimir" com o motivo.
+  if (getMobilePrintMode()) {
+    try {
+      const bytes = buildReceipt(pedido, empresaNome, layoutOverride, fonteOverride);
+      void imprimirNoCelular(bytes, { gesto: true }).then(r => {
+        if (!r.ok) {
+          pedirToqueParaImprimir({
+            id: pedido.id,
+            titulo: `Pedido de ${pedido.cliente_nome}`,
+            bytes,
+            erro: r.precisaToque ? undefined : r.mensagem,
+          });
+        }
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   try {
     const paperSize = getSavedPaperSize();
     const fonte     = fonteOverride ?? getSavedFonte();
@@ -352,9 +377,23 @@ export async function autoPrint(
   empresaNome?: string,
   layoutOverride?: LayoutOpt,
   fonteOverride?: FonteOpt,
-): Promise<{ ok: boolean; method: "usb" | "dialog" | "skip" | "error" }> {
+): Promise<{ ok: boolean; method: "usb" | "dialog" | "celular" | "toque" | "skip" | "error"; mensagem?: string }> {
   const tracked = getTracked();
   if (tracked.has(pedido.id)) return { ok: false, method: "skip" };
+
+  // Celular com impressão Bluetooth configurada neste aparelho. Chamado sem
+  // toque (pedido chegou sozinho): se o navegador bloquear, devolve "toque"
+  // e quem chamou mostra o aviso "Toque para imprimir".
+  if (getMobilePrintMode()) {
+    try {
+      const bytes = buildReceipt(pedido, empresaNome, layoutOverride, fonteOverride);
+      const r = await imprimirNoCelular(bytes, { gesto: false });
+      if (r.ok) { trackPrinted(pedido.id); return { ok: true, method: "celular" }; }
+      return { ok: false, method: "toque", mensagem: r.mensagem };
+    } catch {
+      return { ok: false, method: "error" };
+    }
+  }
 
   // Tenta USB primeiro (100% silencioso, sem diálogo)
   if (getSavedPrinterName()) {
