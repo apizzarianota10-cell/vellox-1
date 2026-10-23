@@ -383,6 +383,8 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
     const without = produtos.filter(p => !p.imagem_url);
     return [...withImg, ...without].slice(0, 12);
   }, [produtos, config?.ordem_categorias]);
+  // Esteira animada só faz sentido com vários itens; com poucos, repetiria o mesmo produto
+  const carrosselAnima = carouselItems.length >= 4;
 
   const totalItems  = cart.reduce((s, i) => s + i.qty, 0);
   const subtotal    = cart.reduce((s, i) => s + i.precoUnit * i.qty, 0);
@@ -884,6 +886,8 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
               from { transform: translateX(0); }
               to { transform: translateX(-50%); }
             }
+            .vellox-hscroll{scrollbar-width:none}
+            .vellox-hscroll::-webkit-scrollbar{display:none}
           `}</style>
           <div style={{ maxWidth: 720, margin: "0 auto", padding: "0 20px 14px", display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ fontSize: 20 }}>🔥</span>
@@ -896,15 +900,23 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
             onTouchStart={() => setCarouselPaused(true)}
             onTouchEnd={() => setTimeout(() => setCarouselPaused(false), 2500)}
           >
-            <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 28, zIndex: 10, background: "linear-gradient(to right, #fff, transparent)", pointerEvents: "none" }} />
-            <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 28, zIndex: 10, background: "linear-gradient(to left, #fff, transparent)", pointerEvents: "none" }} />
-            <div style={{
+            {carrosselAnima && (
+              <>
+                <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 28, zIndex: 10, background: "linear-gradient(to right, #fff, transparent)", pointerEvents: "none" }} />
+                <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 28, zIndex: 10, background: "linear-gradient(to left, #fff, transparent)", pointerEvents: "none" }} />
+              </>
+            )}
+            <div className={carrosselAnima ? undefined : "vellox-hscroll"} style={carrosselAnima ? {
               display: "flex", gap: 12, paddingLeft: 20,
               animation: `vellox-belt ${Math.max(carouselItems.length * 5, 25)}s linear infinite`,
               animationPlayState: carouselPaused ? "paused" : "running",
               width: "max-content",
+            } : {
+              // Poucos itens: fileira parada, alinhada com o resto da página
+              display: "flex", gap: 12, overflowX: "auto", maxWidth: 720, margin: "0 auto",
+              padding: "2px 20px 4px", scrollSnapType: "x mandatory",
             }}>
-              {[...carouselItems, ...carouselItems].map((p, i) => {
+              {(carrosselAnima ? [...carouselItems, ...carouselItems] : carouselItems).map((p, i) => {
                 const qty = qtyOf(p.id);
                 const customizable = hasCustomizations(p);
                 const aPartirDe = isAPartirDe(p);
