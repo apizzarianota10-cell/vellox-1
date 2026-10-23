@@ -329,6 +329,16 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
     [produtos, catSel],
   );
 
+  // Seções da vista "Todos" (mesma ordem das abas de categoria)
+  const secoesPorCategoria = useMemo(() => {
+    const mapa = new Map<string, Produto[]>();
+    for (const p of produtos) {
+      const lista = mapa.get(p.categoria);
+      if (lista) lista.push(p); else mapa.set(p.categoria, [p]);
+    }
+    return [...mapa.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  }, [produtos]);
+
   function hasCustomizations(p: Produto): boolean {
     return p.tipo === "pizza"
       || (p.produto_variacoes?.filter(v => v.ativo).length ?? 0) > 0
@@ -1056,6 +1066,78 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
               <Package size={26} style={{ color: "#cbd5e1" }} />
             </div>
             <p style={{ fontSize: 14, color: "#94a3b8", margin: 0, fontWeight: 600 }}>Nenhum produto nesta categoria</p>
+          </div>
+        ) : catSel === "Todos" ? (
+          // "Todos": uma seção por categoria, produtos deslizando na horizontal
+          <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+            {secoesPorCategoria.map(([categoria, itens]) => (
+              <section key={categoria}>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10 }}>
+                  <h2 style={{ fontSize: 17, fontWeight: 900, color: "#0f172a", margin: 0, letterSpacing: "-0.02em" }}>{categoria}</h2>
+                  {itens.length > 2 && (
+                    <button onClick={() => { setCatSel(categoria); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                      style={{ background: "none", border: "none", color: cor, fontSize: 13, fontWeight: 800, cursor: "pointer", padding: 0 }}>
+                      Ver todos ({itens.length})
+                    </button>
+                  )}
+                </div>
+                <div className="vellox-hscroll" style={{
+                  display: "flex", gap: 12, overflowX: "auto", scrollSnapType: "x mandatory",
+                  margin: "0 -20px", padding: "2px 20px 8px", WebkitOverflowScrolling: "touch",
+                }}>
+                  {itens.map(p => {
+                    const customizable = hasCustomizations(p);
+                    return (
+                      <div key={p.id}
+                        onClick={() => customizable ? openDetail(p) : undefined}
+                        style={{
+                          flex: "0 0 158px", scrollSnapAlign: "start", background: "#fff", borderRadius: 16,
+                          border: "1px solid #f0f0f0", boxShadow: "0 1px 4px rgba(0,0,0,0.04)", overflow: "hidden",
+                          display: "flex", flexDirection: "column", cursor: customizable ? "pointer" : "default",
+                        }}>
+                        <div style={{ width: "100%", height: 118, background: "#f8fafc", position: "relative" }}>
+                          <ImgComFallback
+                            src={p.imagem_url} alt={p.nome} loading="lazy"
+                            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                            fallback={<div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}><Package size={26} style={{ color: "#e2e8f0" }} /></div>}
+                          />
+                        </div>
+                        <div style={{ padding: "10px 11px 11px", display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+                          <p style={{
+                            fontSize: 13.5, fontWeight: 800, color: "#0f172a", margin: 0, lineHeight: 1.3,
+                            overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+                          }}>{p.nome}</p>
+                          <div style={{ marginTop: "auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+                            <span style={{ fontSize: 14.5, fontWeight: 900, color: cor, letterSpacing: "-0.02em", lineHeight: 1.1 }}>
+                              {isAPartirDe(p) && <span style={{ display: "block", fontSize: 10, fontWeight: 600 }}>A partir de</span>}
+                              R${precoMinimo(p).toFixed(2)}
+                            </span>
+                            <button
+                              onClick={e => { e.stopPropagation(); if (customizable) openDetail(p); else addSimple(p); }}
+                              aria-label={`Adicionar ${p.nome}`}
+                              style={{
+                                display: "flex", alignItems: "center", justifyContent: "center", position: "relative",
+                                width: 30, height: 30, borderRadius: 9, background: cor, color: "#fff",
+                                border: "none", cursor: "pointer", boxShadow: `0 3px 10px ${cor}40`, flexShrink: 0,
+                              }}>
+                              <Plus size={15} />
+                              {qtyOf(p.id) > 0 && (
+                                <span style={{
+                                  position: "absolute", top: -6, right: -6, minWidth: 17, height: 17, borderRadius: 9,
+                                  background: "#0f172a", color: "#fff", fontSize: 10, fontWeight: 800,
+                                  display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px",
+                                }}>{qtyOf(p.id)}</span>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+            <style>{`.vellox-hscroll{scrollbar-width:none}.vellox-hscroll::-webkit-scrollbar{display:none}`}</style>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
