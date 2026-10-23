@@ -7,6 +7,10 @@
 // novas, atualiza só os campos que mudaram e apaga as removidas.
 // Campos que o formulário não conhece (imagem/descrição do sabor,
 // categoria_sabor_id, tipo_preco...) nunca entram no patch — ficam intactos.
+//
+// Sabores: o editor compartilhado (catalogo/SaboresEditor.tsx) é usado aqui
+// (estado local, grava no "Salvar") e na aba "Sabores" do catálogo (grava na
+// hora). As regras de preço/vínculo estão documentadas em "Sabores" abaixo.
 
 import type { CategoriaPreco, ProdutoVariacao } from "@/types";
 
@@ -294,15 +298,130 @@ export function previaLoja(p: ProdutoPrevia, categoriasPreco: CategoriaPreco[]) 
 }
 
 // ── Recursos avançados que o formulário simples não representa ───────
+// O vínculo de sabores entre produtos (sabores_vinculo_ids) agora é editado
+// no próprio formulário (SaboresEditor) e não conta mais como "avançado".
+// `mesclar_sabores` não é lido pela loja nem pelo PDV — é ignorado.
 export interface RecursosAvancados {
   tabelaPreco: string | null;        // nome da categoria de preço (tamanhos vêm dela)
   gruposDeSabor: boolean;            // produto_categorias_sabor / categoria_sabor_id
-  vinculados: string[];              // nomes dos produtos que compartilham sabores
-  mesclar: boolean;
 }
 
 export function temRecursoAvancado(r: RecursosAvancados): boolean {
-  return Boolean(r.tabelaPreco) || r.gruposDeSabor || r.vinculados.length > 0 || r.mesclar;
+  return Boolean(r.tabelaPreco) || r.gruposDeSabor;
+}
+
+// ── Sabores: adicionar vários de uma vez ─────────────────────────────
+// Decisão de preço (vale para os dois lugares que editam sabores — a aba
+// "Sabores" do catálogo e "O cliente escolhe" do ProdutoForm):
+// o dono vê UM campo por sabor: vazio = "preço normal", preenchido = preço
+// fixo do produto com esse sabor. Isso grava produto_sabores.preco_adicional,
+// que na loja (precoDeSabor) SUBSTITUI o preço — o mesmo valor em qualquer
+// tamanho. "Normal" = preço do tamanho escolhido; para sabor vindo de outro
+// produto (vínculo), o preço daquele produto no tamanho de mesmo nome.
+// Os grupos (produto_categorias_sabor, Clássico/Premium) NÃO entram no
+// cálculo da loja nem do PDV; o editor só mostra o nome do grupo e avisa que
+// o valor do grupo não é cobrado — categoria_sabor_id nunca é alterado.
+export interface NovoSabor { nome: string; preco: string }
+
+function chaveNome(s: string): string {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+/**
+ * Texto digitado ou colado → lista de sabores.
+ * Separa por quebra de linha, ";" ou vírgula (vírgula entre dígitos, como em
+ * "45,90", não separa). Tira marcadores do começo ("-", "•", "1.", "2)").
+ * Se o item termina com "R$ 45,90" (com ou sem "-" antes), vira o preço.
+ */
+export function separarSabores(texto: string): NovoSabor[] {
+  const partes = (texto ?? "").split(/\r?\n|;|(?<!\d),|,(?!\d)/);
+  const out: NovoSabor[] = [];
+  for (const bruto of partes) {
+    let t = bruto.replace(/^\s*(?:[-–•*·]+|\d{1,3}[.)](?=\s))\s*/, "").replace(/\s+/g, " ").trim();
+    let preco = "";
+    const m = t.match(/\s*(?:[-–—:|]\s*)?R\$\s*(\d{1,5}(?:[.,]\d{1,2})?)\s*$/i);
+    if (m && m.index !== undefined) {
+      const p = parsePreco(m[1]);
+      preco = p !== null && !Number.isNaN(p) && p > 0 ? precoParaInput(p) : "";
+      t = t.slice(0, m.index).replace(/[\s\-–—:|]+$/, "").trim();
+    }
+    if (t) out.push({ nome: t.slice(0, 120), preco });
+  }
+  return out;
+}
+
+/** Separa o texto e descarta nomes repetidos (no próprio texto ou já cadastrados). */
+export function prepararNovosSabores(texto: string, nomesExistentes: string[]): { novos: NovoSabor[]; repetidos: string[] } {
+  const vistos = new Set(nomesExistentes.map(chaveNome));
+  const novos: NovoSabor[] = [];
+  const repetidos: string[] = [];
+  for (const s of separarSabores(texto)) {
+    const k = chaveNome(s.nome);
+    if (vistos.has(k)) { repetidos.push(s.nome); continue; }
+    vistos.add(k);
+    novos.push(s);
+  }
+  return { novos, repetidos };
+}
+
+// ── Meio a meio entre produtos (sabores_vinculo_ids) ─────────────────
+export interface ProdutoVinculo { id: string; ativo?: boolean; sabores_vinculo_ids?: string[] | null }
+
+/**
+ * Mesma travessia de poolMesclavelPara (LojaClient): parte do produto e segue
+ * a cadeia de vínculos. A loja só carrega produtos ativos, então só se segue
+ * a partir de produtos ativos e só eles contam. `vinculosDoInicio` substitui a
+ * lista do produto inicial (estado local do formulário). Retorna os ids
+ * alcançados, sem o inicial.
+ */
+export function produtosLigados(inicioId: string, produtos: ReadonlyArray<ProdutoVinculo>, vinculosDoInicio?: string[]): string[] {
+  const porId = new Map(produtos.map(p => [p.id, p]));
+  const visitados = new Set<string>([inicioId]);
+  const fila = [inicioId];
+  const alcancados: string[] = [];
+  while (fila.length > 0) {
+    const id = fila.shift()!;
+    const p = porId.get(id);
+    if (id !== inicioId && (!p || p.ativo === false)) continue;
+    const lista = id === inicioId && vinculosDoInicio ? vinculosDoInicio : (p?.sabores_vinculo_ids ?? []);
+    for (const outro of lista) {
+      if (visitados.has(outro)) continue;
+      visitados.add(outro);
+      const po = porId.get(outro);
+      if (po && po.ativo !== false) alcancados.push(outro);
+      fila.push(outro);
+    }
+  }
+  return alcancados;
+}
+
+/**
+ * Gravação simétrica do vínculo (igual a handleToggleVinculoSabor do
+ * catálogo): quem foi marcado passa a ter o produto na lista dele, quem foi
+ * desmarcado deixa de ter. Só mexe nos produtos marcados/desmarcados agora —
+ * vínculos antigos assimétricos que o dono não tocou ficam como estão.
+ * Retorna as listas novas dos OUTROS produtos que mudaram.
+ */
+export function ajustesDeVinculo(
+  produtos: ReadonlyArray<ProdutoVinculo>, produtoId: string, antes: string[], depois: string[],
+): { id: string; sabores_vinculo_ids: string[] }[] {
+  const a = new Set(antes), d = new Set(depois);
+  const out: { id: string; sabores_vinculo_ids: string[] }[] = [];
+  for (const p of produtos) {
+    if (p.id === produtoId) continue;
+    const atual = p.sabores_vinculo_ids ?? [];
+    let nova = atual;
+    if (d.has(p.id) && !a.has(p.id) && !atual.includes(produtoId)) nova = [...atual, produtoId];
+    if (a.has(p.id) && !d.has(p.id) && atual.includes(produtoId)) nova = atual.filter(x => x !== produtoId);
+    if (nova !== atual) out.push({ id: p.id, sabores_vinculo_ids: nova });
+  }
+  return out;
+}
+
+export function mesmaLista(a: ReadonlyArray<string>, b: ReadonlyArray<string>): boolean {
+  if (a.length !== b.length) return false;
+  const s = new Set(a);
+  return b.every(x => s.has(x));
 }
 
 let seq = 0;

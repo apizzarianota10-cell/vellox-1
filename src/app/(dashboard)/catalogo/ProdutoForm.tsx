@@ -24,7 +24,9 @@ import {
   CAMPOS_VARIACAO, CAMPOS_SABOR, CAMPOS_ADICIONAL,
   validarProduto, derivarTipo, precoBaseComTamanhos, previaLoja,
   precoVariacaoLoja, temRecursoAvancado, novaKey,
+  produtosLigados, ajustesDeVinculo, mesmaLista,
 } from "@/lib/produtoForm";
+import SaboresEditor, { type SaborItem, opcoesDeVinculo, nomesIndiretos } from "./SaboresEditor";
 
 interface Props {
   /** null = novo produto */
@@ -94,6 +96,10 @@ export default function ProdutoForm({
   const [abertas, setAbertas] = useState<Record<Secao, boolean>>({ tamanhos: false, escolhas: false, extras: false });
   const [maxPorTamanho, setMaxPorTamanho] = useState(false);
   const [gruposSabor, setGruposSabor] = useState<CategoriaSabor[]>([]);
+  // Meio a meio entre produtos (sabores_vinculo_ids) — grava no "Salvar", de forma simétrica.
+  const vinculosOriginais = useMemo(() => produto?.sabores_vinculo_ids ?? [], [produto]);
+  const [vinculos, setVinculos] = useState<string[]>(vinculosOriginais);
+  const vinculosSalvosRef = useRef<string[]>(vinculosOriginais);
 
   // ── Controle ──
   const [carregando, setCarregando] = useState(editando);
@@ -113,23 +119,22 @@ export default function ProdutoForm({
   // ── Recursos avançados (preservados, não editados aqui) ──
   const recursos: RecursosAvancados = useMemo(() => {
     const cp = produto?.categoria_preco_id ? categoriasPreco.find(c => c.id === produto.categoria_preco_id) : null;
-    const vinc = (produto?.sabores_vinculo_ids ?? [])
-      .map(id => produtos.find(p => p.id === id)?.nome)
-      .filter((n): n is string => Boolean(n));
     return {
       tabelaPreco: produto?.categoria_preco_id ? (cp?.nome ?? "tabela de preços") : null,
       gruposDeSabor: gruposSabor.length > 0 || originaisRef.current.sabsCompletos.some(s => s.categoria_sabor_id),
-      vinculados: vinc,
-      mesclar: Boolean(produto?.mesclar_sabores),
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [produto, categoriasPreco, produtos, gruposSabor, carregando]);
+  }, [produto, categoriasPreco, gruposSabor, carregando]);
   const avancado = temRecursoAvancado(recursos);
   const tamanhosEditaveis = !recursos.tabelaPreco;
-  const temVinculo = recursos.vinculados.length > 0 || recursos.mesclar;
+  // Igual à loja: só conta se algum produto ligado (pela cadeia) tem sabor ativo.
+  const temVinculo = useMemo(() => {
+    const ligados = produtosLigados(produto?.id ?? "__novo__", produtos, vinculos);
+    return ligados.some(id => produtos.find(p => p.id === id)?.produto_sabores?.some(s => s.ativo));
+  }, [produto, produtos, vinculos]);
 
   function estadoAtual() {
-    return JSON.stringify({ nome, descricao, preco, categoria, imagemUrl, ativo, tamanhos, escolhas, extras });
+    return JSON.stringify({ nome, descricao, preco, categoria, imagemUrl, ativo, tamanhos, escolhas, extras, vinculos });
   }
 
   // ── Carrega os filhos do banco (edição) ──
@@ -177,7 +182,7 @@ export default function ProdutoForm({
       snapshotRef.current = JSON.stringify({
         nome: produto.nome, descricao: produto.descricao ?? "", preco: precoParaInput(produto.preco),
         categoria: produto.categoria, imagemUrl: produto.imagem_url ?? "", ativo: produto.ativo,
-        tamanhos: lt, escolhas: le, extras: lx,
+        tamanhos: lt, escolhas: le, extras: lx, vinculos: vinculosOriginais,
       });
       setCarregando(false);
     })();
@@ -232,7 +237,6 @@ export default function ProdutoForm({
   function addTamanho() {
     setTamanhos(t => [...t, { key: novaKey(), nome: "", preco: "", maxEscolhas: t[t.length - 1]?.maxEscolhas ?? 1, ativo: true }]);
   }
-  function addEscolha() { setEscolhas(e => [...e, { key: novaKey(), nome: "", preco: "", ativo: true }]); }
   function addExtra() { setExtras(x => [...x, { key: novaKey(), nome: "", preco: "", obrigatorio: false, ativo: true }]); }
 
   function abrirSecao(s: Secao) {
@@ -240,16 +244,16 @@ export default function ProdutoForm({
     if (s === "tamanhos" && tamanhos.length === 0) setTamanhos([
       { key: novaKey(), nome: "", preco: "", maxEscolhas: 1, ativo: true },
     ]);
-    if (s === "escolhas" && escolhas.length === 0) addEscolha();
+    // "O cliente escolhe" não cria linha em branco: o editor já abre com o campo "Digite um sabor".
     if (s === "extras" && extras.length === 0) addExtra();
   }
 
   function removerSecao(s: Secao) {
-    const nomes = { tamanhos: "todos os tamanhos", escolhas: "todas as opções de escolha", extras: "todos os adicionais" };
-    const temAlgo = s === "tamanhos" ? tamanhos.some(l => !linhaEmBranco(l)) : s === "escolhas" ? escolhas.some(l => !linhaEmBranco(l)) : extras.some(l => !linhaEmBranco(l));
+    const nomes = { tamanhos: "todos os tamanhos", escolhas: "todos os sabores/opções de escolha (e a mistura com outros produtos)", extras: "todos os adicionais" };
+    const temAlgo = s === "tamanhos" ? tamanhos.some(l => !linhaEmBranco(l)) : s === "escolhas" ? escolhas.some(l => !linhaEmBranco(l)) || vinculos.length > 0 : extras.some(l => !linhaEmBranco(l));
     if (temAlgo && !confirm(`Remover ${nomes[s]}? (Só é apagado de verdade quando você clicar em Salvar.)`)) return;
     if (s === "tamanhos") setTamanhos([]);
-    if (s === "escolhas") setEscolhas([]);
+    if (s === "escolhas") { setEscolhas([]); setVinculos([]); }
     if (s === "extras") setExtras([]);
     setAbertas(a => ({ ...a, [s]: false }));
   }
@@ -259,6 +263,13 @@ export default function ProdutoForm({
   const temTamanhos = tamanhosValidos.length > 0;
   const escolhasValidas = escolhas.filter(l => !linhaEmBranco(l));
   const usaEscolhas = escolhasValidas.length > 0 || temVinculo;
+
+  // Linhas do editor de sabores (o grupo antigo, se houver, só é exibido — nunca alterado).
+  const itensSabor: SaborItem[] = escolhasValidas.map(l => {
+    const orig = l.id ? originaisRef.current.sabsCompletos.find(s => s.id === l.id) : undefined;
+    const g = orig?.categoria_sabor_id ? gruposSabor.find(c => c.id === orig.categoria_sabor_id) : undefined;
+    return { key: l.key, nome: l.nome, preco: l.preco, ativo: l.ativo, grupo: g ? { nome: g.nome, extra: g.preco_adicional ?? 0 } : null };
+  });
 
   const precoNumerico = (() => {
     if (temTamanhos) {
@@ -357,6 +368,8 @@ export default function ProdutoForm({
         : derivarTipo(produto?.tipo, nTamAtivos, sabs.filter(s => s.ativo).length, adds.filter(a => a.ativo).length);
 
       // Só os campos que este formulário edita — o resto do produto fica intacto.
+      const vinculosMudaram = !mesmaLista(vinculos, vinculosSalvosRef.current);
+      const linhaVinculos = vinculos;
       const payload = {
         nome: nome.trim(),
         descricao: descricao.trim(),
@@ -365,6 +378,7 @@ export default function ProdutoForm({
         imagem_url: imagemUrl || null,
         ativo,
         tipo,
+        ...(vinculosMudaram ? { sabores_vinculo_ids: linhaVinculos } : {}),
       };
 
       let row: Produto;
@@ -385,6 +399,19 @@ export default function ProdutoForm({
         onChange({ ...row, produto_variacoes: [], produto_sabores: [], produto_adicionais: [], produto_categorias_sabor: [] });
       }
       const pid = row.id;
+
+      // Vínculo simétrico: os produtos marcados/desmarcados também passam a (não) misturar com este.
+      if (vinculosMudaram) {
+        const ajustes = ajustesDeVinculo(produtos, pid, vinculosSalvosRef.current, linhaVinculos);
+        const res = await Promise.all(ajustes.map(a => supabase.from("produtos").update({ sabores_vinculo_ids: a.sabores_vinculo_ids }).eq("id", a.id)));
+        const err = res.find(r => r.error)?.error;
+        if (err) throw err;
+        ajustes.forEach(a => {
+          const outro = produtos.find(p => p.id === a.id);
+          if (outro) onChange({ ...outro, sabores_vinculo_ids: a.sabores_vinculo_ids });
+        });
+        vinculosSalvosRef.current = linhaVinculos;
+      }
 
       let varsBanco: ProdutoVariacao[];
       if (vars) {
@@ -495,9 +522,7 @@ export default function ProdutoForm({
                       </p>
                       <ul style={{ margin: "4px 0 6px", paddingLeft: 16, fontSize: 12, color: "var(--text-3)", lineHeight: 1.5 }}>
                         {recursos.tabelaPreco && <li>Os tamanhos e preços vêm da tabela de preços “{recursos.tabelaPreco}”.</li>}
-                        {recursos.gruposDeSabor && <li>As opções de escolha estão separadas em grupos.</li>}
-                        {recursos.vinculados.length > 0 && <li>Mostra também as opções de: {recursos.vinculados.join(", ")}.</li>}
-                        {recursos.mesclar && <li>Mistura opções de outros produtos.</li>}
+                        {recursos.gruposDeSabor && <li>Alguns sabores estão em grupos (ex.: Clássico, Premium). Os grupos ficam como estão; na loja vale o preço de cada sabor abaixo.</li>}
                       </ul>
                       <button onClick={abrirAvancado} type="button"
                         style={{ background: "none", border: "none", padding: 0, fontSize: 12.5, fontWeight: 800, color: cor, cursor: "pointer", textDecoration: "underline" }}>
@@ -679,28 +704,30 @@ export default function ProdutoForm({
                   onRemover={() => removerSecao("escolhas")}
                   cor={cor} travado={travado}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {escolhas.map((l, i) => (
-                      <div key={l.key} className="flex flex-wrap sm:flex-nowrap items-center gap-2" style={{ opacity: l.ativo ? 1 : 0.55 }}>
-                        <input value={l.nome} disabled={travado} aria-label={`Opção ${i + 1}`}
-                          onChange={e => setEscolhas(t => t.map(x => x.key === l.key ? { ...x, nome: e.target.value } : x))}
-                          placeholder={["Ex.: Calabresa", "Ex.: Frango com catupiry", "Ex.: Portuguesa"][i] ?? "Nome da opção"}
-                          className="basis-full sm:basis-0" style={{ ...inputStyle, flexGrow: 1, padding: "9px 12px" }} />
-                        <div className="flex-1 sm:flex-none sm:w-[120px]" style={{ minWidth: 0 }}>
-                          <CampoPreco value={l.preco} disabled={travado} compacto placeholder="Normal" aria-label={`Preço da opção ${i + 1}`}
-                            onChange={v => setEscolhas(t => t.map(x => x.key === l.key ? { ...x, preco: v } : x))} />
-                        </div>
-                        <ControlesLinha
-                          i={i} total={escolhas.length} ativo={l.ativo} travado={travado}
-                          onMover={d => setEscolhas(t => mover(t, i, d))}
-                          onAtivo={() => setEscolhas(t => t.map(x => x.key === l.key ? { ...x, ativo: !x.ativo } : x))}
-                          onRemover={() => setEscolhas(t => t.filter(x => x.key !== l.key))} />
-                      </div>
-                    ))}
-                    <BotaoAddLinha onClick={addEscolha} travado={travado}>Adicionar opção</BotaoAddLinha>
-                    <p style={{ fontSize: 11.5, color: "var(--text-4)", margin: "2px 0 0", lineHeight: 1.5 }}>
-                      Preço: deixe vazio para cobrar o preço normal{temTamanhos ? " do tamanho escolhido" : " do produto"}.
-                      Se preencher, essa opção passa a custar esse valor{temTamanhos ? " em qualquer tamanho" : ""}.
-                    </p>
+                    {/* Mesmo editor da aba "Sabores" — aqui em estado local (grava no Salvar). */}
+                    <SaboresEditor
+                      itens={itensSabor}
+                      cor={cor}
+                      travado={travado}
+                      temTamanhos={temTamanhos}
+                      autoFocusAdicionar={escolhas.length === 0 && vinculos.length === 0}
+                      avisoRemover=" (Só é apagado de verdade quando você clicar em Salvar.)"
+                      onAdicionar={novos => setEscolhas(t => [
+                        ...t.filter(l => !linhaEmBranco(l)),
+                        ...novos.map(n => ({ key: novaKey(), nome: n.nome, preco: n.preco, ativo: true })),
+                      ])}
+                      onRenomear={(key, n) => setEscolhas(t => t.map(x => x.key === key ? { ...x, nome: n } : x))}
+                      onPreco={(key, p) => setEscolhas(t => t.map(x => x.key === key ? { ...x, preco: p } : x))}
+                      onAlternarAtivo={key => setEscolhas(t => t.map(x => x.key === key ? { ...x, ativo: !x.ativo } : x))}
+                      onRemover={key => setEscolhas(t => t.filter(x => x.key !== key))}
+                      onMover={(key, d) => setEscolhas(t => { const i = t.findIndex(x => x.key === key); return i < 0 ? t : mover(t, i, d); })}
+                      vinculo={{
+                        opcoes: opcoesDeVinculo(produto?.id ?? null, produtos, vinculos),
+                        selecionados: vinculos,
+                        indiretos: nomesIndiretos(produto?.id ?? "__novo__", produtos, vinculos),
+                        onAlternar: id => setVinculos(v => v.includes(id) ? v.filter(x => x !== id) : [...v, id]),
+                      }}
+                    />
 
                     {/* Quantos o cliente pode escolher */}
                     <div style={{ marginTop: 6, padding: "12px 14px", borderRadius: 12, background: "var(--bg-2)", border: "1px solid var(--border-1)" }}>

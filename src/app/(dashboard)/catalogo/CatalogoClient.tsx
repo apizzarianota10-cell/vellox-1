@@ -15,6 +15,7 @@ import {
 import type { Produto, ConfiguracaoLoja, BairroTaxa, ProdutoVariacao, ProdutoSabor, ProdutoAdicional, CategoriaSabor, CategoriaPreco, CategoriaPrecoTamanho, ProdutoMaisVendido } from "@/types";
 import MaisVendidosModal from "./MaisVendidosModal";
 import ProdutoForm from "./ProdutoForm";
+import { SaboresDoProduto } from "./SaboresEditor";
 
 const CATEGORIAS_PADRAO = ["Lanches", "Bebidas", "Combos", "Sobremesas", "Entradas", "Outros"];
 
@@ -200,13 +201,6 @@ export default function CatalogoClient({
   // Category filter
   const [catFilter, setCatFilter] = useState<string>("Todos");
 
-  // Vínculo de sabores entre produtos (qual produto está com o seletor aberto)
-  const [vinculoAbertoId, setVinculoAbertoId] = useState<string | null>(null);
-
-  // Inline add-sabor in __sabores__ view
-  const [addSaborProdutoId, setAddSaborProdutoId] = useState<string | null>(null);
-  const [addSaborNome, setAddSaborNome] = useState("");
-
   // Grupos de sabores (por produto) abertos/fechados na view __sabores__
   const [saborGruposAbertos, setSaborGruposAbertos] = useState<Set<string>>(new Set());
   function toggleSaborGrupo(produtoId: string) {
@@ -216,7 +210,6 @@ export default function CatalogoClient({
       return next;
     });
   }
-  const [addSaborSaving, setAddSaborSaving] = useState(false);
 
   // Link da loja (slug editável nas Configurações)
   const [slugAtual, setSlugAtual] = useState(empresaSlug);
@@ -268,7 +261,7 @@ export default function CatalogoClient({
     .map(p => ({ produto: p, sabores: p.produto_sabores?.filter(s => s.ativo !== false) ?? [] }))
     // Mostra todo produto "com variações", mesmo sem nenhum sabor ainda —
     // é o único lugar pra adicionar o primeiro sabor dele.
-    .filter(g => g.sabores.length > 0 || g.produto.tipo === "pizza");
+    .filter(g => g.sabores.length > 0 || g.produto.tipo === "pizza" || (g.produto.produto_sabores?.length ?? 0) > 0);
 
   const categorias = [
     "Todos",
@@ -814,30 +807,6 @@ export default function CatalogoClient({
     setSabores(prev => prev.map(s => s.categoria_sabor_id === id ? { ...s, categoria_sabor_id: null } : s));
   }
 
-  async function handleAddSaborInline(produtoId: string) {
-    if (!addSaborNome.trim() || addSaborSaving) return;
-    setAddSaborSaving(true);
-    const { data: existing } = await supabase.from("produto_sabores").select("ordem").eq("produto_id", produtoId).order("ordem", { ascending: false }).limit(1);
-    const nextOrdem = (existing?.[0]?.ordem ?? -1) + 1;
-    const { data, error } = await supabase.from("produto_sabores").insert({
-      produto_id: produtoId,
-      nome: addSaborNome.trim(),
-      descricao: "",
-      ordem: nextOrdem,
-      ativo: true,
-    }).select().single();
-    if (error) {
-      alert("Erro ao criar sabor: " + error.message);
-    } else if (data) {
-      const novo = data as ProdutoSabor;
-      setProdutos(prev => prev.map(prod => prod.id === produtoId
-        ? { ...prod, produto_sabores: [...(prod.produto_sabores ?? []), novo] }
-        : prod));
-      setAddSaborNome("");
-    }
-    setAddSaborSaving(false);
-  }
-
   // Vincula/desvincula dois produtos para compartilharem sabores. O vínculo é
   // sempre simétrico: se A passa a compartilhar com B, B também passa a
   // compartilhar com A — sem isso o produto B mostraria os sabores de A mas
@@ -1223,66 +1192,28 @@ export default function CatalogoClient({
             </div>
 
             {/* ── Seção de sabores ─────────────────────────────────── */}
+            {/* Mesmo editor do formulário de produto (SaboresEditor). Aqui grava na hora. */}
             {catFilter === "__sabores__" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <div>
-                  <p style={{ fontSize: 15, fontWeight: 800, color: "var(--text-1)", margin: "0 0 4px" }}>Todos os sabores</p>
-                  <p style={{ fontSize: 12, color: "var(--text-4)", margin: 0 }}>Sabores de todos os produtos agrupados por origem</p>
-                </div>
-
-                {/* Vínculo explícito de sabores entre produtos */}
-                <div style={{ background: "#f5f3ff", border: "1.5px solid #ddd6fe", borderRadius: 16, padding: 16 }}>
-                  <p style={{ fontSize: 13, fontWeight: 800, color: "#6d28d9", margin: "0 0 3px" }}>Vincular sabores entre produtos</p>
-                  <p style={{ fontSize: 12, color: "#7c3aed", margin: "0 0 14px" }}>
-                    Por padrão cada produto mostra só os próprios sabores. Escolha aqui, produto por produto, com quais outros produtos específicos ele deve compartilhar a lista de sabores (ex: a mesma pizza em tamanhos diferentes).
+                  <p style={{ fontSize: 15, fontWeight: 800, color: "var(--text-1)", margin: "0 0 4px" }}>Sabores</p>
+                  <p style={{ fontSize: 12, color: "var(--text-4)", margin: 0 }}>
+                    Toque num produto para adicionar, renomear, mudar o preço ou pausar os sabores dele. Tudo é salvo na hora.
                   </p>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    {saboresPorProduto.map(({ produto: p, sabores }) => {
-                      const vinculados = p.sabores_vinculo_ids ?? [];
-                      const aberto = vinculoAbertoId === p.id;
-                      return (
-                        <div key={p.id} style={{ borderRadius: 10, background: vinculados.length > 0 || aberto ? "#fff" : "transparent" }}>
-                          <button
-                            onClick={() => setVinculoAbertoId(aberto ? null : p.id)}
-                            style={{
-                              display: "flex", alignItems: "center", gap: 10, cursor: "pointer",
-                              padding: "8px 10px", width: "100%", background: "none", border: "none", textAlign: "left",
-                            }}>
-                            <span style={{ fontSize: 13, fontWeight: 700, color: "#1f2937", flex: 1 }}>{p.nome}</span>
-                            {vinculados.length > 0 && (
-                              <span style={{ fontSize: 11, fontWeight: 700, color: "#7c3aed", background: "#ede9fe", borderRadius: 999, padding: "2px 8px" }}>
-                                vinculado a {vinculados.length}
-                              </span>
-                            )}
-                            <span style={{ fontSize: 11, color: "#6b7280" }}>{sabores.length} sabor{sabores.length !== 1 ? "es" : ""}</span>
-                            <ChevronDown size={14} style={{ color: "#6b7280", transform: aberto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
-                          </button>
-                          {aberto && (
-                            <div style={{ padding: "0 10px 10px 10px", display: "flex", flexDirection: "column", gap: 2 }}>
-                              {saboresPorProduto.filter(g => g.produto.id !== p.id).length === 0 && (
-                                <p style={{ fontSize: 12, color: "#6b7280", margin: "4px 0" }}>Nenhum outro produto com sabores cadastrados ainda.</p>
-                              )}
-                              {saboresPorProduto.filter(g => g.produto.id !== p.id).map(({ produto: outro }) => (
-                                <label key={outro.id} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", padding: "5px 6px", fontSize: 12.5, color: "#374151" }}>
-                                  <input type="checkbox" checked={vinculados.includes(outro.id)}
-                                    onChange={() => handleToggleVinculoSabor(p.id, outro.id)}
-                                    style={{ width: 14, height: 14, accentColor: "#7c3aed" }} />
-                                  {outro.nome}
-                                </label>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
                 </div>
 
-                {saboresPorProduto.map(({ produto: p, sabores }) => {
+                {produtos
+                  .filter(p => (p.produto_sabores?.length ?? 0) > 0 || p.tipo === "pizza" || (p.sabores_vinculo_ids?.length ?? 0) > 0)
+                  .map(p => {
                   const grupoAberto = saborGruposAbertos.has(p.id);
+                  const total = p.produto_sabores?.length ?? 0;
+                  const pausados = p.produto_sabores?.filter(s => !s.ativo).length ?? 0;
+                  const misturaCom = (p.sabores_vinculo_ids ?? [])
+                    .map(id => produtos.find(x => x.id === id)?.nome)
+                    .filter((n): n is string => Boolean(n));
                   return (
                   <div key={p.id} style={{ background: "var(--bg-1)", borderRadius: 16, border: "1px solid var(--border-1)", overflow: "hidden" }}>
-                    {/* Cabeçalho do grupo (clicável: abre/fecha a lista) */}
+                    {/* Cabeçalho do produto (clicável: abre/fecha os sabores) */}
                     <div
                       onClick={() => toggleSaborGrupo(p.id)}
                       style={{ padding: "14px 16px", borderBottom: grupoAberto ? "1px solid var(--border-1)" : "none", display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
@@ -1291,97 +1222,33 @@ export default function CatalogoClient({
                         style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover", flexShrink: 0 }}
                         fallback={<div style={{ width: 36, height: 36, borderRadius: 10, background: `${cor}12`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18 }}>🍕</div>}
                       />
-                      <div style={{ flex: 1 }}>
-                        <p style={{ fontSize: 14, fontWeight: 800, color: "var(--text-1)", margin: 0 }}>{p.nome}</p>
-                        <p style={{ fontSize: 11, color: "var(--text-4)", margin: 0 }}>{sabores.length} sabor{sabores.length !== 1 ? "es" : ""}</p>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 14, fontWeight: 800, color: "var(--text-1)", margin: 0 }}>
+                          {p.nome}
+                          {!p.ativo && <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-4)" }}> (produto pausado)</span>}
+                        </p>
+                        <p style={{ fontSize: 11.5, color: "var(--text-4)", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {total === 0 ? "Nenhum sabor" : `${total} sabor${total !== 1 ? "es" : ""}`}
+                          {pausados > 0 && ` · ${pausados} pausado${pausados !== 1 ? "s" : ""}`}
+                          {misturaCom.length > 0 && ` · mistura com ${misturaCom.join(", ")}`}
+                        </p>
                       </div>
-                      <button
-                        onClick={e => { e.stopPropagation(); setAddSaborProdutoId(addSaborProdutoId === p.id ? null : p.id); setAddSaborNome(""); setSaborGruposAbertos(prev => new Set(prev).add(p.id)); }}
-                        style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, background: addSaborProdutoId === p.id ? cor : "var(--bg-input)", border: `1px solid ${addSaborProdutoId === p.id ? cor : "var(--border-1)"}`, fontSize: 12, fontWeight: 700, color: addSaborProdutoId === p.id ? "#fff" : "var(--text-2)", cursor: "pointer" }}>
-                        <Plus size={11} /> Novo sabor
-                      </button>
                       <button onClick={e => { e.stopPropagation(); abrirProdutoForm(p); }}
-                        style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, background: "var(--bg-input)", border: "1px solid var(--border-1)", fontSize: 12, fontWeight: 700, color: "var(--text-2)", cursor: "pointer" }}>
-                        <Pencil size={11} /> Editar sabores
+                        style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 8, background: "var(--bg-input)", border: "1px solid var(--border-1)", fontSize: 12, fontWeight: 700, color: "var(--text-2)", cursor: "pointer", flexShrink: 0 }}>
+                        <Pencil size={11} /> Produto
                       </button>
                       <ChevronDown size={16} style={{ color: "var(--text-4)", flexShrink: 0, transform: grupoAberto ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
                     </div>
-                    {/* Inline add form */}
-                    {addSaborProdutoId === p.id && (
-                      <div style={{ display: "flex", gap: 8, padding: "12px 16px", background: `${cor}08`, borderBottom: "1px solid var(--border-1)" }}>
-                        <input
-                          autoFocus
-                          value={addSaborNome}
-                          onChange={e => setAddSaborNome(e.target.value)}
-                          onKeyDown={e => { if (e.key === "Enter") handleAddSaborInline(p.id); if (e.key === "Escape") { setAddSaborProdutoId(null); setAddSaborNome(""); } }}
-                          placeholder="Nome do sabor (ex: Mussarela)  ↵ Enter para adicionar"
-                          style={{ flex: 1, padding: "8px 12px", borderRadius: 10, border: `1.5px solid ${cor}50`, fontSize: 13, color: "var(--text-1)", background: "#fff", outline: "none" }}
-                        />
-                        <button onClick={() => handleAddSaborInline(p.id)} disabled={addSaborSaving || !addSaborNome.trim()}
-                          style={{ padding: "8px 14px", borderRadius: 10, background: cor, color: "#fff", border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: !addSaborNome.trim() ? 0.5 : 1 }}>
-                          {addSaborSaving ? "…" : "Adicionar"}
-                        </button>
-                      </div>
-                    )}
-                    {/* Lista de sabores */}
                     {grupoAberto && (
-                    <div style={{ display: "flex", flexDirection: "column" }}>
-                      {sabores.map((s, idx) => (
-                        <div key={s.id} style={{
-                          display: "flex", alignItems: "center", gap: 12,
-                          padding: "11px 16px",
-                          borderBottom: idx < sabores.length - 1 ? "1px solid var(--border-1)" : "none",
-                          background: s.ativo ? "transparent" : "var(--bg-input)",
-                          opacity: s.ativo ? 1 : 0.55,
-                        }}>
-                          <ImgComFallback
-                            src={s.imagem_url} alt={s.nome}
-                            style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover", flexShrink: 0 }}
-                            fallback={<div style={{ width: 40, height: 40, borderRadius: 8, background: "#f5f3ff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 20 }}>🍕</div>}
-                          />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)", margin: 0 }}>{s.nome}</p>
-                            {s.descricao && <p style={{ fontSize: 11, color: "var(--text-4)", margin: "2px 0 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.descricao}</p>}
-                          </div>
-                          {(() => {
-                            if ((s.preco_adicional ?? 0) > 0) {
-                              return <span style={{ fontSize: 12, fontWeight: 800, color: cor, background: `${cor}12`, borderRadius: 999, padding: "2px 9px", flexShrink: 0 }}>R${s.preco_adicional!.toFixed(2)}</span>;
-                            }
-                            const cat = s.categoria_sabor_id ? p.produto_categorias_sabor?.find(c => c.id === s.categoria_sabor_id) : null;
-                            if (cat && cat.preco_adicional > 0) {
-                              return <span style={{ fontSize: 12, fontWeight: 800, color: "#7c3aed", background: "#f5f3ff", borderRadius: 999, padding: "2px 9px", flexShrink: 0 }}>+R${cat.preco_adicional.toFixed(2)} ({cat.nome})</span>;
-                            }
-                            return <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-4)", flexShrink: 0 }}>padrão</span>;
-                          })()}
-                          <span style={{ fontSize: 10, fontWeight: 700, color: "#7c3aed", background: "#f5f3ff", border: "1px solid #ddd6fe", borderRadius: 999, padding: "2px 8px", flexShrink: 0 }}>
-                            {p.nome}
-                          </span>
-                          <button
-                            onClick={async () => {
-                              await supabase.from("produto_sabores").update({ ativo: !s.ativo }).eq("id", s.id);
-                              setProdutos(prev => prev.map(prod => prod.id === p.id
-                                ? { ...prod, produto_sabores: prod.produto_sabores?.map(x => x.id === s.id ? { ...x, ativo: !s.ativo } : x) }
-                                : prod
-                              ));
-                            }}
-                            style={{ padding: "4px 10px", borderRadius: 8, border: "1px solid var(--border-1)", background: s.ativo ? "#f0fdf4" : "var(--bg-input)", color: s.ativo ? "#16a34a" : "var(--text-4)", fontSize: 11, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
-                            {s.ativo ? "Ativo" : "Inativo"}
-                          </button>
-                          <button
-                            onClick={async () => {
-                              if (!confirm(`Excluir sabor "${s.nome}"?`)) return;
-                              await supabase.from("produto_sabores").delete().eq("id", s.id);
-                              setProdutos(prev => prev.map(prod => prod.id === p.id
-                                ? { ...prod, produto_sabores: prod.produto_sabores?.filter(x => x.id !== s.id) }
-                                : prod
-                              ));
-                            }}
-                            style={{ padding: "4px 8px", borderRadius: 8, border: "1px solid #fee2e2", background: "#fef2f2", color: "#E4002B", cursor: "pointer", flexShrink: 0 }}>
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                      <div style={{ padding: "14px 16px" }}>
+                        <SaboresDoProduto
+                          produto={p}
+                          produtos={produtos}
+                          cor={cor}
+                          onAtualizarProduto={(id, fn) => setProdutos(prev => prev.map(x => x.id === id ? fn(x) : x))}
+                          onAlternarVinculo={handleToggleVinculoSabor}
+                        />
+                      </div>
                     )}
                   </div>
                   );
