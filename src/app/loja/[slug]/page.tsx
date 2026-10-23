@@ -78,11 +78,7 @@ export default async function LojaPage({ params }: Props) {
       .eq("ativo", true)
       .order("categoria")
       .order("ordem")
-      .order("created_at")
-      // Opções na ordem definida no painel (setas de reordenar)
-      .order("ordem", { referencedTable: "produto_variacoes" })
-      .order("ordem", { referencedTable: "produto_sabores" })
-      .order("ordem", { referencedTable: "produto_adicionais" }),
+      .order("created_at"),
     supabase
       .from("configuracao_loja")
       .select("*")
