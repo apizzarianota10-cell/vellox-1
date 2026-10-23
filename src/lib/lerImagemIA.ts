@@ -47,7 +47,10 @@ export async function lerImagemComIA<T>(file: File, instrucoes: string, schema: 
       throw new ErroLeitura("A chave da IA foi recusada. Avise o suporte do Vellox.", 503);
     }
     if (err instanceof Anthropic.RateLimitError) throw new ErroLeitura("Muitas leituras ao mesmo tempo. Tente de novo em 1 minuto.", 429);
-    if (err instanceof Anthropic.BadRequestError) throw new ErroLeitura("A imagem não pôde ser lida. Tente outra foto (JPG ou PNG).", 400);
+    if (err instanceof Anthropic.BadRequestError) {
+      if (/credit balance/i.test(err.message)) throw new ErroLeitura("Leitura por imagem indisponível no momento (créditos da IA esgotados). Avise o suporte do Vellox.", 503);
+      throw new ErroLeitura(`A imagem não pôde ser lida. Tente outra foto (JPG ou PNG). [${err.message.slice(0, 200)}]`, 400);
+    }
     if (err instanceof Anthropic.APIError) throw new ErroLeitura("O serviço de leitura está instável. Tente de novo em instantes.", 502);
     throw new ErroLeitura("Não foi possível conectar ao serviço de leitura. Tente de novo.", 502);
   }
