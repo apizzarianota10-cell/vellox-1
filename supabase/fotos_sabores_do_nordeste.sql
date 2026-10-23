@@ -3,6 +3,7 @@
 -- Rodar no Supabase → SQL Editor, depois do cardapio_sabores_do_nordeste_v2.sql.
 with fotos(nome, url) as (values
   ('Quentinha com 2 carnes', 'https://www.appvellox.online/lojas/saboresdonordeste/quentinha.jpg'),
+  ('Quentinha', 'https://www.appvellox.online/lojas/saboresdonordeste/quentinha.jpg'),
   ('Carne de sol sertaneja', 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/BRUNO_LIMA_GASTRONOMIA_CARNE_DE_SOL_GRAVAT%C3%81_PE_%2840198041084%29.jpg/960px-BRUNO_LIMA_GASTRONOMIA_CARNE_DE_SOL_GRAVAT%C3%81_PE_%2840198041084%29.jpg'),
   ('Charque', 'https://images.pexels.com/photos/37017289/pexels-photo-37017289.jpeg?auto=compress&cs=tinysrgb&w=800'),
   ('Coxão mole', 'https://images.pexels.com/photos/36859450/pexels-photo-36859450.jpeg?auto=compress&cs=tinysrgb&w=800&h=800&fit=crop'),

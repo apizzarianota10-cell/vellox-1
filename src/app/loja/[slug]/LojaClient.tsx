@@ -11,6 +11,7 @@ import {
 import type { Produto, ConfiguracaoLoja, Empresa, BairroTaxa, ProdutoVariacao, ProdutoSabor, ProdutoAdicional, PedidoStatus } from "@/types";
 import ImgComFallback from "@/components/ImgComFallback";
 import { itensDoCarrinho } from "@/lib/pedidoItens";
+import { ordenarCategorias, agruparPorCategoria } from "@/lib/ordemCatalogo";
 
 interface PedidoBuscado {
   id: string;
@@ -319,25 +320,21 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
   }
 
   const categorias = useMemo(() => {
-    const cats = ["Todos", ...Array.from(new Set(produtos.map(p => p.categoria))).sort()];
+    const cats = ["Todos", ...ordenarCategorias(produtos.map(p => p.categoria), config?.ordem_categorias)];
     if (allSaborCount > 0) cats.push("__sabores__");
     return cats;
-  }, [produtos, allSaborCount]);
+  }, [produtos, allSaborCount, config?.ordem_categorias]);
 
   const produtosFiltrados = useMemo(
     () => catSel === "Todos" ? produtos : produtos.filter(p => p.categoria === catSel),
     [produtos, catSel],
   );
 
-  // Seções da vista "Todos" (mesma ordem das abas de categoria)
-  const secoesPorCategoria = useMemo(() => {
-    const mapa = new Map<string, Produto[]>();
-    for (const p of produtos) {
-      const lista = mapa.get(p.categoria);
-      if (lista) lista.push(p); else mapa.set(p.categoria, [p]);
-    }
-    return [...mapa.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-  }, [produtos]);
+  // Seções da vista "Todos" (mesma ordem das abas de categoria, definida pelo dono)
+  const secoesPorCategoria = useMemo(
+    () => agruparPorCategoria(produtos, config?.ordem_categorias),
+    [produtos, config?.ordem_categorias],
+  );
 
   function hasCustomizations(p: Produto): boolean {
     return p.tipo === "pizza"
@@ -379,10 +376,13 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
   }
 
   const carouselItems = useMemo(() => {
+    // Escolhidos pelo dono (Catálogo → Ordenar → ⭐) têm prioridade, na ordem do cardápio
+    const destaques = agruparPorCategoria(produtos.filter(p => p.destaque), config?.ordem_categorias).flatMap(([, l]) => l);
+    if (destaques.length > 0) return destaques.slice(0, 12);
     const withImg = produtos.filter(p => p.imagem_url);
     const without = produtos.filter(p => !p.imagem_url);
     return [...withImg, ...without].slice(0, 12);
-  }, [produtos]);
+  }, [produtos, config?.ordem_categorias]);
 
   const totalItems  = cart.reduce((s, i) => s + i.qty, 0);
   const subtotal    = cart.reduce((s, i) => s + i.precoUnit * i.qty, 0);
@@ -663,7 +663,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
 
           {/* Rodapé acolhedor */}
           <p style={{ textAlign: "center", fontSize: 12, color: "#cbd5e1", marginTop: 28 }}>
-            Aguardamos você com muito carinho 🍕
+            Aguardamos você com muito carinho!
           </p>
         </div>
         {buscaMeuPedidoModal}
@@ -855,7 +855,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                   border: catSel === c ? "none" : `1px solid ${c === "__sabores__" ? "#ddd6fe" : "#e2e8f0"}`,
                   fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all 0.15s", flexShrink: 0,
                 }}>
-                {c === "__sabores__" ? "🍕 Sabores" : c}
+                {c === "__sabores__" ? "Sabores" : c}
               </button>
             ))}
           </div>
@@ -996,7 +996,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
       {catSel === "__sabores__" && (
         <main style={{ maxWidth: 720, margin: "0 auto", padding: "16px 20px calc(120px + env(safe-area-inset-bottom, 0px))" }}>
           <div style={{ marginBottom: 20 }}>
-            <p style={{ fontSize: 22, fontWeight: 900, color: "#0f172a", margin: "0 0 4px", letterSpacing: "-0.02em" }}>🍕 Sabores disponíveis</p>
+            <p style={{ fontSize: 22, fontWeight: 900, color: "#0f172a", margin: "0 0 4px", letterSpacing: "-0.02em" }}>Sabores disponíveis</p>
             <p style={{ fontSize: 13, color: "#94a3b8", margin: 0 }}>Toque num sabor pra ver o produto e montar seu pedido</p>
           </div>
           {saboresPorProduto.map(({ produto: p, sabores }) => (
@@ -1006,7 +1006,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                 <ImgComFallback
                   src={p.imagem_url} alt={p.nome} loading="lazy"
                   style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover", flexShrink: 0 }}
-                  fallback={<div style={{ width: 36, height: 36, borderRadius: 10, background: `${cor}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18 }}>🍕</div>}
+                  fallback={<div style={{ width: 36, height: 36, borderRadius: 10, background: `${cor}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18 }}><Package size={16} style={{ color: cor }} /></div>}
                 />
                 <div>
                   <p style={{ fontSize: 14, fontWeight: 800, color: "#0f172a", margin: 0 }}>{p.nome}</p>
@@ -1166,7 +1166,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                       )}
                       {customizable && (
                         <p style={{ fontSize: 11, color: cor, fontWeight: 700, margin: "0 0 8px" }}>
-                          {p.tipo === "pizza" ? "🍕 Escolha o tamanho e sabor" : "Personalizável"}
+                          {p.tipo === "pizza" ? "Escolha o tamanho e sabor" : "Personalizável"}
                         </p>
                       )}
                     </div>

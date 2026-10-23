@@ -15,6 +15,9 @@ import {
 import type { Produto, ConfiguracaoLoja, BairroTaxa, ProdutoVariacao, ProdutoSabor, ProdutoAdicional, CategoriaSabor, CategoriaPreco, CategoriaPrecoTamanho, ProdutoMaisVendido } from "@/types";
 import MaisVendidosModal from "./MaisVendidosModal";
 import ProdutoForm from "./ProdutoForm";
+import OrdenarCatalogoModal from "./OrdenarCatalogoModal";
+import { ordenarCategorias } from "@/lib/ordemCatalogo";
+import { ListOrdered, Package } from "lucide-react";
 import { SaboresDoProduto } from "./SaboresEditor";
 
 const CATEGORIAS_PADRAO = ["Lanches", "Bebidas", "Combos", "Sobremesas", "Entradas", "Outros"];
@@ -75,6 +78,9 @@ export default function CatalogoClient({
   const supabase = createClient();
 
   const [tab, setTab] = useState<Tab>("produtos");
+  // Ordem das categorias na loja (configuracao_loja.ordem_categorias, schema_v71)
+  const [ordemCategorias, setOrdemCategorias] = useState<string[] | null>(initialConfig?.ordem_categorias ?? null);
+  const [ordenarAberto, setOrdenarAberto] = useState(false);
   const [maisVendidoAberto, setMaisVendidoAberto] = useState<string | null>(null);
   const [produtos, setProdutos] = useState<Produto[]>(initialProdutos);
   const [bairros, setBairros] = useState<BairroTaxa[]>(initialBairros);
@@ -265,7 +271,7 @@ export default function CatalogoClient({
 
   const categorias = [
     "Todos",
-    ...Array.from(new Set(produtos.map(p => p.categoria))).sort(),
+    ...ordenarCategorias(produtos.map(p => p.categoria), ordemCategorias),
     ...(saboresPorProduto.length > 0 ? ["__sabores__"] : []),
   ];
   const produtosFiltrados = (catFilter === "Todos" || catFilter === "__sabores__")
@@ -1125,6 +1131,21 @@ export default function CatalogoClient({
                 </div>
               </div>
             )}
+            {ordenarAberto && (
+              <OrdenarCatalogoModal
+                empresaId={empresaId}
+                produtos={produtos}
+                ordemCategorias={ordemCategorias}
+                cor={cor}
+                onClose={() => setOrdenarAberto(false)}
+                onSalvo={(cats, ordemProdutos, destaques) => {
+                  setOrdemCategorias(cats);
+                  setProdutos(prev => prev.map(p => ({ ...p, ordem: ordemProdutos.get(p.id) ?? p.ordem, destaque: destaques.has(p.id) }))
+                    .sort((a, b) => cats.indexOf(a.categoria) - cats.indexOf(b.categoria) || a.ordem - b.ordem));
+                  setOrdenarAberto(false);
+                }}
+              />
+            )}
             {maisVendidoAberto && (
               <MaisVendidosModal
                 produtoNome={maisVendidoAberto}
@@ -1188,6 +1209,16 @@ export default function CatalogoClient({
                   }}>
                   <Plus size={15} /> Novo produto
                 </button>
+                <button onClick={() => setOrdenarAberto(true)} title="Escolher a ordem das categorias e produtos na loja"
+                  className="flex-1 sm:flex-none flex items-center justify-center gap-1.5"
+                  style={{
+                    padding: "10px 14px", borderRadius: 12,
+                    background: "var(--bg-1)", color: "var(--text-2)",
+                    border: "1px solid var(--border-1)", fontSize: 13, fontWeight: 700,
+                    cursor: "pointer", transition: "all 0.15s",
+                  }}>
+                  <ListOrdered size={15} /> Ordenar
+                </button>
               </div>
             </div>
 
@@ -1220,7 +1251,7 @@ export default function CatalogoClient({
                       <ImgComFallback
                         src={p.imagem_url} alt={p.nome}
                         style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover", flexShrink: 0 }}
-                        fallback={<div style={{ width: 36, height: 36, borderRadius: 10, background: `${cor}12`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18 }}>🍕</div>}
+                        fallback={<div style={{ width: 36, height: 36, borderRadius: 10, background: `${cor}12`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18 }}><Package size={16} style={{ color: cor }} /></div>}
                       />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ fontSize: 14, fontWeight: 800, color: "var(--text-1)", margin: 0 }}>

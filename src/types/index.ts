@@ -246,6 +246,8 @@ export interface Produto {
   ordem: number;
   created_at: string;
   categoria_preco_id: string | null;
+  /** Aparece no carrossel "Mais vendidos" da loja (schema_v71). */
+  destaque?: boolean;
   // Estoque (schema_v67)
   controla_estoque?: boolean;
   estoque_qtd?: number;
@@ -269,6 +271,8 @@ export interface BairroTaxa {
 
 export interface ConfiguracaoLoja {
   empresa_id: string;
+  /** Ordem das categorias na loja (schema_v71) — null = alfabética. */
+  ordem_categorias?: string[] | null;
   cor_principal: string;
   logo_url: string | null;
   banner_url: string | null;

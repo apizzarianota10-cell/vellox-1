@@ -848,7 +848,7 @@ export default function ProdutoForm({
                       )}
                       {previa.personalizavel && (
                         <p style={{ fontSize: 11, color: cor, fontWeight: 700, margin: "0 0 8px" }}>
-                          {previa.tipo === "pizza" ? "🍕 Escolha o tamanho e sabor" : "Personalizável"}
+                          {previa.tipo === "pizza" ? "Escolha o tamanho e sabor" : "Personalizável"}
                         </p>
                       )}
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
