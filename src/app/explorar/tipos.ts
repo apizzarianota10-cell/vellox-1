@@ -24,6 +24,17 @@ export interface Loja {
   tagsPrincipais?: string[];
   /** Todas as categorias de produto da loja (para a busca). */
   catsProdutos?: string[];
+  /** Bairros atendidos com a taxa de cada um (bairros_taxa). Vazio = taxa fixa. */
+  bairros?: { bairro: string; taxa: number }[];
+}
+
+/** Como a loja entrega no bairro escolhido pelo cliente. */
+export interface EntregaBairro {
+  bairro: string;
+  /** Taxa daquele bairro (ou a taxa fixa da loja). */
+  taxa: number | null;
+  /** Loja sem lista de bairros: taxa única, sem garantia de que atende ali. */
+  fixa: boolean;
 }
 
 export interface Produto {

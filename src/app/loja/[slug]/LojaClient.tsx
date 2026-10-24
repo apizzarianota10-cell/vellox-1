@@ -16,6 +16,7 @@ import { ordenarCategorias, agruparPorCategoria } from "@/lib/ordemCatalogo";
 import { compartilharProduto } from "./compartilhar";
 import AvaliacoesLoja, { SeloNotaLoja } from "./AvaliacoesLoja";
 import type { ResumoAvaliacoes } from "@/lib/avaliacoesLoja";
+import { lerBairroSalvo, normalizarBairro } from "@/lib/bairroCliente";
 
 interface PedidoBuscado {
   id: string;
@@ -260,6 +261,17 @@ export default function LojaClient({ produtos, config, empresa, bairros, avaliac
     rua: "", numero: "", complemento: "", referencia: "",
     bairro: "", observacoes: "", tipo: "entrega", pagamento: "pix", troco: "",
   });
+
+  // Bairro escolhido no /explorar ("Entrega no meu bairro?"): pré-seleciona
+  // no checkout se esta loja atende esse bairro.
+  useEffect(() => {
+    const salvo = lerBairroSalvo();
+    if (!salvo || !usaBairros) return;
+    const alvo = normalizarBairro(salvo);
+    const achado = bairros.find(b => normalizarBairro(b.bairro) === alvo);
+    if (achado) setForm(f => (f.bairro ? f : { ...f, bairro: achado.bairro }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Carousel
   const [carouselPaused, setCarouselPaused] = useState(false);

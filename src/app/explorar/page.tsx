@@ -72,6 +72,29 @@ export default async function ExplorarPage() {
     }
   }
 
+  // Bairros atendidos + taxa por bairro ("Entrega no meu bairro?").
+  // Loja sem bairros cadastrados usa a taxa fixa da configuração.
+  const bairrosMap = new Map<string, { bairro: string; taxa: number }[]>();
+  if (empresaIds.length) {
+    for (let pagina = 0; pagina < 10; pagina++) {
+      const { data: bts, error } = await supabase
+        .from("bairros_taxa")
+        .select("empresa_id, bairro, taxa")
+        .in("empresa_id", empresaIds)
+        .eq("ativo", true)
+        .range(pagina * 1000, pagina * 1000 + 999);
+      if (error || !bts?.length) break;
+      for (const b of bts as { empresa_id: string; bairro: string | null; taxa: number | string | null }[]) {
+        const nome = (b.bairro ?? "").trim();
+        if (!nome) continue;
+        const lista = bairrosMap.get(b.empresa_id) ?? [];
+        lista.push({ bairro: nome, taxa: Number(b.taxa) || 0 });
+        bairrosMap.set(b.empresa_id, lista);
+      }
+      if (bts.length < 1000) break;
+    }
+  }
+
   // Extras (destaque/categoria) — tabela opcional
   let extrasMap = new Map<string, { destaque: boolean; categoria: string | null }>();
   try {
@@ -158,6 +181,7 @@ export default async function ExplorarPage() {
       precoMin:       res?.min ?? null,
       tagsPrincipais: res ? cats.filter(([, n]) => n / res.total >= 0.3).map(([c]) => c) : [],
       catsProdutos:   cats.map(([c]) => c),
+      bairros:        bairrosMap.get(e.id) ?? [],
     };
   });
 

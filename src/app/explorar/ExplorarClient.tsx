@@ -11,16 +11,19 @@ import {
   Search, MapPin, X, List, Map as MapIcon, ArrowLeft, Heart, ShoppingBag,
   ChevronRight, LocateFixed, ShieldCheck, BadgeCheck, Bike, Store, SearchX,
 } from "lucide-react";
-import type { Loja, Produto, Banner, Categoria, FlashSale, HeroConfig, Ordem, Tab } from "./tipos";
+import type { Loja, Produto, Banner, Categoria, FlashSale, HeroConfig, Ordem, Tab, EntregaBairro } from "./tipos";
 import {
   C, saudacao, dataEditorial, haversine, minutosEntrega, isGratis, isNew, statusLoja,
   lojaNaCategoria, lojaCasaBusca, fotoCategoria, FOTO_TODOS, CATEGORIAS_PADRAO, textoTaxa,
+  entregaNoBairro, bairrosDasLojas,
 } from "./utils";
 import {
   EstilosExplorar, Secao, Vazio, StoreCard, StoreCardSkeleton, CategoriasRail, Chip,
   DestaquesCarrossel, PratoCard, PratoCardSkeleton, PecaDeNovoCard, AbrindoEmBreveLista,
   OfertaCard, LinhaLoja, LinhaPrato, LinhaSkeleton, BottomNav, type Slide,
 } from "./componentes";
+import BairroSeletor from "./BairroSeletor";
+import { lerBairroSalvo, salvarBairro, normalizarBairro } from "@/lib/bairroCliente";
 
 const MapLeaflet = dynamic(() => import("./MapLeaflet"), {
   ssr: false,
@@ -66,6 +69,7 @@ export default function ExplorarClient({ lojas, banners, categorias, heroConfig 
   const [agora,          setAgora]          = useState<Date | null>(null);
   const [ultimos,        setUltimos]        = useState<{ empresaId: string; quando: string; itens: number }[]>([]);
   const [stuck,          setStuck]          = useState(false);
+  const [bairro,         setBairro]         = useState<string | null>(null);
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   const buscaRef    = useRef<HTMLInputElement>(null);
@@ -116,6 +120,7 @@ export default function ExplorarClient({ lojas, banners, categorias, heroConfig 
       lista.sort((a, b) => (Date.parse(b.quando) || 0) - (Date.parse(a.quando) || 0));
       setUltimos(lista);
     } catch { /* sem storage */ }
+    setBairro(lerBairroSalvo());
 
     // Geolocalização — só pede de novo se a permissão já foi concedida
     if ("geolocation" in navigator) {
@@ -175,6 +180,11 @@ export default function ExplorarClient({ lojas, banners, categorias, heroConfig 
     window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   }
 
+  function trocarBairro(b: string | null) {
+    setBairro(b);
+    salvarBairro(b);
+  }
+
   function limparFiltros() {
     setCategoriaAtiva(""); setFAberto(false); setFGratis(false); setOrdem("relevancia");
   }
@@ -185,11 +195,23 @@ export default function ExplorarClient({ lojas, banners, categorias, heroConfig 
   const buscando  = busca.trim().length > 0;
   const temFiltro = !!categoriaAtiva || fAberto || fGratis || ordem !== "relevancia";
 
+  // "Entrega no meu bairro?": só lojas que atendem o bairro, com a taxa dele
+  const bairrosLista = useMemo(() => bairrosDasLojas(lojas), [lojas]);
+  const entregaPorId = useMemo(() => {
+    const m = new Map<string, EntregaBairro | null>();
+    if (!bairro) return m;
+    const norm = normalizarBairro(bairro);
+    for (const l of lojas) m.set(l.id, entregaNoBairro(l, norm, bairro));
+    return m;
+  }, [lojas, bairro]);
+  const lojasBase = useMemo(() => bairro ? lojas.filter(l => entregaPorId.get(l.id)) : lojas, [lojas, bairro, entregaPorId]);
+  const taxaDe = (l: Loja) => (bairro ? entregaPorId.get(l.id)?.taxa : l.config?.taxa_entrega) ?? null;
+
   const aplicarFiltros = useMemo(() => (lista: Loja[]) => {
     let out = lista;
     if (categoriaAtiva) out = out.filter(l => lojaNaCategoria(l, categoriaAtiva));
     if (fAberto) out = out.filter(l => l.config?.aberto !== false);
-    if (fGratis) out = out.filter(l => isGratis(l.config?.taxa_entrega));
+    if (fGratis) out = out.filter(l => isGratis((bairro ? entregaPorId.get(l.id)?.taxa : l.config?.taxa_entrega) ?? null));
     const aberta = (l: Loja) => (l.config?.aberto !== false ? 1 : 0);
     return [...out].sort((a, b) => {
       const ab = aberta(b) - aberta(a);
@@ -208,30 +230,30 @@ export default function ExplorarClient({ lojas, banners, categorias, heroConfig 
       if (d !== 0) return d;
       return b.avaliacaoTotal - a.avaliacaoTotal;
     });
-  }, [categoriaAtiva, fAberto, fGratis, ordem]);
+  }, [categoriaAtiva, fAberto, fGratis, ordem, bairro, entregaPorId]);
 
-  const filtradas   = useMemo(() => aplicarFiltros(lojas), [aplicarFiltros, lojas]);
-  const lojasBusca  = useMemo(() => buscando ? aplicarFiltros(lojas.filter(l => lojaCasaBusca(l, busca))) : [], [buscando, aplicarFiltros, lojas, busca]);
+  const filtradas   = useMemo(() => aplicarFiltros(lojasBase), [aplicarFiltros, lojasBase]);
+  const lojasBusca  = useMemo(() => buscando ? aplicarFiltros(lojasBase.filter(l => lojaCasaBusca(l, busca))) : [], [buscando, aplicarFiltros, lojasBase, busca]);
   const abertas     = useMemo(() => filtradas.filter(l => l.config?.aberto !== false), [filtradas]);
   const fechadas    = useMemo(() => {
-    return lojas
+    return lojasBase
       .filter(l => l.config?.aberto === false)
       .map(l => ({ l, min: statusLoja(l, agora).abreEmMin }))
       .sort((a, b) => (a.min ?? 1e9) - (b.min ?? 1e9))
       .map(x => x.l);
-  }, [lojas, agora]);
+  }, [lojasBase, agora]);
   const favs        = useMemo(() => lojas.filter(l => favoritos.has(l.id)), [lojas, favoritos]);
   const pecaDeNovo  = useMemo(() => ultimos.filter(u => lojaPorId.has(u.empresaId)).slice(0, 8), [ultimos, lojaPorId]);
   const ofertas     = useMemo(() => flashSales.filter(s => lojaPorId.has(s.empresa_id)), [flashSales, lojaPorId]);
 
   const proximas = useMemo(() => {
     if (userLat == null || userLng == null) return [];
-    return lojas
+    return lojasBase
       .filter(l => l.lat != null && l.lng != null)
       .map(l => ({ loja: l, dist: haversine(userLat, userLng, l.lat!, l.lng!) }))
       .sort((a, b) => a.dist - b.dist)
       .slice(0, 8);
-  }, [lojas, userLat, userLng]);
+  }, [lojasBase, userLat, userLng]);
   const distPorId = useMemo(() => new Map(proximas.map(p => [p.loja.id, p.dist])), [proximas]);
 
   const catsUI = useMemo(() => {
@@ -259,19 +281,20 @@ export default function ExplorarClient({ lojas, banners, categorias, heroConfig 
     for (const l of fonte.slice(0, 8)) {
       out.push({
         id: l.id, titulo: l.nome, imagem: l.config?.banner_url ?? null, cor: l.config?.cor_principal ?? null,
-        sub: textoTaxa(l.config?.taxa_entrega ?? null), href: `/loja/${l.slug}`, loja: l,
+        sub: textoTaxa(taxaDe(l)), href: `/loja/${l.slug}`, loja: l,
         selo: l.destaque ? "Destaque" : isNew(l.created_at) ? "Novidade" : "Vellox indica",
       });
     }
     return out;
-  }, [banners, lojas]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [banners, lojas, entregaPorId]);
 
   const totalAbertas = lojas.filter(l => l.config?.aberto !== false).length;
 
   // ── Blocos reutilizados ───────────────────────────────────────────────────
   const cardDe = (l: Loja) => (
     <StoreCard key={l.id} loja={l} agora={agora} fav={favoritos.has(l.id)} onFav={toggleFav}
-      dist={distPorId.get(l.id) ?? null} oferta={ofertaIds.has(l.id)} />
+      dist={distPorId.get(l.id) ?? null} oferta={ofertaIds.has(l.id)} entrega={bairro ? entregaPorId.get(l.id) : undefined} />
   );
 
   const chips = (
@@ -472,6 +495,10 @@ export default function ExplorarClient({ lojas, banners, categorias, heroConfig 
       </div>
 
       <main className="vx-wrap">
+        {bairrosLista.length > 0 && (
+          <BairroSeletor bairros={bairrosLista} atual={bairro} onChange={trocarBairro}
+            qtdLojas={bairro ? lojasBase.length : undefined} />
+        )}
         {buscando ? (
           // ── Resultados da busca ───────────────────────────────────
           <div aria-live="polite">
@@ -486,7 +513,7 @@ export default function ExplorarClient({ lojas, banners, categorias, heroConfig 
             {lojasBusca.length > 0 && (
               <Secao titulo={`Lojas · ${lojasBusca.length}`} className="vx-in">
                 <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-                  {lojasBusca.map(l => <LinhaLoja key={l.id} loja={l} agora={agora} />)}
+                  {lojasBusca.map(l => <LinhaLoja key={l.id} loja={l} agora={agora} entrega={bairro ? entregaPorId.get(l.id) : undefined} />)}
                 </div>
               </Secao>
             )}
@@ -592,10 +619,16 @@ export default function ExplorarClient({ lojas, banners, categorias, heroConfig 
                 )}
 
                 <div id="lojas">
-                  <Secao titulo="Abertas agora" sub={`${abertas.length} loja${abertas.length !== 1 ? "s" : ""} recebendo pedidos`}>
+                  <Secao titulo="Abertas agora" sub={`${abertas.length} loja${abertas.length !== 1 ? "s" : ""} ${bairro ? `entregando em ${bairro}` : "recebendo pedidos"}`}>
                     {abertas.length === 0 ? (
-                      <Vazio titulo="Todas as lojas estão fechadas agora"
+                      bairro && lojasBase.length === 0 ? (
+                        <Vazio icone={<MapPin size={28} />} titulo={`Nenhuma loja entrega em ${bairro} ainda`}
+                          texto="Confira se o nome do bairro está certo ou veja as lojas de todos os bairros."
+                          acao={{ label: "Ver todas as lojas", onClick: () => trocarBairro(null) }} />
+                      ) : (
+                      <Vazio titulo={bairro ? `As lojas que entregam em ${bairro} estão fechadas` : "Todas as lojas estão fechadas agora"}
                         texto={fechadas.length ? "Confira abaixo quem abre primeiro." : "Volte mais tarde — novas lojas chegam toda semana."} />
+                      )
                     ) : (
                       <div className="vx-grid">{abertas.map(cardDe)}</div>
                     )}

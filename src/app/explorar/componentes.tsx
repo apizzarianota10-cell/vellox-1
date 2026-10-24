@@ -6,9 +6,9 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Heart, Clock, Bike, Star, BadgeCheck, ChevronRight, Compass, ShoppingBag,
-  User, RotateCcw, Check, ArrowRight, Zap, UtensilsCrossed,
+  User, RotateCcw, Check, ArrowRight, Zap, UtensilsCrossed, Info,
 } from "lucide-react";
-import type { Loja, Produto, FlashSale, Tab } from "./tipos";
+import type { Loja, Produto, FlashSale, Tab, EntregaBairro } from "./tipos";
 import {
   C, brl, getInitial, isGratis, textoTaxa, isNew, statusLoja, gradienteLoja,
   textoDistancia, tempoRelativo,
@@ -189,12 +189,20 @@ function Selo({ children, bg, color }: { children: React.ReactNode; bg: string; 
 
 // ─── Card de loja premium ───────────────────────────────────────────────────
 
-export function StoreCard({ loja, agora, fav, onFav, dist, oferta, onAbrir }: {
+/** "Entrega R$ 5,00 no seu bairro" / "Entrega grátis no seu bairro" (ou a taxa padrão). */
+export function textoTaxaBairro(loja: Loja, entrega?: EntregaBairro | null) {
+  if (!entrega || entrega.fixa) return textoTaxa(entrega ? entrega.taxa : loja.config?.taxa_entrega ?? null);
+  return isGratis(entrega.taxa) ? "Entrega grátis no seu bairro" : `Entrega ${brl(entrega.taxa!)} no seu bairro`;
+}
+
+export function StoreCard({ loja, agora, fav, onFav, dist, oferta, onAbrir, entrega }: {
   loja: Loja; agora: Date | null; fav: boolean; onFav: (id: string) => void;
   dist?: number | null; oferta?: boolean; onAbrir?: (l: Loja) => void;
+  /** Bairro escolhido em "Entrega no meu bairro?" (taxa daquele bairro). */
+  entrega?: EntregaBairro | null;
 }) {
   const st = statusLoja(loja, agora);
-  const taxa = loja.config?.taxa_entrega ?? null;
+  const taxa = entrega ? entrega.taxa : loja.config?.taxa_entrega ?? null;
   const tempo = loja.config?.tempo_entrega ?? "30-45 min";
   const BANNER_H = 158;
   return (
@@ -245,9 +253,15 @@ export function StoreCard({ loja, agora, fav, onFav, dist, oferta, onAbrir }: {
           <div className="flex items-center flex-wrap" style={{ gap: "4px 14px", marginTop: 10, fontSize: 13, color: C.ink2 }}>
             <span className="flex items-center gap-1.5"><Clock size={14} style={{ color: C.ink3 }} /> {tempo}</span>
             <span className="flex items-center gap-1.5" style={isGratis(taxa) ? { color: C.green, fontWeight: 700 } : undefined}>
-              <Bike size={15} style={{ color: isGratis(taxa) ? C.green : C.ink3 }} /> {textoTaxa(taxa)}
+              <Bike size={15} style={{ color: isGratis(taxa) ? C.green : C.ink3 }} /> {textoTaxaBairro(loja, entrega)}
             </span>
           </div>
+          {entrega?.fixa && (
+            <p className="flex items-center gap-1.5" style={{ marginTop: 6, fontSize: 12, color: C.ink3 }}>
+              <Info size={13} aria-hidden style={{ flexShrink: 0 }} />
+              <span className="truncate">Taxa única · confirme se atende {entrega.bairro}</span>
+            </p>
+          )}
 
           <div className="mt-auto" style={{ paddingTop: 14 }}>
             <div className="flex items-center justify-between gap-2" style={{ paddingTop: 12, borderTop: `1px dashed ${C.line}` }}>
@@ -585,7 +599,7 @@ export function OfertaCard({ sale, loja }: { sale: FlashSale; loja: Loja }) {
 
 // ─── Linhas de resultado da busca ───────────────────────────────────────────
 
-export function LinhaLoja({ loja, agora }: { loja: Loja; agora: Date | null }) {
+export function LinhaLoja({ loja, agora, entrega }: { loja: Loja; agora: Date | null; entrega?: EntregaBairro | null }) {
   const st = statusLoja(loja, agora);
   return (
     <Link href={`/loja/${loja.slug}`} className="vx-card flex items-center gap-3"
@@ -598,7 +612,7 @@ export function LinhaLoja({ loja, agora }: { loja: Loja; agora: Date | null }) {
         </p>
         <p className="truncate" style={{ fontSize: 12.5, fontWeight: 700, color: st.aberto ? C.green : C.redDark, marginTop: 2 }}>{st.texto}</p>
         <p className="truncate" style={{ fontSize: 12.5, color: C.ink3, marginTop: 1 }}>
-          {loja.config?.tempo_entrega ?? "30-45 min"} · {textoTaxa(loja.config?.taxa_entrega ?? null)}
+          {loja.config?.tempo_entrega ?? "30-45 min"} · {textoTaxaBairro(loja, entrega)}
         </p>
       </div>
       <ChevronRight size={18} style={{ color: C.ink3, flexShrink: 0 }} />

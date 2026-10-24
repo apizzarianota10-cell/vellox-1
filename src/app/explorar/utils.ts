@@ -1,5 +1,6 @@
 // Helpers puros da vitrine /explorar (sem React).
-import type { Loja } from "./tipos";
+import type { Loja, EntregaBairro } from "./tipos";
+import { normalizarBairro } from "@/lib/bairroCliente";
 
 // ─── Paleta (tema claro premium) ────────────────────────────────────────────
 export const C = {
@@ -283,6 +284,40 @@ export function lojaCasaBusca(loja: Loja, q: string): boolean {
     loja.nome, loja.categoria ?? "", loja.config?.descricao ?? "", ...(loja.catsProdutos ?? []),
   ].join(" | "));
   return n.split(/\s+/).every(p => texto.includes(p));
+}
+
+// ─── Entrega no bairro do cliente ───────────────────────────────────────────
+
+/**
+ * Como a loja entrega no bairro escolhido (já normalizado com
+ * normalizarBairro). null = a loja tem lista de bairros e esse não está nela.
+ * Loja sem lista (taxa fixa) sempre "entrega", com aviso no card.
+ */
+export function entregaNoBairro(loja: Loja, bairroNorm: string, bairroNome: string): EntregaBairro | null {
+  const lista = loja.bairros ?? [];
+  if (!lista.length) return { bairro: bairroNome, taxa: loja.config?.taxa_entrega ?? null, fixa: true };
+  let taxa: number | null = null;
+  for (const b of lista) {
+    if (normalizarBairro(b.bairro) === bairroNorm && (taxa === null || b.taxa < taxa)) taxa = b.taxa;
+  }
+  return taxa === null ? null : { bairro: bairroNome, taxa, fixa: false };
+}
+
+/** Bairros cadastrados pelas lojas, sem repetição (grafia mais comum), em ordem alfabética. */
+export function bairrosDasLojas(lojas: Loja[]): string[] {
+  const porChave = new Map<string, Map<string, number>>();
+  for (const l of lojas) {
+    for (const b of l.bairros ?? []) {
+      const k = normalizarBairro(b.bairro);
+      if (!k) continue;
+      const grafias = porChave.get(k) ?? new Map<string, number>();
+      grafias.set(b.bairro, (grafias.get(b.bairro) ?? 0) + 1);
+      porChave.set(k, grafias);
+    }
+  }
+  return [...porChave.values()]
+    .map(g => [...g.entries()].sort((a, b) => b[1] - a[1])[0][0])
+    .sort((a, b) => a.localeCompare(b, "pt-BR"));
 }
 
 /** Gradiente elegante a partir da cor da loja (fallback de banner). */
