@@ -107,7 +107,8 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
   const taxaPadrao = config?.taxa_entrega ?? 0;
   const aberto = config?.aberto ?? true;
   const usaBairros = bairros.length > 0;
-  const modoCalculo = (config?.modo_calculo_pizza ?? "maior_valor") as "maior_valor" | "proporcional";
+  // Sempre o sabor mais caro (a opção "proporcional" foi removida)
+  const modoCalculo = "maior_valor" as "maior_valor" | "proporcional";
 
   const [cart, setCart]       = useState<CartItem[]>([]);
   const [catSel, setCatSel]   = useState<string>("Todos");

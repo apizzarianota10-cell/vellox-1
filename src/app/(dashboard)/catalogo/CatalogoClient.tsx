@@ -78,8 +78,6 @@ export default function CatalogoClient({
   const supabase = createClient();
 
   const [tab, setTab] = useState<Tab>("produtos");
-  const [salvandoModo, setSalvandoModo] = useState(false);
-  const [avisoModo, setAvisoModo] = useState<string | null>(null);
   // Ordem das categorias na loja (configuracao_loja.ordem_categorias, schema_v71)
   const [ordemCategorias, setOrdemCategorias] = useState<string[] | null>(initialConfig?.ordem_categorias ?? null);
   const [ordenarAberto, setOrdenarAberto] = useState(false);
@@ -1737,59 +1735,6 @@ export default function CatalogoClient({
                         onChange={e => setConfig(c => ({ ...c, taxa_entrega: parseFloat(e.target.value) || 0 }))}
                         style={{ width: "100%", padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border-1)", fontSize: 13, color: "var(--text-1)", background: "var(--bg-input)" }} />
                     </div>
-                  </div>
-                </div>
-                {/* Modo de cálculo da pizza */}
-                <div style={{ background: "var(--bg-1)", borderRadius: 16, padding: "18px 20px", border: "1px solid var(--border-1)" }}>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)", margin: "0 0 4px" }}>Cálculo de preço — Pizza</p>
-                  <p style={{ fontSize: 11, color: "var(--text-4)", margin: "0 0 14px" }}>Como o preço é calculado quando o cliente escolhe mais de um sabor</p>
-                  {avisoModo && (
-                    <p style={{ fontSize: 12, fontWeight: 700, margin: "-6px 0 10px", color: avisoModo.startsWith("Salvo") ? "#16a34a" : "#ef4444" }}>{avisoModo}</p>
-                  )}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                    {(["maior_valor", "proporcional"] as const).map(modo => (
-                      <button key={modo}
-                        disabled={salvandoModo}
-                        onClick={async () => {
-                          const anterior = config.modo_calculo_pizza ?? "maior_valor";
-                          if (anterior === modo) return;
-                          setConfig(c => ({ ...c, modo_calculo_pizza: modo }));
-                          setSalvandoModo(true);
-                          // Atualiza a linha existente; só cria se a loja ainda não tiver configuração
-                          let { data, error } = await supabase.from("configuracao_loja")
-                            .update({ modo_calculo_pizza: modo, updated_at: new Date().toISOString() })
-                            .eq("empresa_id", empresaId).select("modo_calculo_pizza");
-                          if (!error && (!data || data.length === 0)) {
-                            ({ data, error } = await supabase.from("configuracao_loja")
-                              .upsert({ ...buildBasePayload(), modo_calculo_pizza: modo }, { onConflict: "empresa_id" })
-                              .select("modo_calculo_pizza"));
-                          }
-                          setSalvandoModo(false);
-                          if (error || !data || data.length === 0) {
-                            setConfig(c => ({ ...c, modo_calculo_pizza: anterior }));
-                            setAvisoModo("Não salvou — tente de novo." + (error ? " (" + error.message + ")" : ""));
-                          } else {
-                            setAvisoModo(modo === "maior_valor" ? "Salvo: cobra o sabor mais caro." : "Salvo: divide o preço entre os sabores.");
-                          }
-                          setTimeout(() => setAvisoModo(null), 3500);
-                        }}
-                        style={{
-                          padding: "12px", borderRadius: 12, textAlign: "left",
-                          border: `2px solid ${(config.modo_calculo_pizza ?? "maior_valor") === modo ? cor : "var(--border-1)"}`,
-                          background: (config.modo_calculo_pizza ?? "maior_valor") === modo ? `${cor}08` : "var(--bg-input)",
-                          cursor: "pointer", transition: "all 0.15s",
-                        }}>
-                        <p style={{ fontSize: 13, fontWeight: 800, color: (config.modo_calculo_pizza ?? "maior_valor") === modo ? cor : "var(--text-1)", margin: "0 0 4px" }}>
-                          {modo === "maior_valor" ? "🏆 Maior valor" : "⚖️ Proporcional"}
-                        </p>
-                        <p style={{ fontSize: 11, color: "var(--text-4)", margin: 0, lineHeight: 1.4 }}>
-                          {modo === "maior_valor"
-                            ? "Cobra o preço do sabor mais caro selecionado"
-                            : "Divide o preço entre os sabores (ex: R$50+R$40 = R$45)"
-                          }
-                        </p>
-                      </button>
-                    ))}
                   </div>
                 </div>
 

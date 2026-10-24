@@ -56,7 +56,7 @@ export default async function PedidosPage() {
       empresaEstado={empresa?.estado ?? null}
       autoDespacho={empresa?.despacho_automatico ?? false}
       produtos={(produtosRes.data ?? []) as Produto[]}
-      modoCalculo={(configRes.data?.modo_calculo_pizza ?? "maior_valor") as "maior_valor" | "proporcional"}
+      modoCalculo="maior_valor"
       corPrincipal={configRes.data?.cor_principal ?? "#E4002B"}
       tempoEstimado={configRes.data?.tempo_entrega ?? null}
       layoutImpressao={printPrefsRes.data?.layout as LayoutOpt | undefined}
