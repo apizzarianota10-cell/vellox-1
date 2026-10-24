@@ -1,30 +1,66 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { isLojaDemo } from "@/lib/demoLoja";
 
 export const dynamic = "force-dynamic";
+
+type Supa = Awaited<ReturnType<typeof createClient>>;
+
+/** Pratos ativos cujo nome contém o termo (só das lojas da vitrine). */
+async function buscarProdutos(
+  supabase: Supa, q: string,
+  empresas: { id: string; nome: string; slug: string }[], empresaIds: string[],
+) {
+  const empresaMap = new Map(empresas.map(e => [e.id, e]));
+  const termo = q.replace(/[%_\\]/g, m => `\\${m}`);
+  const { data: prodRaw } = await supabase
+    .from("produtos")
+    .select("id, nome, preco, imagem_url, empresa_id, ativo")
+    .ilike("nome", `%${termo}%`)
+    .in("empresa_id", empresaIds)
+    .limit(30);
+  return (prodRaw ?? [])
+    .filter(p => p.ativo !== false)
+    .slice(0, 16)
+    .map(p => ({
+      id:         p.id as string,
+      nome:       p.nome as string,
+      preco:      Number(p.preco),
+      imagem_url: (p.imagem_url as string | null) || null,
+      empresa:    { nome: empresaMap.get(p.empresa_id)?.nome ?? "", slug: empresaMap.get(p.empresa_id)?.slug ?? "" },
+    }));
+}
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const q           = searchParams.get("q")?.trim() ?? "";
   const categoria   = searchParams.get("categoria") ?? "";
   const apenasAberto = searchParams.get("aberto") === "1";
+  const somenteProdutos = searchParams.get("somente") === "produtos";
 
   const supabase = await createClient();
 
   // ── 1. Empresas ativas com assinatura válida ──────────────────
-  let empQuery = supabase
+  const { data: empresasRaw } = await supabase
     .from("empresas_publica")
     .select("id, nome, slug, verificado, lat, lng")
     .eq("ativo", true)
     .eq("assinatura_ativa", true);
 
-  const { data: empresas } = await empQuery;
+  // Loja de demonstração fica fora da vitrine pública
+  const empresas = (empresasRaw ?? []).filter(e => !isLojaDemo(e.slug));
 
-  if (!empresas?.length) {
-    return NextResponse.json({ lojas: [], banners: [], categorias: [] });
+  if (!empresas.length) {
+    return NextResponse.json({ lojas: [], banners: [], categorias: [], produtos_busca: [] });
   }
 
   const empresaIds = empresas.map(e => e.id);
+
+  // Busca leve (só pratos) usada a cada tecla no /explorar
+  if (somenteProdutos) {
+    const produtos_busca = q ? await buscarProdutos(supabase, q, empresas, empresaIds) : [];
+    return NextResponse.json({ produtos_busca });
+  }
 
   // ── 2. Configurações das lojas (aberto, taxas, logo, banner) ──
   const { data: configs } = await supabase
@@ -77,27 +113,9 @@ export async function GET(req: Request) {
   lojas.sort((a, b) => (b.destaque ? 1 : 0) - (a.destaque ? 1 : 0));
 
   // Busca por produto quando há query
-  let produtos_busca: {
-    id: string; nome: string; preco: number;
-    imagem_url: string | null;
-    empresa: { nome: string; slug: string };
-  }[] = [];
-  if (q && empresaIds.length) {
-    const empresaMap = new Map(empresas.map(e => [e.id, e]));
-    const { data: prodRaw } = await supabase
-      .from("produtos")
-      .select("id, nome, preco, imagem_url, empresa_id")
-      .ilike("nome", `%${q}%`)
-      .in("empresa_id", empresaIds)
-      .limit(12);
-    produtos_busca = (prodRaw ?? []).map(p => ({
-      id:         p.id,
-      nome:       p.nome,
-      preco:      p.preco,
-      imagem_url: p.imagem_url ?? null,
-      empresa:    { nome: empresaMap.get(p.empresa_id)?.nome ?? "", slug: empresaMap.get(p.empresa_id)?.slug ?? "" },
-    }));
-  }
+  const produtos_busca = q && empresaIds.length
+    ? await buscarProdutos(supabase, q, empresas, empresaIds)
+    : [];
 
   // ── 5. Banners do carrossel ───────────────────────────────────
   let banners: unknown[] = [];

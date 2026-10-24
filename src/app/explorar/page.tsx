@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
+import { isLojaDemo } from "@/lib/demoLoja";
 import ExplorarClient from "./ExplorarClient";
 
 export const revalidate = 60;
@@ -25,24 +26,51 @@ const CONFIG_DEFAULTS: ExplorarConfig = {
 export default async function ExplorarPage() {
   const supabase = await createClient();
 
-  // Empresas ativas com assinatura válida
-  const { data: empresas } = await supabase
+  // Empresas ativas com assinatura válida (sem a loja de demonstração)
+  const { data: empresasRaw } = await supabase
     .from("empresas_publica")
     .select("id, nome, slug, verificado, lat, lng, created_at")
     .eq("ativo", true)
     .eq("assinatura_ativa", true);
 
-  const empresaIds = (empresas ?? []).map(e => e.id);
+  const empresas = (empresasRaw ?? []).filter(e => !isLojaDemo(e.slug as string));
+  const empresaIds = empresas.map(e => e.id);
 
-  // Configurações (logo, banner, aberto, taxas)
+  // Configurações (logo, banner, aberto, taxas, horário)
   const { data: configs } = empresaIds.length
     ? await supabase
         .from("configuracao_loja")
-        .select("empresa_id, cor_principal, logo_url, banner_url, aberto, taxa_entrega, tempo_entrega, descricao")
+        .select("empresa_id, cor_principal, logo_url, banner_url, aberto, taxa_entrega, tempo_entrega, descricao, horario_funcionamento")
         .in("empresa_id", empresaIds)
     : { data: [] };
 
   const configMap = new Map((configs ?? []).map(c => [c.empresa_id, c]));
+
+  // Cardápio resumido: menor preço ("pratos a partir de") e categorias de
+  // produto (filtro de categoria/busca). Paginado porque o PostgREST corta
+  // em 1000 linhas por resposta.
+  const resumo = new Map<string, { min: number | null; total: number; cats: Map<string, number> }>();
+  if (empresaIds.length) {
+    for (let pagina = 0; pagina < 10; pagina++) {
+      const { data: prods, error } = await supabase
+        .from("produtos")
+        .select("empresa_id, preco, categoria, ativo")
+        .in("empresa_id", empresaIds)
+        .range(pagina * 1000, pagina * 1000 + 999);
+      if (error || !prods?.length) break;
+      for (const p of prods as { empresa_id: string; preco: number | null; categoria: string | null; ativo: boolean | null }[]) {
+        if (p.ativo === false) continue;
+        const r = resumo.get(p.empresa_id) ?? { min: null, total: 0, cats: new Map<string, number>() };
+        r.total++;
+        const preco = Number(p.preco);
+        if (preco > 0 && (r.min === null || preco < r.min)) r.min = preco;
+        const cat = (p.categoria ?? "").trim();
+        if (cat) r.cats.set(cat, (r.cats.get(cat) ?? 0) + 1);
+        resumo.set(p.empresa_id, r);
+      }
+      if (prods.length < 1000) break;
+    }
+  }
 
   // Extras (destaque/categoria) — tabela opcional
   let extrasMap = new Map<string, { destaque: boolean; categoria: string | null }>();
@@ -98,10 +126,12 @@ export default async function ExplorarPage() {
     );
   } catch { /* ainda não migrado */ }
 
-  const lojas = (empresas ?? []).map(e => {
+  const lojas = empresas.map(e => {
     const cfg   = configMap.get(e.id) ?? null;
     const extra = extrasMap.get(e.id);
     const aval  = avaliacoesMap.get(e.id);
+    const res   = resumo.get(e.id);
+    const cats  = res ? [...res.cats.entries()] : [];
     return {
       id:         e.id,
       nome:       e.nome,
@@ -118,12 +148,16 @@ export default async function ExplorarPage() {
         taxa_entrega: number | null;
         tempo_entrega: string | null;
         descricao: string | null;
+        horario_funcionamento: string | null;
       } | null,
       destaque:    extra?.destaque  ?? false,
       categoria:   extra?.categoria ?? null,
       created_at:  e.created_at as string,
       avaliacaoMedia: aval?.media ?? null,
       avaliacaoTotal: aval?.total ?? 0,
+      precoMin:       res?.min ?? null,
+      tagsPrincipais: res ? cats.filter(([, n]) => n / res.total >= 0.3).map(([c]) => c) : [],
+      catsProdutos:   cats.map(([c]) => c),
     };
   });
 
