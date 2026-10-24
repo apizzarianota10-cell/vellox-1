@@ -304,7 +304,8 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
         // Tamanho equivalente no produto do sabor ("PIZZA G" ↔ "PREMIUM G"); sem equivalente, o do tamanho escolhido
         const origem = produtos.find(p =>
           p.produto_variacoes?.some(v => v.nome === tamanhoNome) || p.categoria_preco?.tamanhos?.some(t => t.nome === tamanhoNome));
-        return precoNoTamanhoEquivalente(src, tamanhoNome, origem) ?? precoBase;
+        // Nunca abaixo do tamanho escolhido no produto aberto: Premium G com sabor da Clássica cobra o da Premium
+        return Math.max(precoNoTamanhoEquivalente(src, tamanhoNome, origem) ?? precoBase, precoBase);
       }
     }
     return precoBase;
