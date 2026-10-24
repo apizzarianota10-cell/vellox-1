@@ -2,15 +2,21 @@ import { createClient } from "@/lib/supabase/server";
 import type { Metadata } from "next";
 import LojaClient from "./LojaClient";
 import type { Produto, ConfiguracaoLoja, Empresa, BairroTaxa } from "@/types";
+import { carregarAvaliacoesLoja } from "@/lib/avaliacoesLoja";
+import { precoVitrine, brl, SELECT_PRECO_VITRINE, type ProdutoPrecoInfo } from "@/lib/precoVitrine";
 
 export const dynamic = "force-dynamic";
 
 interface Props {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ [k: string]: string | string[] | undefined }>;
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { slug } = await params;
+  const sp = await searchParams;
   const supabase = await createClient();
 
   const { data: empresa } = await supabase
@@ -23,6 +29,36 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: "Loja não encontrada" };
   }
 
+  const base = `/loja/${encodeURIComponent(slug.toLowerCase())}`;
+
+  // Link profundo de um prato (?produto=<id>): prévia com a foto, o nome e o
+  // preço do prato (WhatsApp, Instagram, etc.).
+  const produtoId = typeof sp.produto === "string" && UUID_RE.test(sp.produto) ? sp.produto : null;
+  if (produtoId) {
+    const { data: prod } = await supabase
+      .from("produtos")
+      .select(`id, nome, descricao, ativo, ${SELECT_PRECO_VITRINE}`)
+      .eq("id", produtoId)
+      .eq("empresa_id", empresa.id)
+      .maybeSingle();
+    if (prod && prod.ativo !== false) {
+      const { preco, aPartirDe } = precoVitrine(prod as unknown as ProdutoPrecoInfo);
+      const valor = preco > 0 ? `${aPartirDe ? "a partir de " : ""}${brl(preco)}` : "";
+      const titulo = `${prod.nome}${valor ? ` · ${valor}` : ""} — ${empresa.nome}`;
+      const descricao = (prod.descricao as string | null)?.trim()
+        || `Olha que delícia: ${prod.nome}${valor ? ` por ${valor}` : ""} na ${empresa.nome}. Peça online!`;
+      const imagem = { url: `${base}/og?produto=${prod.id}`, width: 1200, height: 630, alt: prod.nome as string };
+      const url = `${base}?produto=${prod.id}`;
+      return {
+        title: titulo,
+        description: descricao,
+        alternates: { canonical: url },
+        openGraph: { title: titulo, description: descricao, type: "website", url, images: [imagem] },
+        twitter: { card: "summary_large_image", title: titulo, description: descricao, images: [imagem.url] },
+      };
+    }
+  }
+
   const { data: config } = await supabase
     .from("configuracao_loja")
     .select("descricao")
@@ -31,6 +67,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const titulo = empresa.nome;
   const descricao = config?.descricao || `Faça seu pedido na ${empresa.nome}`;
+  const imagem = { url: `${base}/og`, width: 1200, height: 630, alt: empresa.nome };
 
   return {
     title: titulo,
@@ -39,11 +76,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: titulo,
       description: descricao,
       type: "website",
+      images: [imagem],
     },
     twitter: {
       card: "summary_large_image",
       title: titulo,
       description: descricao,
+      images: [imagem.url],
     },
   };
 }
@@ -70,7 +109,7 @@ export default async function LojaPage({ params }: Props) {
     );
   }
 
-  const [{ data: produtos }, { data: config }, { data: bairros }] = await Promise.all([
+  const [{ data: produtos }, { data: config }, { data: bairros }, avaliacoes] = await Promise.all([
     supabase
       .from("produtos")
       .select("*, produto_variacoes(*), produto_sabores(*), produto_adicionais(*), produto_categorias_sabor(*), categoria_preco:categorias_preco!categoria_preco_id(*, tamanhos:categorias_preco_tamanhos(*))")
@@ -91,6 +130,7 @@ export default async function LojaPage({ params }: Props) {
       .eq("ativo", true)
       .order("ordem")
       .order("bairro"),
+    carregarAvaliacoesLoja(empresa.id),
   ]);
 
   return (
@@ -99,6 +139,7 @@ export default async function LojaPage({ params }: Props) {
       config={config as ConfiguracaoLoja | null}
       empresa={empresa as Pick<Empresa, "id" | "nome" | "codigo" | "slug" | "verificado">}
       bairros={(bairros ?? []) as BairroTaxa[]}
+      avaliacoes={avaliacoes}
     />
   );
 }

@@ -6,7 +6,7 @@ import {
   ShoppingCart, Plus, Minus, X, ChevronRight,
   MapPin, Phone, User, Clock, Truck, CheckCircle,
   Store, Package, Star, ChevronDown, BadgeCheck,
-  Search, XCircle,
+  Search, XCircle, Share2,
 } from "lucide-react";
 import type { Produto, ConfiguracaoLoja, Empresa, BairroTaxa, ProdutoVariacao, ProdutoSabor, ProdutoAdicional, PedidoStatus } from "@/types";
 import { precoNoTamanhoEquivalente } from "@/lib/tamanhoEquivalente";
@@ -14,6 +14,10 @@ import ImgComFallback from "@/components/ImgComFallback";
 import { itensDoCarrinho } from "@/lib/pedidoItens";
 import { ordenarCategorias, agruparPorCategoria } from "@/lib/ordemCatalogo";
 import { CheckoutConta, SalvarEnderecoPosPedido } from "./CheckoutConta";
+import { compartilharProduto } from "./compartilhar";
+import AvaliacoesLoja, { SeloNotaLoja } from "./AvaliacoesLoja";
+import type { ResumoAvaliacoes } from "@/lib/avaliacoesLoja";
+import { lerBairroSalvo, normalizarBairro } from "@/lib/bairroCliente";
 
 interface PedidoBuscado {
   id: string;
@@ -79,6 +83,8 @@ interface Props {
   config: ConfiguracaoLoja | null;
   empresa: Pick<Empresa, "id" | "nome" | "codigo" | "verificado">;
   bairros: BairroTaxa[];
+  /** Avaliações reais (pedidos entregues e avaliados) — opcional. */
+  avaliacoes?: ResumoAvaliacoes;
 }
 
 const PAG_LABELS: Record<Pagamento, string> = {
@@ -103,7 +109,7 @@ function describeItem(item: CartItem): string {
   return parts.join(" · ");
 }
 
-export default function LojaClient({ produtos, config, empresa, bairros }: Props) {
+export default function LojaClient({ produtos, config, empresa, bairros, avaliacoes }: Props) {
   const cor = config?.cor_principal ?? "#E4002B";
   const taxaPadrao = config?.taxa_entrega ?? 0;
   const aberto = config?.aberto ?? true;
@@ -256,6 +262,17 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
     rua: "", numero: "", complemento: "", referencia: "",
     bairro: "", observacoes: "", tipo: "entrega", pagamento: "pix", troco: "",
   });
+
+  // Bairro escolhido no /explorar ("Entrega no meu bairro?"): pré-seleciona
+  // no checkout se esta loja atende esse bairro.
+  useEffect(() => {
+    const salvo = lerBairroSalvo();
+    if (!salvo || !usaBairros) return;
+    const alvo = normalizarBairro(salvo);
+    const achado = bairros.find(b => normalizarBairro(b.bairro) === alvo);
+    if (achado) setForm(f => (f.bairro ? f : { ...f, bairro: achado.bairro }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Carousel
   const [carouselPaused, setCarouselPaused] = useState(false);
@@ -501,6 +518,17 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
     else if (hasSaborStep)       setDetailStep("sabores");
     else                         setDetailStep("adicionais");
   }
+
+  // Link profundo: /loja/<slug>?produto=<id> (compartilhar no WhatsApp,
+  // "Quero esse!" do sorteio no /explorar) abre a loja já com o detalhe.
+  useEffect(() => {
+    try {
+      const id = new URLSearchParams(window.location.search).get("produto");
+      const p = id ? produtos.find(x => x.id === id) : null;
+      if (p) openDetail(p);
+    } catch { /* URL inválida: ignora */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Adiciona o item escolhido e deixa a tela aberta para escolher outro
   // (ex.: várias bebidas diferentes, cada uma com seu preço)
@@ -863,6 +891,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
 
             {/* Chips de info */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 12 }}>
+              <SeloNotaLoja resumo={avaliacoes} />
               {config?.tempo_entrega && (
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 999, background: "#f8fafc", border: "1px solid #e2e8f0", fontSize: 12, fontWeight: 600, color: "#475569" }}>
                   <Clock size={12} style={{ color: cor }} />{config.tempo_entrega}
@@ -1011,7 +1040,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                   : badgeIdx === 1
                   ? { label: "Popular", bg: "#fffbeb", color: "#92400e", border: "#fde68a" }
                   : null;
-                const rating = (4.3 + (i % 6) * 0.1).toFixed(1);
+                const rating = avaliacoes?.media != null && avaliacoes.total > 0 ? avaliacoes.media.toFixed(1).replace(".", ",") : null;
                 return (
                   <div
                     key={`${p.id}-${i}`}
@@ -1056,9 +1085,11 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                         {p.nome}
                       </p>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 2, fontSize: 10, fontWeight: 700, color: "#f59e0b" }}>
-                          <Star size={10} style={{ fill: "#f59e0b", color: "#f59e0b" }} />{rating}
-                        </span>
+                        {rating && (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 2, fontSize: 10, fontWeight: 700, color: "#f59e0b" }} title="Nota da loja">
+                            <Star size={10} style={{ fill: "#f59e0b", color: "#f59e0b" }} />{rating}
+                          </span>
+                        )}
                         {config?.tempo_entrega && (
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 2, fontSize: 10, color: "#94a3b8", fontWeight: 600 }}>
                             <Clock size={9} />{config.tempo_entrega}
@@ -1087,6 +1118,9 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
           </div>
         </section>
       )}
+
+      {/* ══ AVALIAÇÕES ══ */}
+      <AvaliacoesLoja resumo={avaliacoes} />
 
       {/* ══ SEÇÃO DE SABORES ══ */}
       {catSel === "__sabores__" && (
@@ -1187,11 +1221,11 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                     const customizable = hasCustomizations(p);
                     return (
                       <div key={p.id}
-                        onClick={() => customizable ? openDetail(p) : undefined}
+                        onClick={() => openDetail(p)}
                         style={{
                           flex: "0 0 158px", scrollSnapAlign: "start", background: "#fff", borderRadius: 16,
                           border: "1px solid #f0f0f0", boxShadow: "0 1px 4px rgba(0,0,0,0.04)", overflow: "hidden",
-                          display: "flex", flexDirection: "column", cursor: customizable ? "pointer" : "default",
+                          display: "flex", flexDirection: "column", cursor: "pointer",
                         }}>
                         <div style={{ width: "100%", height: 118, background: "#f8fafc", position: "relative" }}>
                           <ImgComFallback
@@ -1244,11 +1278,11 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
               const customizable = hasCustomizations(p);
               return (
                 <div key={p.id}
-                  onClick={() => customizable ? openDetail(p) : undefined}
+                  onClick={() => openDetail(p)}
                   style={{
                     background: "#fff", borderRadius: 18, border: "1px solid #f0f0f0",
                     boxShadow: "0 1px 4px rgba(0,0,0,0.04)", display: "flex", overflow: "hidden",
-                    transition: "box-shadow 0.2s", cursor: customizable ? "pointer" : "default",
+                    transition: "box-shadow 0.2s", cursor: "pointer",
                   }}>
                   <div style={{ flex: 1, padding: "16px 16px 16px 18px", display: "flex", flexDirection: "column", justifyContent: "space-between", minWidth: 0 }}>
                     <div>
@@ -1285,7 +1319,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                           <Plus size={16} />
                         </button>
                       ) : qty === 0 ? (
-                        <button onClick={() => addSimple(p)}
+                        <button onClick={e => { e.stopPropagation(); addSimple(p); }} aria-label={`Adicionar ${p.nome}`}
                           style={{
                             display: "flex", alignItems: "center", justifyContent: "center",
                             width: 34, height: 34, borderRadius: 10,
@@ -1296,12 +1330,12 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                         </button>
                       ) : (
                         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                          <button onClick={() => removeOne(buildCartKey(p.id))}
+                          <button onClick={e => { e.stopPropagation(); removeOne(buildCartKey(p.id)); }} aria-label={`Tirar um ${p.nome}`}
                             style={{ width: 30, height: 30, borderRadius: 8, background: "#f1f5f9", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                             <Minus size={12} style={{ color: "#64748b" }} />
                           </button>
                           <span style={{ fontSize: 15, fontWeight: 900, color: "#0f172a", minWidth: 20, textAlign: "center" }}>{qty}</span>
-                          <button onClick={() => addSimple(p)}
+                          <button onClick={e => { e.stopPropagation(); addSimple(p); }} aria-label={`Adicionar mais um ${p.nome}`}
                             style={{ width: 30, height: 30, borderRadius: 8, background: cor, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                             <Plus size={12} style={{ color: "#fff" }} />
                           </button>
@@ -1728,7 +1762,15 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
             <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 18 }}>
               {/* Nome + descrição */}
               <div>
-                <h2 style={{ fontSize: 20, fontWeight: 900, color: "#0f172a", margin: "0 0 6px", letterSpacing: "-0.02em" }}>{detailProduto.nome}</h2>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                  <h2 style={{ flex: 1, minWidth: 0, fontSize: 20, fontWeight: 900, color: "#0f172a", margin: "0 0 6px", letterSpacing: "-0.02em", overflowWrap: "anywhere" }}>{detailProduto.nome}</h2>
+                  <button type="button"
+                    onClick={() => compartilharProduto({ produtoId: detailProduto.id, nome: detailProduto.nome, preco: precoMinimo(detailProduto), loja: empresa.nome, aPartirDe: isAPartirDe(detailProduto) })}
+                    aria-label={`Compartilhar ${detailProduto.nome} no WhatsApp`}
+                    style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6, minHeight: 40, padding: "0 13px", borderRadius: 999, background: "#ecfdf3", border: "1px solid #bbf7d0", color: "#15803d", fontSize: 12.5, fontWeight: 800, cursor: "pointer" }}>
+                    <Share2 size={14} aria-hidden /> Compartilhar
+                  </button>
+                </div>
                 {detailProduto.descricao && <p style={{ fontSize: 13, color: "#64748b", margin: 0, lineHeight: 1.5 }}>{detailProduto.descricao}</p>}
               </div>
 

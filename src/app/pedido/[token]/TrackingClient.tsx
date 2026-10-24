@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { Navigation, CheckCircle, Clock, ChevronRight, Package, Bike, Home, MapPin, Phone, RefreshCw, Zap, Bell, BellRing, X, MessageCircle, Star, Loader2 } from "lucide-react";
+import { comprimirImagem } from "@/lib/comprimirImagem";
+import { Navigation, CheckCircle, Clock, ChevronRight, Package, Bike, Home, MapPin, Phone, RefreshCw, Zap, Bell, BellRing, X, MessageCircle, Star, Loader2, Camera } from "lucide-react";
 
 type Status =
   | "em_fila" | "em_preparo" | "finalizado"
@@ -102,6 +103,8 @@ interface Pedido {
   empresa: { nome: string; configuracao_loja: { telefone_contato: string | null } | { telefone_contato: string | null }[] | null } | null;
   avaliacao_nota: number | null;
   avaliacao_comentario: string | null;
+  /** schema_v74 — null quando não há foto (ou a migração não rodou). */
+  avaliacao_foto_url?: string | null;
 }
 
 function linkWhatsappLoja(pedido: Pedido): string | null {
@@ -152,15 +155,27 @@ interface AvaliacaoCardProps {
   token: string;
   notaAtual: number | null;
   comentarioAtual: string | null;
-  onEnviada: (nota: number, comentario: string | null) => void;
+  fotoAtual: string | null;
+  onEnviada: (nota: number, comentario: string | null, foto: string | null) => void;
 }
 
-function AvaliacaoCard({ token, notaAtual, comentarioAtual, onEnviada }: AvaliacaoCardProps) {
+const ROTULO_NOTA = ["", "Ruim", "Poderia ser melhor", "Bom", "Muito bom", "Perfeito!"];
+const TIPOS_FOTO = ["image/jpeg", "image/png", "image/webp"];
+
+function AvaliacaoCard({ token, notaAtual, comentarioAtual, fotoAtual, onEnviada }: AvaliacaoCardProps) {
   const [nota, setNota]           = useState(0);
   const [hoverNota, setHoverNota] = useState(0);
   const [comentario, setComentario] = useState("");
+  const [foto, setFoto]           = useState<File | null>(null);
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+  const [preparandoFoto, setPreparandoFoto] = useState(false);
   const [enviando, setEnviando]   = useState(false);
   const [erro, setErro]           = useState("");
+  const [aviso, setAviso]         = useState("");
+  const inputFotoRef = useRef<HTMLInputElement>(null);
+
+  // Libera a prévia da memória ao trocar/remover a foto
+  useEffect(() => () => { if (fotoPreview) URL.revokeObjectURL(fotoPreview); }, [fotoPreview]);
 
   if (notaAtual !== null) {
     return (
@@ -168,30 +183,63 @@ function AvaliacaoCard({ token, notaAtual, comentarioAtual, onEnviada }: Avaliac
         <p style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 10px" }}>
           Sua avaliação
         </p>
-        <div className="flex gap-1 mb-2">
+        <div className="flex gap-1 mb-2" role="img" aria-label={`${notaAtual} de 5 estrelas`}>
           {[1, 2, 3, 4, 5].map(i => (
-            <Star key={i} size={20} fill={i <= notaAtual ? "#fbbf24" : "none"} style={{ color: "#fbbf24" }} />
+            <Star key={i} size={20} fill={i <= notaAtual ? "#fbbf24" : "none"} style={{ color: "#fbbf24" }} aria-hidden />
           ))}
         </div>
-        {comentarioAtual && <p style={{ fontSize: 13, color: "#475569", margin: 0 }}>{comentarioAtual}</p>}
-        <p style={{ fontSize: 12, color: "#94a3b8", margin: comentarioAtual ? "8px 0 0" : "4px 0 0" }}>Obrigado pelo feedback! 🙌</p>
+        {comentarioAtual && <p style={{ fontSize: 13, color: "#475569", margin: 0, overflowWrap: "anywhere" }}>{comentarioAtual}</p>}
+        {fotoAtual && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={fotoAtual} alt="Foto enviada na avaliação" style={{ display: "block", width: 112, height: 112, objectFit: "cover", borderRadius: 14, marginTop: 10, border: "1px solid #f1f5f9" }} />
+        )}
+        {aviso && <p style={{ fontSize: 12, color: "#b45309", margin: "8px 0 0" }}>{aviso}</p>}
+        <p style={{ fontSize: 12, color: "#94a3b8", margin: comentarioAtual || fotoAtual ? "8px 0 0" : "4px 0 0" }}>Obrigado pelo feedback! 🙌</p>
       </div>
     );
   }
+
+  async function escolherFoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    if (!f.type.startsWith("image/")) { setErro("Escolha um arquivo de imagem"); return; }
+    setErro("");
+    setPreparandoFoto(true);
+    try {
+      // Foto de celular tem vários MB: reduz no aparelho antes de enviar
+      // (HEIC e afins viram JPEG quando o navegador consegue abrir)
+      let pronta = await comprimirImagem(f, { maxLado: 1280, qualidade: 0.82, limiteSemMexer: 600 * 1024 });
+      if (!TIPOS_FOTO.includes(pronta.type)) {
+        pronta = await comprimirImagem(pronta, { maxLado: 1280, qualidade: 0.82, limiteSemMexer: 0 });
+      }
+      if (!TIPOS_FOTO.includes(pronta.type)) throw new Error("Formato de foto não suportado (use JPG ou PNG)");
+      if (pronta.size > 4 * 1024 * 1024) throw new Error("Foto muito grande — tente outra");
+      setFoto(pronta);
+      setFotoPreview(URL.createObjectURL(pronta));
+    } catch (err) {
+      setErro(err instanceof Error ? err.message : "Não deu pra usar essa foto");
+    } finally {
+      setPreparandoFoto(false);
+    }
+  }
+
+  function removerFoto() { setFoto(null); setFotoPreview(null); }
 
   async function enviar() {
     if (nota < 1) return;
     setEnviando(true);
     setErro("");
     try {
-      const res = await fetch(`/api/pedido/${token}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nota, comentario: comentario.trim() || undefined }),
-      });
-      const json = await res.json();
+      const fd = new FormData();
+      fd.append("nota", String(nota));
+      if (comentario.trim()) fd.append("comentario", comentario.trim());
+      if (foto) fd.append("foto", foto, foto.name || "foto.jpg");
+      const res = await fetch(`/api/pedido/${token}`, { method: "POST", body: fd });
+      const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error ?? "Erro ao enviar avaliação");
-      onEnviada(nota, comentario.trim() || null);
+      if (foto && json.foto_ignorada) setAviso("Sua nota foi salva, mas não conseguimos guardar a foto.");
+      onEnviada(nota, comentario.trim() || null, (json.foto_url as string | null) ?? null);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Erro ao enviar avaliação");
     } finally {
@@ -199,40 +247,68 @@ function AvaliacaoCard({ token, notaAtual, comentarioAtual, onEnviada }: Avaliac
     }
   }
 
+  const notaVisivel = hoverNota || nota;
+
   return (
     <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 2px 20px rgba(0,0,0,0.08)", padding: "18px 20px", marginBottom: 16, animation: "slideUp 0.4s ease" }}>
-      <p style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", margin: "0 0 2px" }}>Como foi seu pedido?</p>
+      <p id="avaliacao-titulo" style={{ fontSize: 15, fontWeight: 800, color: "#0f172a", margin: "0 0 2px" }}>Como foi seu pedido?</p>
       <p style={{ fontSize: 12, color: "#94a3b8", margin: "0 0 12px" }}>Sua avaliação ajuda outros clientes e a loja.</p>
 
-      <div className="flex gap-1.5 mb-3">
+      <div className="flex items-center gap-1 mb-3 flex-wrap" role="radiogroup" aria-labelledby="avaliacao-titulo">
         {[1, 2, 3, 4, 5].map(i => (
           <button
             key={i}
             type="button"
+            role="radio"
+            aria-checked={nota === i}
+            aria-label={`${i} estrela${i > 1 ? "s" : ""} — ${ROTULO_NOTA[i]}`}
             onClick={() => setNota(i)}
             onMouseEnter={() => setHoverNota(i)}
             onMouseLeave={() => setHoverNota(0)}
-            style={{ background: "none", border: "none", padding: 2, cursor: "pointer" }}
+            style={{ background: "none", border: "none", padding: 4, cursor: "pointer", minWidth: 40, minHeight: 40, display: "flex", alignItems: "center", justifyContent: "center" }}
           >
-            <Star size={28} fill={i <= (hoverNota || nota) ? "#fbbf24" : "none"} style={{ color: "#fbbf24" }} />
+            <Star size={30} fill={i <= notaVisivel ? "#fbbf24" : "none"} style={{ color: "#fbbf24" }} aria-hidden />
           </button>
         ))}
+        {notaVisivel > 0 && <span aria-hidden style={{ fontSize: 13, fontWeight: 700, color: "#92400e", marginLeft: 4 }}>{ROTULO_NOTA[notaVisivel]}</span>}
       </div>
 
       {nota > 0 && (
         <>
+          <label htmlFor="avaliacao-comentario" className="sr-only">Comentário (opcional)</label>
           <textarea
+            id="avaliacao-comentario"
             value={comentario}
             onChange={e => setComentario(e.target.value.slice(0, 1000))}
             placeholder="Conte como foi (opcional)"
             rows={3}
-            style={{ width: "100%", borderRadius: 12, border: "1px solid #e2e8f0", padding: "10px 12px", fontSize: 13, fontFamily: "inherit", resize: "none", marginBottom: 10, boxSizing: "border-box" }}
+            style={{ width: "100%", borderRadius: 12, border: "1px solid #e2e8f0", padding: "10px 12px", fontSize: 16, fontFamily: "inherit", resize: "none", marginBottom: 10, boxSizing: "border-box" }}
           />
-          {erro && <p style={{ fontSize: 12, color: "#dc2626", margin: "0 0 8px" }}>{erro}</p>}
+
+          {/* Foto opcional */}
+          <input ref={inputFotoRef} type="file" accept="image/*" onChange={escolherFoto} style={{ display: "none" }} aria-hidden tabIndex={-1} />
+          {fotoPreview ? (
+            <div className="flex items-center gap-3" style={{ marginBottom: 10 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={fotoPreview} alt="Prévia da foto escolhida" style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 12, border: "1px solid #e2e8f0" }} />
+              <div className="flex flex-col">
+                <button type="button" onClick={() => inputFotoRef.current?.click()} style={{ background: "none", border: "none", padding: "8px 0", minHeight: 36, color: "#0f172a", fontWeight: 700, fontSize: 13, cursor: "pointer", textAlign: "left" }}>Trocar foto</button>
+                <button type="button" onClick={removerFoto} style={{ background: "none", border: "none", padding: "8px 0", minHeight: 36, color: "#dc2626", fontWeight: 700, fontSize: 13, cursor: "pointer", textAlign: "left" }}>Remover foto</button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" onClick={() => inputFotoRef.current?.click()} disabled={preparandoFoto}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", minHeight: 44, marginBottom: 10, borderRadius: 12, border: "1.5px dashed #cbd5e1", background: "#f8fafc", color: "#475569", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+              {preparandoFoto ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Camera size={16} aria-hidden />}
+              {preparandoFoto ? "Preparando foto…" : "Adicionar foto do pedido (opcional)"}
+            </button>
+          )}
+
+          {erro && <p role="alert" style={{ fontSize: 12, color: "#dc2626", margin: "0 0 8px" }}>{erro}</p>}
           <button
             onClick={enviar}
-            disabled={enviando}
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "11px", borderRadius: 12, background: "#E4002B", color: "#fff", border: "none", fontWeight: 700, fontSize: 14, cursor: "pointer", opacity: enviando ? 0.7 : 1 }}
+            disabled={enviando || preparandoFoto}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", minHeight: 44, padding: "11px", borderRadius: 12, background: "#E4002B", color: "#fff", border: "none", fontWeight: 700, fontSize: 14, cursor: "pointer", opacity: enviando || preparandoFoto ? 0.7 : 1 }}
           >
             {enviando && <Loader2 size={15} className="animate-spin" />}
             {enviando ? "Enviando..." : "Enviar avaliação"}
@@ -476,7 +552,8 @@ export default function TrackingClient({ token }: { token: string }) {
             token={token}
             notaAtual={pedido.avaliacao_nota}
             comentarioAtual={pedido.avaliacao_comentario}
-            onEnviada={(nota, comentario) => setPedido(p => p ? { ...p, avaliacao_nota: nota, avaliacao_comentario: comentario } : p)}
+            fotoAtual={pedido.avaliacao_foto_url ?? null}
+            onEnviada={(nota, comentario, foto) => setPedido(p => p ? { ...p, avaliacao_nota: nota, avaliacao_comentario: comentario, avaliacao_foto_url: foto } : p)}
           />
         )}
 
