@@ -1235,11 +1235,10 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6" style={{ background: "var(--bg-base)", minHeight: "100%" }}>
 
-      {/* ── Pop-up: pedido em preparo além do tempo estimado ── */}
+      {/* ── Fluxo automático: fila → preparo sozinho; no fim pergunta se foi despachado ── */}
       <PreparoAtrasadoModal
         pedidos={pedidos}
-        tempoEstimado={tempoEstimado}
-        onFinalizar={handleAdvance}
+        onAvancar={handleAdvance}
         onCancelar={handleCancel}
       />
 

@@ -1,62 +1,68 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle, Clock, Loader2, XCircle } from "lucide-react";
 import type { Pedido } from "@/types";
 
-// "Ainda em preparo" adia a pergunta sobre aquele pedido por este tempo.
-const ADIAR_MIN = 10;
+// Fluxo automático dos pedidos (enquanto a tela de Pedidos está aberta):
+//   1. "Em fila" passa sozinho para "Em preparo" depois de PASSO_MIN.
+//   2. "Em preparo" há PASSO_MIN → pop-up perguntando se o pedido já foi
+//      despachado (ou ficou pronto, na retirada). Só avança com o "Sim" —
+//      é aí que baixa o estoque e vai para o motoboy.
+const PASSO_MIN = 3;
+// "Ainda não" pergunta de novo depois deste tempo.
+const ADIAR_MIN = 2;
 const ADIAR_KEY = "vellox-preparo-adiado";
-// Sem tempo configurado na loja (ou texto sem número), usa este padrão.
-const PADRAO_MIN = 40;
-
-/** "30-45 min" → 45; "1h" → 60; "1h30" → 90; sem número → padrão. */
-export function tempoEstimadoMin(texto: string | null | undefined): number {
-  const t = (texto ?? "").toLowerCase();
-  const h = t.match(/(\d+)\s*h\s*(\d+)?/);
-  if (h) return parseInt(h[1], 10) * 60 + (h[2] ? parseInt(h[2], 10) : 0);
-  const nums = (t.match(/\d+/g) ?? []).map(n => parseInt(n, 10)).filter(n => n > 0);
-  return nums.length ? Math.max(...nums) : PADRAO_MIN;
-}
 
 function lerAdiados(): Record<string, number> {
   try { return JSON.parse(sessionStorage.getItem(ADIAR_KEY) ?? "{}") as Record<string, number>; } catch { return {}; }
 }
 
+/** Quando o pedido entrou no status atual (updated_at é gravado a cada mudança de status). */
+function desde(p: Pedido): number {
+  const t = new Date(p.updated_at ?? p.created_at).getTime();
+  return Number.isFinite(t) ? t : new Date(p.created_at).getTime();
+}
+
 interface Props {
   pedidos: Pedido[];
-  tempoEstimado: string | null;
-  onFinalizar: (p: Pedido) => Promise<void>;
+  onAvancar: (p: Pedido) => Promise<void>;
   onCancelar: (p: Pedido) => Promise<void>;
 }
 
-/**
- * Pergunta sobre pedidos parados "em preparo" além do tempo estimado da loja
- * (contado desde a criação do pedido) — se já saiu, dá baixa como finalizado;
- * se não vai sair, cancela. Um pedido por vez.
- */
-export default function PreparoAtrasadoModal({ pedidos, tempoEstimado, onFinalizar, onCancelar }: Props) {
-  const limiteMin = tempoEstimadoMin(tempoEstimado);
+export default function PreparoAtrasadoModal({ pedidos, onAvancar, onCancelar }: Props) {
   const [agora, setAgora] = useState(() => Date.now());
   const [adiados, setAdiados] = useState<Record<string, number>>({});
   const [salvando, setSalvando] = useState<"finalizar" | "cancelar" | null>(null);
+  const avancados = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     setAdiados(lerAdiados());
-    const t = setInterval(() => setAgora(Date.now()), 30_000);
+    const t = setInterval(() => setAgora(Date.now()), 15_000);
     return () => clearInterval(t);
   }, []);
 
+  // 1) Em fila → Em preparo, sozinho
+  useEffect(() => {
+    const prontos = pedidos.filter(p =>
+      p.status === "em_fila" && !avancados.current.has(p.id) && agora - desde(p) >= PASSO_MIN * 60_000);
+    for (const p of prontos) {
+      avancados.current.add(p.id);
+      onAvancar(p).catch(() => avancados.current.delete(p.id));
+    }
+  }, [pedidos, agora, onAvancar]);
+
+  // 2) Em preparo há PASSO_MIN → pergunta
   const atual = useMemo(() => pedidos
     .filter(p => p.status === "em_preparo")
-    .filter(p => agora - new Date(p.created_at).getTime() > limiteMin * 60_000)
+    .filter(p => agora - desde(p) >= PASSO_MIN * 60_000)
     .filter(p => (adiados[p.id] ?? 0) < agora)
-    .sort((a, b) => a.created_at.localeCompare(b.created_at))[0] ?? null,
-  [pedidos, agora, adiados, limiteMin]);
+    .sort((a, b) => desde(a) - desde(b))[0] ?? null,
+  [pedidos, agora, adiados]);
 
   if (!atual) return null;
 
-  const minutos = Math.round((agora - new Date(atual.created_at).getTime()) / 60_000);
+  const minutos = Math.max(1, Math.round((agora - desde(atual)) / 60_000));
   const retirada = atual.tipo_pedido === "retirada";
 
   function adiar() {
@@ -70,7 +76,7 @@ export default function PreparoAtrasadoModal({ pedidos, tempoEstimado, onFinaliz
     if (!atual) return;
     setSalvando(tipo);
     try {
-      await (tipo === "finalizar" ? onFinalizar(atual) : onCancelar(atual));
+      await (tipo === "finalizar" ? onAvancar(atual) : onCancelar(atual));
     } finally {
       setSalvando(null);
       // Evita reabrir para o mesmo pedido enquanto a lista não atualiza.
@@ -86,10 +92,10 @@ export default function PreparoAtrasadoModal({ pedidos, tempoEstimado, onFinaliz
             <Clock size={20} style={{ color: "#d97706" }} />
           </div>
           <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: 16, fontWeight: 800, color: "var(--text-1)", margin: 0 }}>Esse pedido já saiu?</p>
-            <p style={{ fontSize: 12.5, color: "var(--text-4)", margin: 0 }}>
-              Em preparo há {minutos} min · estimado da loja: {limiteMin} min
+            <p style={{ fontSize: 16, fontWeight: 800, color: "var(--text-1)", margin: 0 }}>
+              {retirada ? "Esse pedido já está pronto?" : "Esse pedido já foi despachado?"}
             </p>
+            <p style={{ fontSize: 12.5, color: "var(--text-4)", margin: 0 }}>Em preparo há {minutos} min</p>
           </div>
         </div>
 
@@ -107,19 +113,20 @@ export default function PreparoAtrasadoModal({ pedidos, tempoEstimado, onFinaliz
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <button onClick={() => agir("finalizar")} disabled={salvando !== null}
             className="flex items-center justify-center gap-2 rounded-xl"
-            style={{ padding: "11px 14px", background: "#22c55e", color: "#fff", border: "none", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>
+            style={{ padding: "12px 14px", background: "#22c55e", color: "#fff", border: "none", fontSize: 14.5, fontWeight: 800, cursor: "pointer" }}>
             {salvando === "finalizar" ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-            Sim, já foi finalizado
-          </button>
-          <button onClick={() => agir("cancelar")} disabled={salvando !== null}
-            className="flex items-center justify-center gap-2 rounded-xl"
-            style={{ padding: "10px 14px", background: "rgba(228,0,43,0.08)", color: "#E4002B", border: "1px solid rgba(228,0,43,0.3)", fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}>
-            {salvando === "cancelar" ? <Loader2 size={15} className="animate-spin" /> : <XCircle size={15} />}
-            Foi cancelado
+            {retirada ? "Sim, está pronto" : "Sim, foi despachado"}
           </button>
           <button onClick={adiar} disabled={salvando !== null}
-            style={{ padding: "8px 14px", background: "none", color: "var(--text-3)", border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-            Ainda em preparo (perguntar de novo em {ADIAR_MIN} min)
+            className="rounded-xl"
+            style={{ padding: "11px 14px", background: "var(--bg-2)", color: "var(--text-2)", border: "1px solid var(--border-1)", fontSize: 13.5, fontWeight: 700, cursor: "pointer" }}>
+            Ainda não (perguntar de novo em {ADIAR_MIN} min)
+          </button>
+          <button onClick={() => agir("cancelar")} disabled={salvando !== null}
+            className="flex items-center justify-center gap-2"
+            style={{ padding: "8px 14px", background: "none", color: "#E4002B", border: "none", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+            {salvando === "cancelar" ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
+            Foi cancelado
           </button>
         </div>
       </div>
