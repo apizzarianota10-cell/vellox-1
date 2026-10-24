@@ -55,6 +55,11 @@ export async function GET(request: NextRequest) {
         }
 
         if (next === "/dashboard") destination = "/motoboy";
+      } else if (tipo === "cliente") {
+        // Cliente final: nunca cai no painel da empresa
+        if (next === "/dashboard" || next === "/reset-password") {
+          destination = next === "/reset-password" ? "/explorar/nova-senha" : "/explorar?aba=perfil";
+        }
       } else if (tipo === "god") {
         if (next === "/dashboard") destination = "/god";
       } else if (tipo === "empresa") {
@@ -73,5 +78,12 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Links da conta do cliente final (/explorar, /loja) voltam para o /explorar,
+  // não para o login da empresa. O e-mail já foi confirmado pelo Supabase
+  // antes deste redirect; o que falhou foi a troca do código (ex.: link aberto
+  // em outro navegador), então basta entrar com e-mail e senha.
+  if (next.startsWith("/explorar") || next.startsWith("/loja/")) {
+    return NextResponse.redirect(`${origin}/explorar?aba=perfil&erro=link`);
+  }
   return NextResponse.redirect(`${origin}/login?error=auth`);
 }

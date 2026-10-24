@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient as createSessionClient } from "@/lib/supabase/server";
+import { ehContaCliente } from "@/lib/clienteConta";
 import { colunaItensAusente } from "@/lib/pedidoItens";
 import { geocodificarPedido } from "@/lib/geocodePedido";
 import type { PedidoItem } from "@/types";
@@ -51,6 +53,30 @@ function checkRateLimit(ip: string): boolean {
 }
 
 const MAX_LEN = { nome: 120, telefone: 30, endereco: 300, obs: 500, itens: 4000 };
+
+// Cliente final logado (conta de cliente, schema_v73)? Lê a sessão pelos
+// cookies e valida o token no Supabase Auth. Empresa/motoboy logados ou
+// visitante sem conta → null (o pedido segue sem vínculo, como sempre).
+async function clienteLogadoId(req: NextRequest): Promise<string | null> {
+  // Sem cookie de sessão do Supabase → visitante (evita ida ao Auth à toa)
+  const temSessao = req.cookies.getAll().some(c => c.name.startsWith("sb-") && c.name.includes("-auth-token"));
+  if (!temSessao) return null;
+  try {
+    const sb = await createSessionClient();
+    const { data: { user } } = await sb.auth.getUser();
+    return user && ehContaCliente(user) ? user.id : null;
+  } catch {
+    return null;
+  }
+}
+
+// schema_v73 não aplicada (coluna pedidos.cliente_id ausente) ou cliente sem
+// linha em clientes (FK) → reenvia sem o vínculo.
+function erroClienteId(err: { code?: string; message?: string } | null | undefined): boolean {
+  if (!err) return false;
+  const msg = `${err.message ?? ""}`;
+  return /cliente_id/i.test(msg) && ["PGRST204", "42703", "23503"].includes(err.code ?? "");
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -155,8 +181,19 @@ export async function POST(req: NextRequest) {
       itens,
     };
 
+    const clienteId = await clienteLogadoId(req);
+    if (clienteId) payload.cliente_id = clienteId;
+
     const inserir = () => supabase.from("pedidos").insert(payload).select("id, tracking_token").single();
     let { data, error } = await inserir();
+
+    // Sem schema_v73 (ou cliente sem linha em clientes): reenvia sem cliente_id.
+    // Checado antes e depois do fallback de itens (o PostgREST acusa uma coluna por vez).
+    if (error && "cliente_id" in payload && erroClienteId(error)) {
+      if (error.code !== "23503") console.warn("Coluna pedidos.cliente_id ausente (rode supabase/schema_v73.sql) — pedido salvo sem vínculo com a conta");
+      delete payload.cliente_id;
+      ({ data, error } = await inserir());
+    }
 
     // Migration schema_v67 ainda não aplicada (coluna itens não existe):
     // reenvia sem itens pra nunca quebrar o checkout do cliente.
@@ -164,6 +201,11 @@ export async function POST(req: NextRequest) {
       console.warn("Coluna pedidos.itens ausente (rode supabase/schema_v67.sql) — pedido salvo sem itens estruturados");
       delete payload.itens;
       ({ data, error } = await inserir());
+      if (error && "cliente_id" in payload && erroClienteId(error)) {
+        console.warn("Coluna pedidos.cliente_id ausente (rode supabase/schema_v73.sql) — pedido salvo sem vínculo com a conta");
+        delete payload.cliente_id;
+        ({ data, error } = await inserir());
+      }
     }
 
     if (error) {

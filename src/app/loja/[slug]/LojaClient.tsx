@@ -13,6 +13,7 @@ import { precoNoTamanhoEquivalente } from "@/lib/tamanhoEquivalente";
 import ImgComFallback from "@/components/ImgComFallback";
 import { itensDoCarrinho } from "@/lib/pedidoItens";
 import { ordenarCategorias, agruparPorCategoria } from "@/lib/ordemCatalogo";
+import { CheckoutConta, SalvarEnderecoPosPedido } from "./CheckoutConta";
 
 interface PedidoBuscado {
   id: string;
@@ -1456,6 +1457,8 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
             {/* STEP: form */}
             {step === "form" && (
               <div style={{ flex: 1, overflow: "auto", padding: "20px 22px", display: "flex", flexDirection: "column", gap: 18 }}>
+                {/* Conta do cliente (opcional): preenche dados e endereços salvos */}
+                <CheckoutConta form={form} setForm={setForm} cor={cor} bairrosValidos={usaBairros ? bairros.map(b => b.bairro) : null} />
                 <div>
                   <p style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 10px" }}>Tipo de pedido</p>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -1609,7 +1612,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
 
             {/* STEP: success */}
             {step === "success" && (
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 32px", gap: 20, textAlign: "center" }}>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "safe center", overflowY: "auto", minHeight: 0, padding: "40px 32px", gap: 20, textAlign: "center" }}>
                 <div style={{ width: 88, height: 88, borderRadius: 28, display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #4ade80, #22c55e)", boxShadow: "0 8px 32px rgba(34,197,94,0.35)" }}>
                   <CheckCircle size={42} color="#fff" />
                 </div>
@@ -1627,6 +1630,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                     </p>
                   </div>
                 )}
+                <SalvarEnderecoPosPedido form={form} cor={cor} />
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}>
                   {trackingToken && (
                     <Link href={`/pedido/${trackingToken}`}

@@ -344,6 +344,8 @@ export default function MotoboyApp() {
     async function check() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setStep("login"); return; }
+      // Cliente final logado: inicializarApp redireciona para o /explorar
+      if (user.user_metadata?.tipo === "cliente") { await inicializarApp(user.id); return; }
       const isRemembered  = localStorage.getItem(REMEMBER_KEY) === "1";
       const sessionActive = sessionStorage.getItem(SESSION_KEY) === "1";
       if (!isRemembered && !sessionActive) {
@@ -479,6 +481,18 @@ export default function MotoboyApp() {
   // ── Data loaders ─────────────────────────────────────────────
 
   async function inicializarApp(authId: string) {
+    // Conta de cliente final (quem pede comida) não entra no app do motoboy:
+    // não cria linha em motoboys, apaga o cookie de dispositivo (senão o
+    // middleware prenderia o aparelho em /motoboy) e manda para o /explorar.
+    const { data: { session: sessaoAtual } } = await supabase.auth.getSession();
+    if (sessaoAtual?.user?.user_metadata?.tipo === "cliente") {
+      document.cookie = "vellox_mb_device=; max-age=0; path=/; SameSite=Strict";
+      localStorage.removeItem(REMEMBER_KEY);
+      sessionStorage.removeItem(SESSION_KEY);
+      window.location.replace("/explorar?aba=perfil");
+      return;
+    }
+
     let { data: mb } = await supabase.from("motoboys").select("*").eq("auth_id", authId).single();
 
     // Motoboy registrado via e-mail de confirmação não tem linha na tabela → criar agora

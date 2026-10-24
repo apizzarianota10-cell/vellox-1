@@ -21,6 +21,7 @@ import {
   DestaquesCarrossel, PratoCard, PratoCardSkeleton, PecaDeNovoCard, AbrindoEmBreveLista,
   OfertaCard, LinhaLoja, LinhaPrato, LinhaSkeleton, BottomNav, type Slide,
 } from "./componentes";
+import ContaCliente from "./ContaCliente";
 
 const MapLeaflet = dynamic(() => import("./MapLeaflet"), {
   ssr: false,
@@ -94,6 +95,10 @@ export default function ExplorarClient({ lojas, banners, categorias, heroConfig 
   }
 
   useEffect(() => {
+    // Link direto para a conta: /explorar?aba=perfil | ?aba=pedidos
+    const aba = new URLSearchParams(window.location.search).get("aba");
+    if (aba === "perfil" || aba === "pedidos") setTab(aba);
+
     setAgora(new Date());
     const relogio = setInterval(() => setAgora(new Date()), 60_000);
 
@@ -290,7 +295,7 @@ export default function ExplorarClient({ lojas, banners, categorias, heroConfig 
   );
 
   // ── Abas Favoritos / Perfil ───────────────────────────────────────────────
-  if (tab === "favoritos" || tab === "perfil") {
+  if (tab === "favoritos" || tab === "perfil" || tab === "pedidos") {
     return (
       <div className="vx-root" style={{ background: C.bg, minHeight: "100dvh", paddingBottom: 120, color: C.ink, overflowX: "clip" }}>
         <EstilosExplorar />
@@ -301,12 +306,14 @@ export default function ExplorarClient({ lojas, banners, categorias, heroConfig 
               <ArrowLeft size={18} />
             </button>
             <div>
-              <h1 style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 1.1 }}>{tab === "favoritos" ? "Favoritos" : "Perfil"}</h1>
+              <h1 style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-0.03em", lineHeight: 1.1 }}>{tab === "favoritos" ? "Favoritos" : tab === "pedidos" ? "Meus pedidos" : "Perfil"}</h1>
               {tab === "favoritos" && <p style={{ fontSize: 13, color: C.ink3, marginTop: 2 }}>{favs.length} loja{favs.length !== 1 ? "s" : ""} salva{favs.length !== 1 ? "s" : ""} neste aparelho</p>}
             </div>
           </div>
 
-          {tab === "favoritos" ? (
+          {tab === "pedidos" ? (
+            <div style={{ maxWidth: 960 }}><ContaCliente vista="pedidos" /></div>
+          ) : tab === "favoritos" ? (
             favs.length === 0 ? (
               <Vazio icone={<Heart size={28} />} titulo="Nenhum favorito ainda"
                 texto="Toque no coração de uma loja para guardar aqui e achar rapidinho depois."
@@ -316,6 +323,7 @@ export default function ExplorarClient({ lojas, banners, categorias, heroConfig 
             )
           ) : (
             <div className="grid gap-3" style={{ maxWidth: 560 }}>
+              <ContaCliente vista="perfil" onVerPedidos={() => trocarTab("pedidos")} fallback={
               <div className="flex items-center gap-4" style={{ background: C.surface, borderRadius: 24, padding: 18, boxShadow: C.shadow2 }}>
                 <div className="flex items-center justify-center" style={{ width: 56, height: 56, borderRadius: 999, background: C.redSoft, color: C.red, fontWeight: 900, fontSize: 22 }}>V</div>
                 <div className="min-w-0">
@@ -325,8 +333,9 @@ export default function ExplorarClient({ lojas, banners, categorias, heroConfig 
                   </p>
                 </div>
               </div>
+              } />
               {[
-                { label: "Meus pedidos", sub: "Acompanhe e encontre pedidos", icon: ShoppingBag, href: "/meus-pedidos" },
+                { label: "Meus pedidos", sub: "Acompanhe e encontre pedidos", icon: ShoppingBag, onClick: () => trocarTab("pedidos") },
                 { label: "Favoritos", sub: `${favs.length} loja${favs.length !== 1 ? "s" : ""}`, icon: Heart, onClick: () => trocarTab("favoritos") },
                 ...(locStatus !== "granted" ? [{ label: "Ativar localização", sub: "Ver lojas perto de você", icon: LocateFixed, onClick: requestLocation }] : []),
                 { label: "Tem um restaurante?", sub: "Venda pelo Vellox", icon: Store, href: "/" },

@@ -644,7 +644,7 @@ export function LinhaSkeleton() {
 export function BottomNav({ active, onChange }: { active: Tab; onChange: (t: Tab) => void }) {
   const items = [
     { id: "explorar"  as Tab, label: "Explorar",  icon: Compass,     href: undefined as string | undefined },
-    { id: "pedidos"   as Tab, label: "Pedidos",   icon: ShoppingBag, href: "/meus-pedidos" },
+    { id: "pedidos"   as Tab, label: "Pedidos",   icon: ShoppingBag, href: undefined },
     { id: "favoritos" as Tab, label: "Favoritos", icon: Heart,       href: undefined },
     { id: "perfil"    as Tab, label: "Perfil",    icon: User,        href: undefined },
   ];
