@@ -14,6 +14,8 @@ import ImgComFallback from "@/components/ImgComFallback";
 import { itensDoCarrinho } from "@/lib/pedidoItens";
 import { ordenarCategorias, agruparPorCategoria } from "@/lib/ordemCatalogo";
 import { compartilharProduto } from "./compartilhar";
+import AvaliacoesLoja, { SeloNotaLoja } from "./AvaliacoesLoja";
+import type { ResumoAvaliacoes } from "@/lib/avaliacoesLoja";
 
 interface PedidoBuscado {
   id: string;
@@ -79,6 +81,8 @@ interface Props {
   config: ConfiguracaoLoja | null;
   empresa: Pick<Empresa, "id" | "nome" | "codigo" | "verificado">;
   bairros: BairroTaxa[];
+  /** Avaliações reais (pedidos entregues e avaliados) — opcional. */
+  avaliacoes?: ResumoAvaliacoes;
 }
 
 const PAG_LABELS: Record<Pagamento, string> = {
@@ -103,7 +107,7 @@ function describeItem(item: CartItem): string {
   return parts.join(" · ");
 }
 
-export default function LojaClient({ produtos, config, empresa, bairros }: Props) {
+export default function LojaClient({ produtos, config, empresa, bairros, avaliacoes }: Props) {
   const cor = config?.cor_principal ?? "#E4002B";
   const taxaPadrao = config?.taxa_entrega ?? 0;
   const aberto = config?.aberto ?? true;
@@ -874,6 +878,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
 
             {/* Chips de info */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 12 }}>
+              <SeloNotaLoja resumo={avaliacoes} />
               {config?.tempo_entrega && (
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 999, background: "#f8fafc", border: "1px solid #e2e8f0", fontSize: 12, fontWeight: 600, color: "#475569" }}>
                   <Clock size={12} style={{ color: cor }} />{config.tempo_entrega}
@@ -1022,7 +1027,7 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                   : badgeIdx === 1
                   ? { label: "Popular", bg: "#fffbeb", color: "#92400e", border: "#fde68a" }
                   : null;
-                const rating = (4.3 + (i % 6) * 0.1).toFixed(1);
+                const rating = avaliacoes?.media != null && avaliacoes.total > 0 ? avaliacoes.media.toFixed(1).replace(".", ",") : null;
                 return (
                   <div
                     key={`${p.id}-${i}`}
@@ -1067,9 +1072,11 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
                         {p.nome}
                       </p>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 2, fontSize: 10, fontWeight: 700, color: "#f59e0b" }}>
-                          <Star size={10} style={{ fill: "#f59e0b", color: "#f59e0b" }} />{rating}
-                        </span>
+                        {rating && (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 2, fontSize: 10, fontWeight: 700, color: "#f59e0b" }} title="Nota da loja">
+                            <Star size={10} style={{ fill: "#f59e0b", color: "#f59e0b" }} />{rating}
+                          </span>
+                        )}
                         {config?.tempo_entrega && (
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 2, fontSize: 10, color: "#94a3b8", fontWeight: 600 }}>
                             <Clock size={9} />{config.tempo_entrega}
@@ -1098,6 +1105,9 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
           </div>
         </section>
       )}
+
+      {/* ══ AVALIAÇÕES ══ */}
+      <AvaliacoesLoja resumo={avaliacoes} />
 
       {/* ══ SEÇÃO DE SABORES ══ */}
       {catSel === "__sabores__" && (

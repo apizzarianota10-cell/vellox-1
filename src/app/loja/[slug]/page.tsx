@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Metadata } from "next";
 import LojaClient from "./LojaClient";
 import type { Produto, ConfiguracaoLoja, Empresa, BairroTaxa } from "@/types";
+import { carregarAvaliacoesLoja } from "@/lib/avaliacoesLoja";
 import { precoVitrine, brl, SELECT_PRECO_VITRINE, type ProdutoPrecoInfo } from "@/lib/precoVitrine";
 
 export const dynamic = "force-dynamic";
@@ -108,7 +109,7 @@ export default async function LojaPage({ params }: Props) {
     );
   }
 
-  const [{ data: produtos }, { data: config }, { data: bairros }] = await Promise.all([
+  const [{ data: produtos }, { data: config }, { data: bairros }, avaliacoes] = await Promise.all([
     supabase
       .from("produtos")
       .select("*, produto_variacoes(*), produto_sabores(*), produto_adicionais(*), produto_categorias_sabor(*), categoria_preco:categorias_preco!categoria_preco_id(*, tamanhos:categorias_preco_tamanhos(*))")
@@ -129,6 +130,7 @@ export default async function LojaPage({ params }: Props) {
       .eq("ativo", true)
       .order("ordem")
       .order("bairro"),
+    carregarAvaliacoesLoja(empresa.id),
   ]);
 
   return (
@@ -137,6 +139,7 @@ export default async function LojaPage({ params }: Props) {
       config={config as ConfiguracaoLoja | null}
       empresa={empresa as Pick<Empresa, "id" | "nome" | "codigo" | "slug" | "verificado">}
       bairros={(bairros ?? []) as BairroTaxa[]}
+      avaliacoes={avaliacoes}
     />
   );
 }

@@ -6,12 +6,18 @@ const MAX_LADO = 2000;
 const QUALIDADE = 0.85;
 const LIMITE_SEM_MEXER = 1.5 * 1024 * 1024;
 
-export async function comprimirImagem(file: File): Promise<File> {
+export async function comprimirImagem(
+  file: File,
+  opcoes: { maxLado?: number; qualidade?: number; limiteSemMexer?: number } = {},
+): Promise<File> {
+  const MAX = opcoes.maxLado ?? MAX_LADO;
+  const QUAL = opcoes.qualidade ?? QUALIDADE;
+  const LIMITE = opcoes.limiteSemMexer ?? LIMITE_SEM_MEXER;
   if (!file.type.startsWith("image/") || file.type === "image/gif") return file;
   try {
     const bitmap = await createImageBitmap(file);
-    const escala = Math.min(1, MAX_LADO / Math.max(bitmap.width, bitmap.height));
-    if (escala === 1 && file.size <= LIMITE_SEM_MEXER) { bitmap.close(); return file; }
+    const escala = Math.min(1, MAX / Math.max(bitmap.width, bitmap.height));
+    if (escala === 1 && file.size <= LIMITE) { bitmap.close(); return file; }
 
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(bitmap.width * escala);
@@ -23,7 +29,7 @@ export async function comprimirImagem(file: File): Promise<File> {
     ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
     bitmap.close();
 
-    const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, "image/jpeg", QUALIDADE));
+    const blob = await new Promise<Blob | null>(r => canvas.toBlob(r, "image/jpeg", QUAL));
     if (!blob || blob.size >= file.size) return file;
     return new File([blob], file.name.replace(/\.\w+$/, "") + ".jpg", { type: "image/jpeg" });
   } catch {
