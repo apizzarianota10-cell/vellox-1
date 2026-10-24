@@ -17,6 +17,7 @@ import { itensDoCarrinho, colunaItensAusente } from "@/lib/pedidoItens";
 import AvisarWhatsApp from "@/components/dashboard/AvisarWhatsApp";
 import PreparoAtrasadoModal from "./PreparoAtrasadoModal";
 import type { Pedido, PedidoStatus, Produto, ProdutoVariacao, ProdutoSabor, ProdutoAdicional } from "@/types";
+import { precoNoTamanhoEquivalente } from "@/lib/tamanhoEquivalente";
 
 interface CartItem {
   produto: Produto;
@@ -294,23 +295,17 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
     return saboresPorProduto.filter(g => visitados.has(g.produto.id));
   }
 
-  function precoByTamanhoNome(produto: Produto, nome: string): number {
-    const cpTamanhos = produto.categoria_preco?.tamanhos;
-    if (cpTamanhos) {
-      const t = cpTamanhos.find(t => t.nome === nome);
-      if (t) return t.preco;
-    }
-    const vars = produto.produto_variacoes?.filter(v => v.ativo) ?? [];
-    const v = vars.find(v => v.nome === nome);
-    if (v && v.preco > 0) return v.preco;
-    return produto.preco;
-  }
 
   function precoDeSabor(s: ProdutoSabor, precoBase: number, tamanhoNome?: string): number {
     if ((s.preco_adicional ?? 0) > 0) return s.preco_adicional!;
     if (tamanhoNome) {
       const src = saborToProduto.get(s.id);
-      if (src) return precoByTamanhoNome(src, tamanhoNome);
+      if (src) {
+        // Tamanho equivalente no produto do sabor ("PIZZA G" ↔ "PREMIUM G"); sem equivalente, o do tamanho escolhido
+        const origem = produtos.find(p =>
+          p.produto_variacoes?.some(v => v.nome === tamanhoNome) || p.categoria_preco?.tamanhos?.some(t => t.nome === tamanhoNome));
+        return precoNoTamanhoEquivalente(src, tamanhoNome, origem) ?? precoBase;
+      }
     }
     return precoBase;
   }

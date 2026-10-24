@@ -9,6 +9,7 @@ import {
   Search, XCircle,
 } from "lucide-react";
 import type { Produto, ConfiguracaoLoja, Empresa, BairroTaxa, ProdutoVariacao, ProdutoSabor, ProdutoAdicional, PedidoStatus } from "@/types";
+import { precoNoTamanhoEquivalente } from "@/lib/tamanhoEquivalente";
 import ImgComFallback from "@/components/ImgComFallback";
 import { itensDoCarrinho } from "@/lib/pedidoItens";
 import { ordenarCategorias, agruparPorCategoria } from "@/lib/ordemCatalogo";
@@ -317,19 +318,6 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
     return saboresPorProduto.filter(g => visitados.has(g.produto.id));
   }
 
-  // Busca o preço de um produto para um tamanho pelo nome (ex: "G", "M", "P")
-  function precoByTamanhoNome(produto: Produto, nome: string): number {
-    const cpTamanhos = produto.categoria_preco?.tamanhos;
-    if (cpTamanhos) {
-      const t = cpTamanhos.find(t => t.nome === nome);
-      if (t) return t.preco;
-    }
-    const vars = produto.produto_variacoes?.filter(v => v.ativo) ?? [];
-    const v = vars.find(v => v.nome === nome);
-    if (v && v.preco > 0) return v.preco;
-    return produto.preco;
-  }
-
   const categorias = useMemo(() => {
     const cats = ["Todos", ...ordenarCategorias(produtos.map(p => p.categoria), config?.ordem_categorias)];
     if (allSaborCount > 0) cats.push("__sabores__");
@@ -423,7 +411,12 @@ export default function LojaClient({ produtos, config, empresa, bairros }: Props
     if ((s.preco_adicional ?? 0) > 0) return s.preco_adicional!;
     if (tamanhoNome) {
       const src = saborToProduto.get(s.id);
-      if (src) return precoByTamanhoNome(src, tamanhoNome);
+      if (src) {
+        // Tamanho equivalente no produto do sabor ("PIZZA G" ↔ "PREMIUM G"); sem equivalente, o do tamanho escolhido
+        const origem = produtos.find(p =>
+          p.produto_variacoes?.some(v => v.nome === tamanhoNome) || p.categoria_preco?.tamanhos?.some(t => t.nome === tamanhoNome));
+        return precoNoTamanhoEquivalente(src, tamanhoNome, origem) ?? precoBase;
+      }
     }
     return precoBase;
   }
