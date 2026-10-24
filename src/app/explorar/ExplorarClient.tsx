@@ -23,6 +23,7 @@ import {
   OfertaCard, LinhaLoja, LinhaPrato, LinhaSkeleton, BottomNav, type Slide,
 } from "./componentes";
 import BairroSeletor from "./BairroSeletor";
+import SorteioPrato from "./SorteioPrato";
 import { lerBairroSalvo, salvarBairro, normalizarBairro } from "@/lib/bairroCliente";
 
 const MapLeaflet = dynamic(() => import("./MapLeaflet"), {
@@ -233,6 +234,7 @@ export default function ExplorarClient({ lojas, banners, categorias, heroConfig 
   }, [categoriaAtiva, fAberto, fGratis, ordem, bairro, entregaPorId]);
 
   const filtradas   = useMemo(() => aplicarFiltros(lojasBase), [aplicarFiltros, lojasBase]);
+  const idsFiltradas = useMemo(() => filtradas.map(l => l.id), [filtradas]);
   const lojasBusca  = useMemo(() => buscando ? aplicarFiltros(lojasBase.filter(l => lojaCasaBusca(l, busca))) : [], [buscando, aplicarFiltros, lojasBase, busca]);
   const abertas     = useMemo(() => filtradas.filter(l => l.config?.aberto !== false), [filtradas]);
   const fechadas    = useMemo(() => {
@@ -544,6 +546,7 @@ export default function ExplorarClient({ lojas, banners, categorias, heroConfig 
                 onSelect={nome => setCategoriaAtiva(nome === "Todos" ? "" : (categoriaAtiva === nome ? "" : nome))} />
             </div>
             {chips}
+            {totalAbertas > 0 && <SorteioPrato lojasPermitidas={idsFiltradas} categoria={categoriaAtiva} />}
 
             {viewMode === "mapa" ? (
               // ── Mapa ─────────────────────────────────────────────

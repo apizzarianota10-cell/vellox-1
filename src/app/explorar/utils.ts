@@ -277,6 +277,13 @@ export function lojaNaCategoria(loja: Loja, categoria: string): boolean {
   return chaves.some(k => texto.includes(k));
 }
 
+/** O prato (nome + categoria do cardápio) é dessa categoria da vitrine? */
+export function pratoNaCategoria(nome: string, categoriaProduto: string | null, categoria: string): boolean {
+  const { chaves } = infoCategoria(categoria);
+  const texto = normalizar(`${nome} | ${categoriaProduto ?? ""}`);
+  return chaves.some(k => texto.includes(k));
+}
+
 export function lojaCasaBusca(loja: Loja, q: string): boolean {
   const n = normalizar(q).trim();
   if (!n) return true;
