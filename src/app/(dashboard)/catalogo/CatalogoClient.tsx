@@ -78,6 +78,8 @@ export default function CatalogoClient({
   const supabase = createClient();
 
   const [tab, setTab] = useState<Tab>("produtos");
+  const [salvandoModo, setSalvandoModo] = useState(false);
+  const [avisoModo, setAvisoModo] = useState<string | null>(null);
   // Ordem das categorias na loja (configuracao_loja.ordem_categorias, schema_v71)
   const [ordemCategorias, setOrdemCategorias] = useState<string[] | null>(initialConfig?.ordem_categorias ?? null);
   const [ordenarAberto, setOrdenarAberto] = useState(false);
@@ -1741,16 +1743,35 @@ export default function CatalogoClient({
                 <div style={{ background: "var(--bg-1)", borderRadius: 16, padding: "18px 20px", border: "1px solid var(--border-1)" }}>
                   <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-1)", margin: "0 0 4px" }}>Cálculo de preço — Pizza</p>
                   <p style={{ fontSize: 11, color: "var(--text-4)", margin: "0 0 14px" }}>Como o preço é calculado quando o cliente escolhe mais de um sabor</p>
+                  {avisoModo && (
+                    <p style={{ fontSize: 12, fontWeight: 700, margin: "-6px 0 10px", color: avisoModo.startsWith("Salvo") ? "#16a34a" : "#ef4444" }}>{avisoModo}</p>
+                  )}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                     {(["maior_valor", "proporcional"] as const).map(modo => (
                       <button key={modo}
+                        disabled={salvandoModo}
                         onClick={async () => {
+                          const anterior = config.modo_calculo_pizza ?? "maior_valor";
+                          if (anterior === modo) return;
                           setConfig(c => ({ ...c, modo_calculo_pizza: modo }));
-                          await supabase.from("configuracao_loja").upsert({
-                            empresa_id: empresaId,
-                            modo_calculo_pizza: modo,
-                            updated_at: new Date().toISOString(),
-                          }, { onConflict: "empresa_id" });
+                          setSalvandoModo(true);
+                          // Atualiza a linha existente; só cria se a loja ainda não tiver configuração
+                          let { data, error } = await supabase.from("configuracao_loja")
+                            .update({ modo_calculo_pizza: modo, updated_at: new Date().toISOString() })
+                            .eq("empresa_id", empresaId).select("modo_calculo_pizza");
+                          if (!error && (!data || data.length === 0)) {
+                            ({ data, error } = await supabase.from("configuracao_loja")
+                              .upsert({ ...buildBasePayload(), modo_calculo_pizza: modo }, { onConflict: "empresa_id" })
+                              .select("modo_calculo_pizza"));
+                          }
+                          setSalvandoModo(false);
+                          if (error || !data || data.length === 0) {
+                            setConfig(c => ({ ...c, modo_calculo_pizza: anterior }));
+                            setAvisoModo("Não salvou — tente de novo." + (error ? " (" + error.message + ")" : ""));
+                          } else {
+                            setAvisoModo(modo === "maior_valor" ? "Salvo: cobra o sabor mais caro." : "Salvo: divide o preço entre os sabores.");
+                          }
+                          setTimeout(() => setAvisoModo(null), 3500);
                         }}
                         style={{
                           padding: "12px", borderRadius: 12, textAlign: "left",
