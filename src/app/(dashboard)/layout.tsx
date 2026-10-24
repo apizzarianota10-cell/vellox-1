@@ -24,6 +24,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
     const tipo = user.user_metadata?.tipo as string | undefined;
     if (tipo === "motoboy") redirect("/motoboy");
+    // Conta de cliente final (quem pede comida) não acessa o painel
+    if (tipo === "cliente") redirect("/explorar?aba=perfil");
 
     const { data: empresa } = await supabase
       .from("empresas")
