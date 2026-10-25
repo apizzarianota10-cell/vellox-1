@@ -334,7 +334,8 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
   useEffect(() => {
     let salvo: string | null = null;
     try { salvo = localStorage.getItem(MODO_KEY); } catch { /* sem storage */ }
-    setModo(salvo === "lista" ? "lista" : "quadro");
+    void salvo; // a visão Lista foi removida: sempre o Quadro
+    setModo("quadro");
   }, []);
   function trocarModo(m: ModoPedidos) {
     setModo(m);

@@ -387,7 +387,6 @@ export default function PedidosMobile(props: Props) {
               {filtroAtivo ? `${pedidos.length} de ${totalPedidos} pedidos` : `${contagem.slice(0, HIST).reduce((a, b) => a + b, 0)} em andamento`}
             </p>
           </div>
-          <ModoSeletor modo={props.modo} onChange={props.onModo} />
           <div className="flex-1" />
           <button type="button" onClick={() => setBuscaAberta(v => !v)} aria-expanded={buscaAberta}
             aria-label={buscaAberta ? "Fechar busca" : "Buscar pedido ou filtrar por data"}
@@ -641,6 +640,31 @@ function Pilula({ p }: { p: Pedido }) {
   return <span className="pm-pilula" data-tom={tom}>{texto}</span>;
 }
 
+// Situação do pedido com cor simbólica (aparece no card e no detalhe)
+type Sit = "pendente" | "preparo" | "pronto" | "rota" | "atraso" | "entregue" | "cancelado";
+const ATRASO_MIN = 30;
+const SIT_INFO: Record<Sit, { texto: string; dica: string }> = {
+  pendente:  { texto: "Pendente",   dica: "Aguardando começar o preparo" },
+  preparo:   { texto: "Preparando", dica: "Na cozinha" },
+  pronto:    { texto: "Pronto",     dica: "Pronto, aguardando saída" },
+  rota:      { texto: "Em rota",    dica: "Saiu para entrega" },
+  atraso:    { texto: "Em atraso",  dica: "Passou de 30 min — priorize" },
+  entregue:  { texto: "Entregue",   dica: "Finalizado" },
+  cancelado: { texto: "Cancelado",  dica: "Pedido cancelado" },
+};
+function situacao(p: Pedido, idadeMin: number): Sit {
+  if (p.status === "cancelado") return "cancelado";
+  if (p.status === "entregue") return "entregue";
+  if (idadeMin > ATRASO_MIN) return "atraso";
+  if (p.status === "em_fila") return "pendente";
+  if (p.status === "em_preparo") return "preparo";
+  if (p.status === "finalizado") return "pronto";
+  return "rota";
+}
+function etapaSit(p: Pedido): Sit {
+  return situacao(p, 0);
+}
+
 function corUrgencia(min: number): "green" | "amber" | "red" {
   return min > 30 ? "red" : min >= 15 ? "amber" : "green";
 }
@@ -657,14 +681,20 @@ function CardQuadro({ p, props, foco, onAbrir, onPasso, onEscolherMotoboy }: {
 
   return (
     <article id={`pm-card-${p.id}`} className="pm-card" role="button" tabIndex={0}
+      data-sit={situacao(p, idadeMin)}
       aria-label={`Pedido ${numeroPedido(p)} de ${p.cliente_nome}. Toque para ver os detalhes`}
       data-novo={isNew ? "1" : undefined} data-foco={foco ? "1" : undefined}
       onClick={onAbrir} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAbrir(); } }}>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 flex-wrap">
         <span className="pm-num">{numeroPedido(p)}</span>
         {isNew && <span className="pm-pilula" data-tom="novo">NOVO</span>}
         <span className="flex-1" />
-        <Pilula p={p} />
+        {situacao(p, idadeMin) === "atraso" && <span className="pm-sit" data-sit="atraso">Em atraso</span>}
+        <span className="pm-sit" data-sit={etapaSit(p)}>{SIT_INFO[etapaSit(p)].texto}</span>
+        <button type="button" className="pm-card-print" aria-label={`Reimprimir pedido ${numeroPedido(p)}`} title="Reimprimir"
+          onClick={e => { e.stopPropagation(); props.onPrint(p); }}>
+          <Printer size={16} />
+        </button>
       </div>
       <div className="flex items-center gap-1.5 pm-nome">
         <span className="truncate">{nomeCurto(p.cliente_nome)}</span>
@@ -710,8 +740,16 @@ function Detalhe({ p, props, onMais, onEscolherMotoboy, onPasso }: {
   const levarTroco = p.forma_pagamento === "dinheiro" && p.troco_para && p.troco_para > total ? p.troco_para - total : 0;
   const { principal, secundario } = passos(p, props, onEscolherMotoboy);
 
+  const sit = situacao(p, idadeMin);
   return (
     <div>
+      {/* Situação com cor simbólica */}
+      <div className="pm-sit-faixa" data-sit={sit}>
+        <span className="pm-sit-bola" />
+        <span style={{ fontWeight: 900 }}>{SIT_INFO[sit].texto}</span>
+        <span style={{ opacity: 0.85 }}>· {sit === "atraso" ? `${SIT_INFO[etapaSit(p)].texto} há ${tempoDecorrido(idadeMin)}` : SIT_INFO[sit].dica}</span>
+      </div>
+
       {/* Tempo + tipo */}
       <div className="flex items-center gap-2 flex-wrap">
         {final ? (
@@ -832,6 +870,10 @@ function Detalhe({ p, props, onMais, onEscolherMotoboy, onPasso }: {
               {secundario.texto}
             </button>
           )}
+          <button type="button" onClick={() => props.onPrint(p)} className="pm-btn-sec flex-1" style={{ minHeight: 52, fontSize: f(16) }}
+            aria-label={`Reimprimir o pedido de ${p.cliente_nome}`}>
+            <Printer size={20} /> Reimprimir
+          </button>
           <button type="button" onClick={onMais} className="pm-btn-sec flex-1" style={{ minHeight: 52, fontSize: f(16) }}
             aria-label={`Mais ações do pedido de ${p.cliente_nome}`}>
             <MoreHorizontal size={22} /> Mais
@@ -1005,6 +1047,29 @@ const CSS = `
   .pm-vazio { padding: 24px 8px; }
   .pm-vazio svg { width: 28px; height: 28px; }
 }
+
+/* ── Situação (cores simbólicas) ── */
+.pm-root { --sit-pendente:#ca8a04; --sit-preparo:#ea580c; --sit-pronto:#16a34a; --sit-rota:#2563eb; --sit-atraso:#dc2626; --sit-entregue:#64748b; --sit-cancelado:#7f1d1d; }
+.pm-card[data-sit] { border-left: 5px solid var(--sit-cor, transparent); }
+[data-sit="pendente"]  { --sit-cor: var(--sit-pendente); }
+[data-sit="preparo"]   { --sit-cor: var(--sit-preparo); }
+[data-sit="pronto"]    { --sit-cor: var(--sit-pronto); }
+[data-sit="rota"]      { --sit-cor: var(--sit-rota); }
+[data-sit="atraso"]    { --sit-cor: var(--sit-atraso); }
+[data-sit="entregue"]  { --sit-cor: var(--sit-entregue); }
+[data-sit="cancelado"] { --sit-cor: var(--sit-cancelado); }
+.pm-card[data-sit="atraso"] { background: color-mix(in srgb, var(--sit-atraso) 7%, var(--pm-card)); }
+.pm-sit { font-size: calc(12.5px * var(--pm-esc)); font-weight: 800; padding: 3px 9px; border-radius: 99px; white-space: nowrap;
+  color: var(--sit-cor); background: color-mix(in srgb, var(--sit-cor) 14%, transparent); border: 1px solid color-mix(in srgb, var(--sit-cor) 35%, transparent); }
+.pm-sit[data-sit="atraso"] { color: #fff; background: var(--sit-atraso); border-color: var(--sit-atraso); }
+.pm-card-print { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 10px;
+  border: 1px solid var(--border-2); background: var(--bg-2); color: var(--text-2); cursor: pointer; flex-shrink: 0; }
+.pm-card-print:hover { color: var(--text-1); border-color: var(--text-3); }
+.pm-sit-faixa { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; padding: 10px 12px; border-radius: 12px;
+  font-size: calc(15px * var(--pm-esc)); color: var(--sit-cor); background: color-mix(in srgb, var(--sit-cor) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sit-cor) 35%, transparent); }
+.pm-sit-faixa[data-sit="atraso"] { color: #fff; background: var(--sit-atraso); border-color: var(--sit-atraso); }
+.pm-sit-bola { width: 10px; height: 10px; border-radius: 99px; background: currentColor; flex-shrink: 0; }
 
 /* ── Card ── */
 .pm-card {
