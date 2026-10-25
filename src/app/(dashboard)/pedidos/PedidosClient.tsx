@@ -16,6 +16,7 @@ import { playSound, getSoundId } from "@/lib/sounds";
 import { itensDoCarrinho, colunaItensAusente } from "@/lib/pedidoItens";
 import AvisarWhatsApp from "@/components/dashboard/AvisarWhatsApp";
 import PreparoAtrasadoModal from "./PreparoAtrasadoModal";
+import PedidosMobile, { ModoSeletor, tempoDecorrido, MODO_KEY, type ModoPedidos } from "./PedidosMobile";
 import type { Pedido, PedidoStatus, Produto, ProdutoVariacao, ProdutoSabor, ProdutoAdicional } from "@/types";
 import { precoNoTamanhoEquivalente } from "@/lib/tamanhoEquivalente";
 
@@ -326,6 +327,19 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
   const [busca,      setBusca]      = useState("");
   const [dataDe,     setDataDe]     = useState("");
   const [dataAte,    setDataAte]    = useState("");
+
+  // ── Visão Quadro (Kanban, padrão) × Lista (a tela antiga) — lembrada no aparelho ──
+  // null até ler o localStorage (evita piscar a visão errada)
+  const [modo, setModo] = useState<ModoPedidos | null>(null);
+  useEffect(() => {
+    let salvo: string | null = null;
+    try { salvo = localStorage.getItem(MODO_KEY); } catch { /* sem storage */ }
+    setModo(salvo === "lista" ? "lista" : "quadro");
+  }, []);
+  function trocarModo(m: ModoPedidos) {
+    setModo(m);
+    try { localStorage.setItem(MODO_KEY, m); } catch { /* sem storage */ }
+  }
 
   // ── Motoboys disponíveis (fila) ─────────────────────────────────
   const [motoboysDisp,   setMotoboysDisp]   = useState<{ id: string; nome: string; posicao_fila: number | null }[]>([]);
@@ -937,8 +951,8 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
   }
 
   // ── Filtros ─────────────────────────────────────────────────────
-  const filtered = pedidos.filter((p) => {
-    if (filter !== "todos" && p.status !== filter) return false;
+  // Busca + data (os mesmos no Quadro e na Lista); o Quadro separa por etapa sozinho
+  const passaBuscaData = (p: Pedido) => {
     if (busca) {
       const q = busca.toLowerCase();
       if (!p.cliente_nome.toLowerCase().includes(q) &&
@@ -949,7 +963,9 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
     if (dataDe && new Date(p.created_at) < new Date(dataDe + "T00:00:00")) return false;
     if (dataAte && new Date(p.created_at) > new Date(dataAte + "T23:59:59")) return false;
     return true;
-  });
+  };
+  const filteredBuscaData = pedidos.filter(passaBuscaData);
+  const filtered = filteredBuscaData.filter((p) => filter === "todos" || p.status === filter);
 
   const counts: Record<string, number> = { todos: pedidos.length };
   for (const s of [...STEPS, "cancelado"]) {
@@ -1036,7 +1052,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
               {isStale && (
                 <span className="text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
                   style={{ background: "rgba(228,0,43,0.15)", color: "#E4002B", border: "1px solid rgba(228,0,43,0.3)" }}>
-                  <Clock size={10} />{Math.round(ageMin)}min
+                  <Clock size={10} />{tempoDecorrido(ageMin)}
                 </span>
               )}
             </div>
@@ -1233,7 +1249,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-4 md:space-y-6" style={{ background: "var(--bg-base)", minHeight: "100%" }}>
+    <div className={modo === "quadro" ? "" : "p-4 md:p-6 space-y-4 md:space-y-6"} style={{ background: "var(--bg-base)", minHeight: "100%" }}>
 
       {/* ── Fluxo automático: fila → preparo sozinho; no fim pergunta se foi despachado ── */}
       <PreparoAtrasadoModal
@@ -1242,8 +1258,43 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
         onCancelar={handleCancel}
       />
 
-      {/* ── Banner: novo pedido ── */}
-      {newOrderBanner && (
+      {/* ── Quadro (Kanban): mesma lógica, só outra apresentação ── */}
+      {modo === "quadro" && (
+        <PedidosMobile
+          pedidos={filteredBuscaData}
+          totalPedidos={pedidos.length}
+          empresaNome={empresaNome}
+          now={now}
+          motoboysDisp={motoboysDisp}
+          advancing={advancing}
+          sendingTo={sendingTo}
+          marcandoEntregue={marcandoEntregue}
+          trocandoMb={trocandoMb}
+          cancelandoDespacho={cancelandoDespacho}
+          highlightedOrders={highlightedOrders}
+          newOrderBanner={newOrderBanner}
+          onFecharBanner={() => { setNewOrderBanner(null); stopSound(); }}
+          busca={busca} setBusca={setBusca}
+          dataDe={dataDe} setDataDe={setDataDe}
+          dataAte={dataAte} setDataAte={setDataAte}
+          onAdvance={handleAdvance}
+          onEnviarMotoboy={handleEnviarMotoboy}
+          onMarcarEntregue={handleMarcarEntregue}
+          onTrocarMotoboy={handleTrocarMotoboy}
+          onDevolverFila={handleDevolverFila}
+          onCancel={handleCancel}
+          onPrint={handlePrint}
+          onEdit={abrirEdit}
+          onDelete={abrirDelete}
+          onNovoPedido={() => setShowForm(true)}
+          onRecarregarMotoboys={reloadMotoboys}
+          modo={modo}
+          onModo={trocarModo}
+        />
+      )}
+
+      {/* ── Banner: novo pedido (no Quadro a faixa grande fica no PedidosMobile) ── */}
+      {modo === "lista" && newOrderBanner && (
         <div style={{
           position: "fixed", top: 16, right: 16, zIndex: 9999,
           background: "linear-gradient(135deg,#16a34a,#15803d)",
@@ -1288,8 +1339,9 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
         </div>
       )}
 
+      {modo === "lista" && (<>
       {/* ── Header ── */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold" style={{ color: "var(--text-1)" }}>Pedidos</h1>
@@ -1305,13 +1357,16 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
               : `${pedidos.length} pedidos no total`}
           </p>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
-          style={{ background: "linear-gradient(135deg,#A80021,#a84400)", color: "var(--text-1)", boxShadow: "0 0 20px rgba(168,0,33,0.3)" }}
-        >
-          <Plus size={16} /> Novo pedido
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <ModoSeletor modo="lista" onChange={trocarModo} />
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold"
+            style={{ background: "linear-gradient(135deg,#A80021,#a84400)", color: "var(--text-1)", boxShadow: "0 0 20px rgba(168,0,33,0.3)" }}
+          >
+            <Plus size={16} /> Novo pedido
+          </button>
+        </div>
       </div>
 
       {/* ── Busca + filtro de data ── */}
@@ -1498,7 +1553,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
                       <span className="text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
                         style={{ background: "rgba(228,0,43,0.15)", color: "#E4002B", border: "1px solid rgba(228,0,43,0.3)" }}>
                         <Clock size={10} />
-                        {Math.round(ageMin)}min
+                        {tempoDecorrido(ageMin)}
                       </span>
                     )}
                   </div>
@@ -1772,6 +1827,7 @@ export default function PedidosClient({ pedidos: initial, empresaId, empresaNome
             </div>
           );
         })}
+      </>)}
 
       {/* ── Modal: Excluir pedido ── */}
       {deleteTarget && (

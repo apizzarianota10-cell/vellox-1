@@ -44,7 +44,7 @@ function mensagem(pedido: Pedido, loja: string): string {
 
 const chave = (p: Pedido) => `vellox-wa-avisado:${p.id}:${p.status}`;
 
-export default function AvisarWhatsApp({ pedido, loja }: { pedido: Pedido; loja: string }) {
+export default function AvisarWhatsApp({ pedido, loja, grande = false }: { pedido: Pedido; loja: string; grande?: boolean }) {
   const tel = telefoneWa(pedido.cliente_telefone);
   const [avisado, setAvisado] = useState(false);
 
@@ -59,6 +59,28 @@ export default function AvisarWhatsApp({ pedido, loja }: { pedido: Pedido; loja:
     window.open(url, "_blank", "noopener,noreferrer");
     try { localStorage.setItem(chave(pedido), "1"); } catch { /* sem storage: só não marca */ }
     setAvisado(true);
+  }
+
+  // Versão grande (Modo simples da tela de Pedidos): linha inteira, ≥ 56px de altura
+  if (grande) {
+    return (
+      <button type="button" onClick={abrir}
+        className="w-full flex items-center gap-3 text-left"
+        style={{
+          minHeight: 56, padding: "8px 12px", borderRadius: 14, lineHeight: 1.25, fontSize: "calc(17px * var(--pm-esc, 1))", fontWeight: 700,
+          background: avisado ? "var(--bg-2)" : "#15803d",
+          color: avisado ? "var(--text-1)" : "#fff",
+          border: avisado ? "1px solid var(--border-2)" : "1px solid #15803d",
+          cursor: "pointer",
+        }}>
+        <span className="flex items-center justify-center shrink-0" style={{ width: 28 }}>
+          {avisado ? <Check size={22} /> : <MessageCircle size={22} />}
+        </span>
+        <span className="flex-1 min-w-0">
+          {avisado ? "Já avisado no WhatsApp — avisar de novo" : "Avisar o cliente no WhatsApp"}
+        </span>
+      </button>
+    );
   }
 
   return (
