@@ -503,10 +503,10 @@ export default function PedidosMobile(props: Props) {
         ))}
       </div>
 
-      {/* ── + Novo pedido (fixo embaixo, celular) ── */}
+      {/* ── + Novo pedido (botão redondo flutuante à direita, celular) ── */}
       <div className="pm-fab-wrap">
-        <button type="button" onClick={props.onNovoPedido} className="pm-fab">
-          <Plus size={24} strokeWidth={3} /> Novo pedido
+        <button type="button" onClick={props.onNovoPedido} className="pm-fab" aria-label="Novo pedido" title="Novo pedido">
+          <Plus size={30} strokeWidth={3} />
         </button>
       </div>
 
@@ -1157,14 +1157,13 @@ const CSS = `
 
 /* ── + Novo pedido (celular) ── */
 .pm-fab-wrap {
-  position: sticky; z-index: 25; padding: 12px 12px 0;
-  bottom: calc(80px + env(safe-area-inset-bottom));
-  pointer-events: none;
+  position: fixed; z-index: 45; right: 16px;
+  bottom: calc(84px + env(safe-area-inset-bottom));
 }
 @media (min-width: 768px) { .pm-fab-wrap { display: none; } }
 .pm-fab {
-  pointer-events: auto; width: 100%; min-height: 58px; border-radius: 18px; border: none;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 60px; height: 60px; border-radius: 999px; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
   background: #c8102e; color: #fff; font-size: calc(18px * var(--pm-esc)); font-weight: 900;
   box-shadow: 0 6px 24px rgba(200,16,46,0.4), 0 2px 6px rgba(0,0,0,0.3);
 }
