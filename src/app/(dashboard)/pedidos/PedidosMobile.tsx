@@ -465,7 +465,7 @@ export default function PedidosMobile(props: Props) {
               <button key={c.label} type="button" role="tab" aria-selected={ativo} onClick={() => irPara(i)}
                 className="pm-aba" data-ativo={ativo ? "1" : undefined} data-tom={c.tom}>
                 <span className="pm-aba-n">{contagem[i]}</span>
-                <span className="pm-aba-l"><span className="pm-dot" data-tom={c.tom} />{c.label}</span>
+                <span className="pm-aba-l"><span className="pm-dot" data-tom={c.tom} />{c.label === "Preparando" ? "Preparo" : c.label}</span>
               </button>
             );
           })}
@@ -1005,16 +1005,18 @@ const CSS = `
 }
 
 /* ── Abas (celular) ── */
-.pm-abas { display: flex; gap: 5px; padding: 0 8px 10px; overflow-x: auto; scrollbar-width: none; }
+/* 5 abas sempre cabem na largura (nada cortado na borda) */
+.pm-abas { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; padding: 0 8px 10px; }
 .pm-abas::-webkit-scrollbar { display: none; }
 @media (min-width: 768px) { .pm-abas { display: none; } }
 .pm-aba {
-  flex: 1 1 0; min-width: max-content; min-height: 60px; padding: 6px 4px; border-radius: 14px;
+  min-width: 0; min-height: 60px; padding: 6px 2px; border-radius: 14px; overflow: hidden;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
   background: var(--bg-1); border: 1px solid var(--border-2); color: var(--text-1);
 }
 .pm-aba-n { font-size: calc(20px * var(--pm-esc)); font-weight: 900; line-height: 1.1; }
-.pm-aba-l { display: inline-flex; align-items: center; gap: 4px; font-size: calc(12.5px * var(--pm-esc)); font-weight: 700; white-space: nowrap; letter-spacing: -0.01em; color: var(--text-2); }
+.pm-aba-l { display: inline-flex; align-items: center; justify-content: center; gap: 3px; max-width: 100%; font-size: calc(12px * var(--pm-esc)); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.02em; color: var(--text-2); }
+@media (max-width: 370px) { .pm-aba-l .pm-dot { display: none; } }
 .pm-aba[data-ativo] { background: var(--text-1); border-color: var(--text-1); }
 .pm-aba[data-ativo] .pm-aba-n, .pm-aba[data-ativo] .pm-aba-l { color: var(--bg-1); }
 .pm-dot { width: 8px; height: 8px; border-radius: 99px; flex-shrink: 0; display: inline-block; }
