@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import MotoboyPwa from "@/components/motoboy/MotoboyPwa";
+import PremiacaoAviso from "@/components/motoboy/PremiacaoAviso";
 
 // Manifest próprio do app do motoboy (start_url/scope /motoboy). Sobrescreve o
 // /manifest.json do layout raiz só nesta seção — o painel da empresa continua
@@ -27,6 +28,7 @@ export default function MotoboyLayout({ children }: { children: React.ReactNode 
     <>
       {children}
       <MotoboyPwa />
+      <PremiacaoAviso />
     </>
   );
 }
