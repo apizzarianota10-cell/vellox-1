@@ -1,13 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Database, HardDrive, Image as ImageIcon, RefreshCw, ChevronDown, Search, HelpCircle } from "lucide-react";
+import { Database, Megaphone, HardDrive, Image as ImageIcon, RefreshCw, ChevronDown, Search, HelpCircle } from "lucide-react";
 import { Kpi, Secao, Aviso, Carregando, Vazio, PlanoBadge, fmtBytes, fmtNum, fmtDataHora } from "./ui";
 import { useUsoBanco, type UsoEmpresa } from "./usoBancoData";
+import { presetBanco, type AbrirAviso } from "./Avisos";
 
 type Ordem = "total" | "db" | "arquivos" | "linhas" | "nome";
 
-export default function UsoBanco({ abrirLoja }: { abrirLoja: (id: string) => void }) {
+export default function UsoBanco({ abrirLoja, abrirAviso }: { abrirLoja: (id: string) => void; abrirAviso: (a: AbrirAviso) => void }) {
   const { data, loading, error, recarregar } = useUsoBanco(true);
   const [ordem, setOrdem] = useState<Ordem>("total");
   const [q, setQ] = useState("");
@@ -138,7 +139,12 @@ export default function UsoBanco({ abrirLoja }: { abrirLoja: (id: string) => voi
                               </table>
                             </div>
                           )}
-                          <button className="gd-btn gd-btn-sm mt-3" onClick={() => abrirLoja(e.id)}>Abrir loja</button>
+                          <div className="flex gap-2 flex-wrap mt-3">
+                            <button className="gd-btn gd-btn-sm" onClick={() => abrirLoja(e.id)}>Abrir loja</button>
+                            <button className="gd-btn gd-btn-sm gd-btn-danger" onClick={() => abrirAviso(presetBanco(data, e))}>
+                              <Megaphone size={13} /> Alerta de banco cheio
+                            </button>
+                          </div>
                         </div>
                       )}
                     </li>

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   LayoutDashboard, Building2, Bike, Trophy, Database, Compass, Settings, Crown,
-  RefreshCw, LogOut, Sun, Moon, MoreHorizontal, X,
+  RefreshCw, LogOut, Sun, Moon, MoreHorizontal, X, Megaphone,
 } from "lucide-react";
 import { GOD_CSS, useToast, type EmpresaRow, type AlvoPremiacao } from "./_components/ui";
 import VisaoGeral from "./_components/VisaoGeral";
@@ -18,6 +18,7 @@ import LojaDetalhe from "./_components/LojaDetalhe";
 import MotoboyDetalhe from "./_components/MotoboyDetalhe";
 import CriarEmpresaModal from "./_components/CriarEmpresaModal";
 import { PremiacaoModal } from "./_components/Premiacoes";
+import AvisosSecao, { AvisoModal, type AbrirAviso } from "./_components/Avisos";
 
 export type { EmpresaRow };
 
@@ -26,13 +27,14 @@ interface Props {
   error: string | null;
 }
 
-type SecaoId = "visao" | "lojas" | "motoboys" | "ranking" | "banco" | "explorar" | "config";
+type SecaoId = "visao" | "lojas" | "motoboys" | "ranking" | "avisos" | "banco" | "explorar" | "config";
 
 const SECOES: { id: SecaoId; label: string; curto: string; icon: typeof LayoutDashboard; desc: string }[] = [
   { id: "visao",    label: "Visão geral",           curto: "Início",   icon: LayoutDashboard, desc: "Como a plataforma está agora" },
   { id: "lojas",    label: "Lojas",                 curto: "Lojas",    icon: Building2,       desc: "Cadastro, plano e assinatura de cada loja" },
   { id: "motoboys", label: "Motoboys",              curto: "Motoboys", icon: Bike,            desc: "Todos os entregadores da plataforma" },
   { id: "ranking",  label: "Ranking & Premiações",  curto: "Ranking",  icon: Trophy,          desc: "Quem mais vendeu e entregou — e premie" },
+  { id: "avisos",   label: "Avisos",                curto: "Avisos",   icon: Megaphone,       desc: "Pop-ups para uma, várias ou todas as lojas" },
   { id: "banco",    label: "Uso de banco",          curto: "Banco",    icon: Database,        desc: "Quanto cada loja ocupa no banco e no storage" },
   { id: "explorar", label: "Explorar",              curto: "Explorar", icon: Compass,         desc: "Destaques, banners, categorias e flash sales" },
   { id: "config",   label: "Configurações",         curto: "Ajustes",  icon: Settings,        desc: "Tema, migrações e ações perigosas" },
@@ -51,6 +53,8 @@ export default function GodClient({ empresas, error }: Props) {
   const [alvoPremio, setAlvoPremio] = useState<AlvoPremiacao | null>(null);
   const [criando, setCriando] = useState(false);
   const [versaoPrem, setVersaoPrem] = useState(0);
+  const [avisoAbrir, setAvisoAbrir] = useState<AbrirAviso | null>(null);
+  const [versaoAvisos, setVersaoAvisos] = useState(0);
   const { show: toast, node: toastNode } = useToast();
 
   // Tema e seção lembrados por navegador (só conveniência)
@@ -143,7 +147,8 @@ export default function GodClient({ empresas, error }: Props) {
             {secao === "lojas" && <Lojas empresas={empresas} error={error} abrirLoja={abrirLoja} onNova={() => setCriando(true)} />}
             {secao === "motoboys" && <Motoboys abrirMotoboy={abrirMotoboy} />}
             {secao === "ranking" && <Ranking abrirLoja={abrirLoja} abrirMotoboy={abrirMotoboy} premiar={setAlvoPremio} versao={versaoPrem} toast={toast} />}
-            {secao === "banco" && <UsoBanco abrirLoja={abrirLoja} />}
+            {secao === "avisos" && <AvisosSecao lojas={empresas} abrirAviso={setAvisoAbrir} abrirLoja={abrirLoja} versao={versaoAvisos} toast={toast} />}
+            {secao === "banco" && <UsoBanco abrirLoja={abrirLoja} abrirAviso={setAvisoAbrir} />}
             {secao === "explorar" && <ExplorarPanel />}
             {secao === "config" && <Config empresas={empresas} modo={modo} setModo={setModo} sair={sair} onChanged={atualizar} toast={toast} abrirLoja={abrirLoja} />}
           </div>
@@ -194,7 +199,8 @@ export default function GodClient({ empresas, error }: Props) {
       {/* ── Detalhes e modais ── */}
       {lojaId && (
         <LojaDetalhe key={lojaId} id={lojaId} onClose={() => setLojaId(null)} onChanged={atualizar}
-          abrirMotoboy={abrirMotoboy} premiar={setAlvoPremio} toast={toast} versao={versaoPrem} />
+          abrirMotoboy={abrirMotoboy} premiar={setAlvoPremio} toast={toast} versao={versaoPrem}
+          abrirAviso={setAvisoAbrir} versaoAvisos={versaoAvisos} />
       )}
       {motoboyId && (
         <MotoboyDetalhe key={motoboyId} id={motoboyId} onClose={() => setMotoboyId(null)}
@@ -203,6 +209,10 @@ export default function GodClient({ empresas, error }: Props) {
       {alvoPremio && (
         <PremiacaoModal alvo={alvoPremio} onClose={() => setAlvoPremio(null)} toast={toast}
           onSent={() => { setVersaoPrem(v => v + 1); atualizar(); }} />
+      )}
+      {avisoAbrir && (
+        <AvisoModal lojas={empresas} inicial={avisoAbrir} onClose={() => setAvisoAbrir(null)} toast={toast}
+          onSent={() => setVersaoAvisos(v => v + 1)} />
       )}
       {criando && <CriarEmpresaModal onClose={() => setCriando(false)} onCreated={atualizar} />}
       {toastNode}

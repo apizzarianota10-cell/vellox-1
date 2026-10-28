@@ -9,6 +9,7 @@ import PrintAgentBanner from "@/components/dashboard/PrintAgentBanner";
 import VersionChecker from "@/components/dashboard/VersionChecker";
 import LayoutUpdateModal from "@/components/dashboard/LayoutUpdateModal";
 import PremiacaoAviso from "@/components/dashboard/PremiacaoAviso";
+import AvisoAdmin from "@/components/dashboard/AvisoAdmin";
 import { PlanoProvider } from "@/contexts/PlanoContext";
 import { LojaProvider } from "@/contexts/LojaContext";
 import type { Plano, Loja } from "@/types";
@@ -72,6 +73,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <NewOrderPopup empresaId={empresa.id} empresaNome={empresa.nome} empresaCnpj={empresa.cnpj} layout={printPrefs?.layout as LayoutOpt | undefined} fonte={fonte} />
           <LayoutUpdateModal empresaId={empresa.id} empresaNome={empresa.nome} fonte={fonte} />
           <PremiacaoAviso empresaId={empresa.id} />
+          <AvisoAdmin empresaId={empresa.id} />
           <div className="flex flex-col h-full">
             <VersionChecker />
             <PrintAgentBanner empresaId={empresa.id} />

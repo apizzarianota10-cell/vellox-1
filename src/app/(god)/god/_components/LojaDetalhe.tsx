@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  ExternalLink, Trash2, Clock, Power, Trophy, Plus, Check, X, Loader2, Bike, Copy, Star, Database, ChevronDown,
+  ExternalLink, Trash2, Clock, Power, Trophy, Megaphone, Plus, Check, X, Loader2, Bike, Copy, Star, Database, ChevronDown,
 } from "lucide-react";
 import {
   Drawer, Secao, Campo, Kpi, PlanoBadge, StatusAssinatura, StatusMotoboy, Avatar, GraficoDias, Carregando, Aviso, Vazio,
@@ -11,6 +11,7 @@ import {
 } from "./ui";
 import { useUsoBanco } from "./usoBancoData";
 import { PremiacaoLista } from "./Premiacoes";
+import { AvisoLista, presetBanco, type AbrirAviso, type AvisoRow } from "./Avisos";
 
 type Bloco = { pedidos: number; faturamento: number; cancelados: number };
 interface MbLoja {
@@ -42,7 +43,7 @@ interface Detalhe {
 
 const sim = (v: unknown) => v === true ? "Sim" : v === false ? "Não" : "—";
 
-export default function LojaDetalhe({ id, onClose, onChanged, abrirMotoboy, premiar, toast, versao = 0 }: {
+export default function LojaDetalhe({ id, onClose, onChanged, abrirMotoboy, premiar, toast, versao = 0, abrirAviso, versaoAvisos = 0 }: {
   id: string;
   onClose: () => void;
   onChanged: () => void;
@@ -50,10 +51,15 @@ export default function LojaDetalhe({ id, onClose, onChanged, abrirMotoboy, prem
   premiar: (a: AlvoPremiacao) => void;
   toast: (t: string, erro?: boolean) => void;
   versao?: number;
+  abrirAviso: (a: AbrirAviso) => void;
+  versaoAvisos?: number;
 }) {
   const { data, loading, error, reload } = useJson<Detalhe>(`/api/god/empresa?id=${id}`);
   useEffect(() => { if (versao) reload(); }, [versao, reload]);
   const uso = useUsoBanco(true);
+  const avisos = useJson<{ migracao_pendente: boolean; avisos: AvisoRow[] }>(`/api/god/avisos?empresa_id=${id}`);
+  const { reload: recarregarAvisos } = avisos;
+  useEffect(() => { if (versaoAvisos) recarregarAvisos(); }, [versaoAvisos, recarregarAvisos]);
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [dias, setDias] = useState("30");
   const [mbNome, setMbNome] = useState("");
@@ -190,6 +196,9 @@ export default function LojaDetalhe({ id, onClose, onChanged, abrirMotoboy, prem
                   {ocupado === "toggle" ? <Loader2 size={13} className="animate-spin" /> : <Power size={13} />}
                   {e.assinatura_ativa ? "Desativar assinatura" : "Ativar assinatura (30 dias)"}
                 </button>
+                <button className="gd-btn gd-btn-sm" onClick={() => abrirAviso({ ids: [id] })}>
+                  <Megaphone size={13} /> Enviar aviso para esta loja
+                </button>
                 <button className="gd-btn gd-btn-sm" onClick={() => premiar({ tipo: "empresa", id, nome: e.nome })}>
                   <Trophy size={13} style={{ color: "var(--gold)" }} /> Enviar premiação
                 </button>
@@ -322,6 +331,9 @@ export default function LojaDetalhe({ id, onClose, onChanged, abrirMotoboy, prem
                       <Campo label="Arquivos" valor={fmtBytes(usoEmp.storage_bytes + usoEmp.imagens_bytes)} />
                       <Campo label="Linhas" valor={fmtNum(usoEmp.linhas)} />
                     </div>
+                    <button className="gd-btn gd-btn-sm gd-btn-danger mb-3" onClick={() => uso.data && abrirAviso(presetBanco(uso.data, usoEmp))}>
+                      <Megaphone size={13} /> Enviar alerta de banco cheio
+                    </button>
                     <ul className="space-y-1.5">
                       {usoEmp.tabelas.filter(t => t.linhas > 0).map(t => {
                         const max = usoEmp.tabelas[0]?.estimado_bytes || 1;
@@ -335,6 +347,16 @@ export default function LojaDetalhe({ id, onClose, onChanged, abrirMotoboy, prem
                     </ul>
                   </>
                 )}
+            </div>
+          </Secao>
+
+          {/* Avisos */}
+          <Secao titulo="Avisos enviados" acao={<button className="gd-btn gd-btn-sm" onClick={() => abrirAviso({ ids: [id] })}><Megaphone size={13} /> Novo</button>}>
+            <div className="pb-2">
+              {avisos.data?.migracao_pendente
+                ? <div className="px-4 md:px-5 pb-3"><Aviso titulo="Rode supabase/schema_v76.sql">A tabela de avisos ainda não existe.</Aviso></div>
+                : avisos.loading && !avisos.data ? <Carregando />
+                : <AvisoLista itens={avisos.data?.avisos ?? []} compacto onChanged={recarregarAvisos} toast={toast} />}
             </div>
           </Secao>
 
