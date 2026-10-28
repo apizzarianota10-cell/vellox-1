@@ -332,7 +332,8 @@ export default function LandingPage() {
           .hero-text { text-align:center !important; }
           .hero-cta { justify-content:center !important; }
           .hero-stats { justify-content:center !important; }
-          .steps-row { flex-direction:column !important; gap:0 !important; }
+          .steps-row { flex-direction:column !important; gap:28px !important; }
+          .steps-row > div { flex:none !important; }
           .step-line { display:none !important; }
           .plans-grid { flex-direction:column !important; align-items:center !important; }
           .plan-card { max-width:380px !important; width:100% !important; }

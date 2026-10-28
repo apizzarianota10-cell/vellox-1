@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { DollarSign, TrendingUp, Bike, ArrowDownRight, Download, Clock, CheckCircle, Package } from "lucide-react";
@@ -156,55 +156,55 @@ export default function FinanceiroClient({ pedidos: allPedidos, motoboys }: Prop
       {/* Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map(({ label, value, icon: Icon, color, bg }) => (
-          <div key={label} className="rounded-2xl p-5"
+          <div key={label} className="rounded-2xl p-4 sm:p-5 min-w-0"
             style={{ background: bg, border: `1px solid ${color}22` }}>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between gap-2 mb-3">
               <p className="text-xs uppercase tracking-wide font-semibold" style={{ color: color + "aa" }}>{label}</p>
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: color + "22" }}>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: color + "22" }}>
                 <Icon size={15} style={{ color }} />
               </div>
             </div>
-            <p className="text-2xl font-black" style={{ color: "var(--text-1)" }}>{value}</p>
+            <p className="text-xl sm:text-2xl font-black" style={{ color: "var(--text-1)" }}>{value}</p>
           </div>
         ))}
       </div>
 
       {/* Cards operacionais */}
-      <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-2xl p-5" style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.18)" }}>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs uppercase tracking-wide font-semibold" style={{ color: "#fbbf24aa" }}>Entregas hoje</p>
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(251,191,36,0.18)" }}>
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        <div className="rounded-2xl p-3 sm:p-5 min-w-0" style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.18)" }}>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <p className="text-[11px] sm:text-xs uppercase tracking-wide font-semibold leading-tight" style={{ color: "#fbbf24aa" }}>Entregas hoje</p>
+            <div className="hidden sm:flex w-8 h-8 rounded-lg items-center justify-center shrink-0" style={{ background: "rgba(251,191,36,0.18)" }}>
               <Package size={15} style={{ color: "#fbbf24" }} />
             </div>
           </div>
-          <p className="text-2xl font-black" style={{ color: "var(--text-1)" }}>{entregasHoje.length}</p>
+          <p className="text-xl sm:text-2xl font-black" style={{ color: "var(--text-1)" }}>{entregasHoje.length}</p>
           {receitaHoje > 0 && (
             <p className="text-xs mt-1" style={{ color: "#64748b" }}>R$ {receitaHoje.toFixed(2)}</p>
           )}
         </div>
 
-        <div className="rounded-2xl p-5" style={{ background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.18)" }}>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs uppercase tracking-wide font-semibold" style={{ color: "#60a5faaa" }}>Tempo médio</p>
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(96,165,250,0.18)" }}>
+        <div className="rounded-2xl p-3 sm:p-5 min-w-0" style={{ background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.18)" }}>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <p className="text-[11px] sm:text-xs uppercase tracking-wide font-semibold leading-tight" style={{ color: "#60a5faaa" }}>Tempo médio</p>
+            <div className="hidden sm:flex w-8 h-8 rounded-lg items-center justify-center shrink-0" style={{ background: "rgba(96,165,250,0.18)" }}>
               <Clock size={15} style={{ color: "#60a5fa" }} />
             </div>
           </div>
-          <p className="text-2xl font-black" style={{ color: "var(--text-1)" }}>
+          <p className="text-xl sm:text-2xl font-black" style={{ color: "var(--text-1)" }}>
             {tempoMedioMin !== null ? `${tempoMedioMin} min` : "—"}
           </p>
           <p className="text-xs mt-1" style={{ color: "#64748b" }}>do pedido à entrega</p>
         </div>
 
-        <div className="rounded-2xl p-5" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.18)" }}>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs uppercase tracking-wide font-semibold" style={{ color: "#22c55eaa" }}>Taxa de sucesso</p>
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(34,197,94,0.18)" }}>
+        <div className="rounded-2xl p-3 sm:p-5 min-w-0" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.18)" }}>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <p className="text-[11px] sm:text-xs uppercase tracking-wide font-semibold leading-tight" style={{ color: "#22c55eaa" }}>Taxa de sucesso</p>
+            <div className="hidden sm:flex w-8 h-8 rounded-lg items-center justify-center shrink-0" style={{ background: "rgba(34,197,94,0.18)" }}>
               <CheckCircle size={15} style={{ color: "#22c55e" }} />
             </div>
           </div>
-          <p className="text-2xl font-black" style={{ color: "var(--text-1)" }}>
+          <p className="text-xl sm:text-2xl font-black" style={{ color: "var(--text-1)" }}>
             {taxaSucesso !== null ? `${taxaSucesso}%` : "—"}
           </p>
           <p className="text-xs mt-1" style={{ color: "#64748b" }}>entregues vs cancelados</p>

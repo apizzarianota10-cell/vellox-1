@@ -140,7 +140,7 @@ export default function FlashSalesClient({ empresaId, empresaNome }: { empresaId
               style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.09)", fontSize: 13 }} />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <label style={{ fontSize: 11, color: "#6b7280", display: "block", marginBottom: 4 }}>Preço original</label>
               <input value={precoOriginal} onChange={e => setPrecoOriginal(e.target.value)} placeholder="18,00"
@@ -153,7 +153,7 @@ export default function FlashSalesClient({ empresaId, empresaNome }: { empresaId
                 className="w-full rounded-xl px-3 py-2 outline-none text-white"
                 style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.09)", fontSize: 13 }} />
             </div>
-            <div>
+            <div className="col-span-2 sm:col-span-1">
               <label style={{ fontSize: 11, color: "#6b7280", display: "block", marginBottom: 4 }}>Duração *</label>
               <select value={duracaoHoras} onChange={e => setDuracaoHoras(e.target.value)}
                 className="w-full rounded-xl px-3 py-2 outline-none text-white"

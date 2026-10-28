@@ -1532,7 +1532,7 @@ export default function LojaClient({ produtos, config, empresa, bairros, avaliac
 
                 {form.tipo === "entrega" && (
                   <>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) 96px", gap: 8 }}>
                       <div>
                         <label style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", display: "flex", alignItems: "center", gap: 5, marginBottom: 8, letterSpacing: "0.08em", textTransform: "uppercase" }}>
                           <MapPin size={11} /> Rua *
@@ -1541,7 +1541,7 @@ export default function LojaClient({ produtos, config, empresa, bairros, avaliac
                           placeholder="Nome da rua / avenida"
                           style={{ width: "100%", padding: "12px 14px", borderRadius: 12, border: `1.5px solid ${form.rua.trim() ? cor + "60" : "#e2e8f0"}`, fontSize: 14, color: "#0f172a", background: "#f8fafc", outline: "none", boxSizing: "border-box" }} />
                       </div>
-                      <div style={{ minWidth: 90 }}>
+                      <div style={{ minWidth: 0 }}>
                         <label style={{ fontSize: 11, fontWeight: 800, color: "#94a3b8", display: "block", marginBottom: 8, letterSpacing: "0.08em", textTransform: "uppercase" }}>
                           Número *
                         </label>

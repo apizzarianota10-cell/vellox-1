@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -354,8 +354,8 @@ export default function MotoboysClient({ motoboys: initial, empresaId, plano, as
               className="p-4 rounded-2xl transition-all"
               style={{ background: "var(--bg-2)", border: "1px solid var(--border-1)" }}
             >
-              {/* Linha 1: avatar + nome + status + ações */}
-              <div className="flex items-center gap-3">
+              {/* Linha 1: avatar + nome + status + ações (no celular as ações descem pra uma linha própria) */}
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-2">
                 <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
                   style={{ background: cfg.bg, color: cfg.color }}>
                   {m.nome.charAt(0).toUpperCase()}
@@ -373,34 +373,34 @@ export default function MotoboysClient({ motoboys: initial, empresaId, plano, as
                 </span>
 
                 {/* Ações */}
-                <div className="flex gap-1 shrink-0">
+                <div className="flex gap-1 shrink-0 w-full sm:w-auto pl-[52px] sm:pl-0">
                   <button onClick={() => setCaixaMotoboy(m)}
-                    className="flex items-center gap-1.5 px-2 py-2 rounded-lg text-xs font-bold transition-colors"
+                    className="flex items-center gap-1.5 px-2.5 py-2.5 sm:px-2 sm:py-2 rounded-lg text-xs font-bold transition-colors"
                     style={{ color: "#22c55e", background: "rgba(34,197,94,0.08)" }}
                     title="Fechar caixa">
                     <Wallet size={14} /><span className="hidden sm:inline">Fechar caixa</span>
                   </button>
                   <button onClick={() => setChatMotoboy(m)}
-                    className="p-2 rounded-lg transition-colors" style={{ color: "var(--text-3)" }}
+                    className="p-2.5 sm:p-2 rounded-lg transition-colors" style={{ color: "var(--text-3)" }}
                     title="Chat"
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(34,197,94,0.1)"; (e.currentTarget as HTMLElement).style.color = "#22c55e"; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-3)"; }}>
                     <MessageCircle size={14} />
                   </button>
                   <button onClick={() => abrirHistorico(m)} disabled={loadingHistorico}
-                    className="p-2 rounded-lg transition-colors" style={{ color: "var(--text-3)" }}
+                    className="p-2.5 sm:p-2 rounded-lg transition-colors" style={{ color: "var(--text-3)" }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(96,165,250,0.1)"; (e.currentTarget as HTMLElement).style.color = "#60a5fa"; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-3)"; }}>
                     <History size={14} />
                   </button>
                   <button onClick={() => openEdit(m)}
-                    className="p-2 rounded-lg transition-colors" style={{ color: "var(--text-3)" }}
+                    className="p-2.5 sm:p-2 rounded-lg transition-colors" style={{ color: "var(--text-3)" }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-3)"; (e.currentTarget as HTMLElement).style.color = "var(--text-1)"; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-3)"; }}>
                     <Pencil size={14} />
                   </button>
                   <button onClick={() => setDeleteTarget(m)}
-                    className="p-2 rounded-lg transition-colors" style={{ color: "var(--text-3)" }}
+                    className="p-2.5 sm:p-2 rounded-lg transition-colors" style={{ color: "var(--text-3)" }}
                     onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(228,0,43,0.1)"; (e.currentTarget as HTMLElement).style.color = "#E4002B"; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "var(--text-3)"; }}>
                     <Trash2 size={14} />
@@ -486,7 +486,7 @@ export default function MotoboysClient({ motoboys: initial, empresaId, plano, as
               onChange={(e) => { setEmailBusca(e.target.value); setMotoboyEncontrado(null); setErroBusca(""); }}
               placeholder="email do motoboy"
               required
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm placeholder-slate-600 outline-none transition-all"
+              className="flex-1 min-w-0 px-4 py-2.5 rounded-xl text-sm placeholder-slate-600 outline-none transition-all"
               style={{ background: "var(--bg-1)", border: "1px solid var(--border-1)", color: "var(--text-1)" }}
               onFocus={(e) => (e.target.style.borderColor = "#3b82f6")}
               onBlur={(e) => (e.target.style.borderColor = "var(--border-1)")}
@@ -499,7 +499,7 @@ export default function MotoboysClient({ motoboys: initial, empresaId, plano, as
               placeholder="ex: A1B2C3"
               maxLength={6}
               required
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm placeholder-slate-600 outline-none transition-all tracking-widest"
+              className="flex-1 min-w-0 px-4 py-2.5 rounded-xl text-sm placeholder-slate-600 outline-none transition-all tracking-widest"
               style={{ background: "var(--bg-1)", border: "1px solid var(--border-1)", fontFamily: "monospace", fontWeight: 700, color: "var(--text-1)" }}
               onFocus={(e) => (e.target.style.borderColor = "#fbbf24")}
               onBlur={(e) => (e.target.style.borderColor = "var(--border-1)")}
@@ -508,7 +508,7 @@ export default function MotoboysClient({ motoboys: initial, empresaId, plano, as
           <button
             type="submit"
             disabled={buscando}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shrink-0"
             style={{ background: "rgba(59,130,246,0.15)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.2)" }}
           >
             {buscando ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}

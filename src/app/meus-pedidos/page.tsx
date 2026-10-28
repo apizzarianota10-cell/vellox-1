@@ -110,7 +110,7 @@ export default function MeusPedidosPage() {
                 value={tel}
                 onChange={e => setTel(maskPhone(e.target.value))}
                 placeholder="(00) 00000-0000"
-                style={{ flex: 1, padding: "13px 16px", borderRadius: 14, border: "1.5px solid #e2e8f0", fontSize: 16, color: "#0f172a", outline: "none", background: "#f8fafc", boxSizing: "border-box" }}
+                style={{ flex: 1, minWidth: 0, padding: "13px 16px", borderRadius: 14, border: "1.5px solid #e2e8f0", fontSize: 16, color: "#0f172a", outline: "none", background: "#f8fafc", boxSizing: "border-box" }}
                 onFocus={e => e.target.style.borderColor = "#E4002B"}
                 onBlur={e  => e.target.style.borderColor = "#e2e8f0"}
               />

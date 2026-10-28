@@ -1,4 +1,4 @@
-﻿import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import {
   Package, Users, Bike, CheckCircle, TrendingUp, Clock,
   Map as MapIcon, ArrowRight, DollarSign, Flame, TrendingDown, BarChart2, Trophy,
@@ -218,17 +218,17 @@ export default async function DashboardPage() {
 
           <div className="grid grid-cols-3 gap-2 md:gap-3">
             {[
-              { label: "Faturamento",   value: stats.faturamento,   sub: "receita total",    icon: <TrendingUp size={13} style={{ color: "var(--text-4)" }} /> },
+              { label: "Faturado",      value: stats.faturamento,   sub: "receita total",    icon: <TrendingUp size={13} style={{ color: "var(--text-4)" }} /> },
               { label: "Motoboys",      value: stats.lucroMotoboys, sub: "taxas do cliente", icon: <Bike size={13} style={{ color: "var(--text-4)" }} /> },
               { label: "Líquido",       value: margem,              sub: "valor alimentos",  icon: <TrendingDown size={13} style={{ color: "var(--text-4)" }} /> },
             ].map(({ label, value, sub, icon }) => (
-              <div key={label} className="rounded-lg px-3 py-3 md:px-4 md:py-4"
+              <div key={label} className="rounded-lg px-2.5 py-3 sm:px-3 md:px-4 md:py-4"
                 style={{ background: "var(--bg-2)", border: "1px solid var(--border-1)", minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 8, overflow: "hidden" }}>
-                  {icon}
-                  <span style={{ fontSize: "clamp(8px, 2vw, 11px)", fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.03em", textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+                  <span className="hidden sm:inline-flex shrink-0">{icon}</span>
+                  <span style={{ fontSize: "clamp(9px, 2.5vw, 11px)", fontWeight: 700, color: "var(--text-3)", letterSpacing: "0.02em", textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
                 </div>
-                <p style={{ fontSize: "clamp(13px, 3.5vw, 21px)", fontWeight: 800, color: "var(--text-1)", letterSpacing: "-0.02em", margin: "0 0 3px", lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden" }}>
+                <p style={{ fontSize: "clamp(12px, 3.5vw, 21px)", fontWeight: 800, color: "var(--text-1)", letterSpacing: "-0.02em", margin: "0 0 3px", lineHeight: 1.1, whiteSpace: "nowrap", overflow: "hidden" }}>
                   R${value.toFixed(2)}
                 </p>
                 <p style={{ fontSize: "clamp(9px, 2.2vw, 11px)", fontWeight: 500, color: "var(--text-4)", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{sub}</p>

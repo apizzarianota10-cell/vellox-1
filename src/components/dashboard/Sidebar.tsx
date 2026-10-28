@@ -345,7 +345,7 @@ export default function Sidebar({ empresaNome, empresaCodigo, empresaId, plano, 
             style={{ background: "linear-gradient(135deg,#E4002B,#A80021)", color: "white", boxShadow: "0 0 14px rgba(228,0,43,0.45)" }}>
             {empresaNome ? inicial : <Zap size={14} style={{ color: "white" }} />}
           </div>
-          <div className="flex flex-col">
+          <div className="flex flex-col items-start min-w-0">
             <span className="text-sm font-bold leading-tight truncate max-w-[150px]" style={{ color: "var(--text-1)", letterSpacing: "-0.02em" }}>
               {lojaAtiva?.nome ?? empresaNome ?? "Vellox"}
             </span>

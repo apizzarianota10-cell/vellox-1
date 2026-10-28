@@ -383,10 +383,11 @@ function ResumoCard({ label, valor, color, Icon, destaque = false }: {
   label: string; valor: number; color: string; Icon: React.ElementType; destaque?: boolean;
 }) {
   return (
-    <div className="rounded-2xl p-3 md:p-4" style={{ background: destaque ? `${color}10` : "var(--bg-2)", border: `1px solid ${destaque ? `${color}40` : "var(--border-1)"}` }}>
-      <div className="flex items-center gap-2 mb-1.5">
-        <Icon size={13} style={{ color }} />
-        <p className="text-xs font-semibold truncate" style={{ color: "var(--text-4)" }}>{label}</p>
+    <div className="rounded-2xl px-2.5 py-3 sm:p-3 md:p-4 min-w-0 flex flex-col justify-between" style={{ background: destaque ? `${color}10` : "var(--bg-2)", border: `1px solid ${destaque ? `${color}40` : "var(--border-1)"}` }}>
+      {/* no celular o rótulo quebra em 2 linhas em vez de virar "Abaixo do…" */}
+      <div className="flex items-start gap-1.5 md:gap-2 mb-1.5">
+        <Icon size={13} className="hidden md:block shrink-0 mt-px" style={{ color }} />
+        <p className="text-[11px] md:text-xs font-semibold leading-tight break-words min-w-0" style={{ color: "var(--text-4)" }}>{label}</p>
       </div>
       <p className="text-2xl font-black leading-none" style={{ color: destaque ? color : "var(--text-1)" }}>{valor}</p>
     </div>

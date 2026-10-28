@@ -1910,13 +1910,13 @@ export default function CatalogoClient({
                   onChange={e => setNovaCatPreco(n => ({ ...n, nome: e.target.value }))}
                   onKeyDown={e => e.key === "Enter" && handleAddCategoriaPreco()}
                   placeholder="Nova categoria (ex: Clássico, Premium)"
-                  style={{ flex: 1, padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border-1)", fontSize: 13, color: "var(--text-1)", background: "var(--bg-input)" }}
+                  style={{ flex: 1, minWidth: 0, padding: "9px 12px", borderRadius: 10, border: "1px solid var(--border-1)", fontSize: 13, color: "var(--text-1)", background: "var(--bg-input)" }}
                 />
                 <input type="color" value={novaCatPreco.cor} onChange={e => setNovaCatPreco(n => ({ ...n, cor: e.target.value }))}
-                  style={{ width: 36, height: 36, borderRadius: 8, border: "none", cursor: "pointer", padding: 2 }} />
+                  style={{ width: 36, height: 36, flexShrink: 0, borderRadius: 8, border: "none", cursor: "pointer", padding: 2 }} />
                 <button onClick={handleAddCategoriaPreco} disabled={savingCatPreco || !novaCatPreco.nome.trim()}
                   style={{
-                    display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10,
+                    display: "flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10, flexShrink: 0,
                     background: novaCatPreco.cor, color: "#fff", border: "none", fontSize: 13, fontWeight: 700,
                     cursor: novaCatPreco.nome.trim() ? "pointer" : "not-allowed", opacity: novaCatPreco.nome.trim() ? 1 : 0.5,
                   }}>
