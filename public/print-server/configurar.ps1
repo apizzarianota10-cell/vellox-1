@@ -1,5 +1,5 @@
 # Vellox Print Server - Configuracao
-$Versao = "v4"
+$Versao = "v5"
 # "Continue" de proposito: com "Stop" global, qualquer comando opcional que
 # falhasse (ex: Get-Printer sem o modulo PrintManagement, spooler parado)
 # derrubava o script inteiro e o config.json nunca era salvo.
@@ -138,10 +138,10 @@ function Get-Impressoras {
     if (-not $itens -or $itens.Count -eq 0) { try { $itens = @(Get-WmiObject Win32_Printer -ErrorAction Stop) } catch {} }
     $res = @()
     if ($itens) {
-        foreach ($p in $itens) { if ($p.Name) { $res += [PSCustomObject]@{ Nome = [string]$p.Name; Padrao = [bool]$p.Default } } }
+        foreach ($p in $itens) { if ($p.Name) { $res += [PSCustomObject]@{ Nome = [string]$p.Name; Padrao = [bool]$p.Default; Offline = ([bool]$p.WorkOffline -or [int]$p.PrinterStatus -eq 7) } } }
     }
     if ($res.Count -eq 0) {
-        try { foreach ($p in @(Get-Printer -ErrorAction Stop)) { $res += [PSCustomObject]@{ Nome = [string]$p.Name; Padrao = $false } } } catch {}
+        try { foreach ($p in @(Get-Printer -ErrorAction Stop)) { $res += [PSCustomObject]@{ Nome = [string]$p.Name; Padrao = $false; Offline = $false } } } catch {}
     }
     return ,$res
 }
@@ -217,31 +217,43 @@ while ($true) {
         continue
     }
 
-    $sugerida = $lista | Where-Object { $_.Nome -match $termicaRe } | Select-Object -First 1
-    if (-not $sugerida) { $sugerida = $lista | Where-Object { $_.Padrao } | Select-Object -First 1 }
-    if (-not $sugerida) { $sugerida = $lista[0] }
-    $idxSug = [array]::IndexOf(@($lista | ForEach-Object { $_.Nome }), $sugerida.Nome) + 1
+    # Sugestao so quando da pra ter confianca: a padrao do Windows se ela
+    # parece termica, senao a UNICA termica ligada da lista. Com duas ou mais
+    # candidatas (ex: a impressora velha que ficou instalada + a nova) nao
+    # sugere nada - a pessoa digita o numero. Antes sugeria a primeira que
+    # casasse com o nome e um ENTER escolhia a impressora antiga.
+    $candidatas = @($lista | Where-Object { $_.Nome -match $termicaRe -and -not $_.Offline })
+    $sugerida = $candidatas | Where-Object { $_.Padrao } | Select-Object -First 1
+    if (-not $sugerida -and $candidatas.Count -eq 1) { $sugerida = $candidatas[0] }
+    $idxSug = if ($sugerida) { [array]::IndexOf(@($lista | ForEach-Object { $_.Nome }), $sugerida.Nome) + 1 } else { 0 }
 
-    Write-Host "Impressoras encontradas:" -ForegroundColor Yellow
+    Write-Host "Impressoras encontradas neste computador:" -ForegroundColor Yellow
     for ($i = 0; $i -lt $lista.Count; $i++) {
         $tags = @()
-        if ($lista[$i].Nome -eq $sugerida.Nome) { $tags += "sugerida" }
-        if ($lista[$i].Padrao) { $tags += "padrao do Windows" }
-        $sufixo = if ($tags.Count -gt 0) { "  <- " + ($tags -join ", ") } else { "" }
-        Write-Host ("  [{0}] {1}{2}" -f ($i + 1), $lista[$i].Nome, $sufixo)
+        if ($lista[$i].Padrao) { $tags += "PADRAO DO WINDOWS" }
+        if ($lista[$i].Offline) { $tags += "desligada/offline" }
+        if ($sugerida -and $lista[$i].Nome -eq $sugerida.Nome) { $tags += "sugerida" }
+        $sufixo = if ($tags.Count -gt 0) { "   <- " + ($tags -join ", ") } else { "" }
+        $cor = if ($lista[$i].Padrao) { "Green" } elseif ($lista[$i].Offline) { "DarkGray" } else { "White" }
+        Write-Host ("  [{0}] {1}{2}" -f ($i + 1), $lista[$i].Nome, $sufixo) -ForegroundColor $cor
     }
     Write-Host ""
-    $esc = (Read-Host "Numero da impressora TERMICA (so ENTER = [$idxSug])").Trim()
+    Write-Host "  DIGITE O NUMERO que aparece entre [ ] e aperte ENTER (ex: 1)." -ForegroundColor Cyan
+    Write-Host "  Dica: a impressora em que o navegador imprime e a PADRAO DO WINDOWS." -ForegroundColor Cyan
+    $pergunta = if ($sugerida) { "Numero da impressora de cupom (so ENTER = [$idxSug] $($sugerida.Nome))" } else { "Numero da impressora de cupom" }
+    $esc = (Read-Host $pergunta).Trim()
 
     $escolhida = $null
-    if (-not $esc) { $escolhida = $sugerida.Nome }
-    elseif ($esc -match '^\d+$' -and [int]$esc -ge 1 -and [int]$esc -le $lista.Count) { $escolhida = $lista[[int]$esc - 1].Nome }
-    else {
+    if (-not $esc -and $sugerida) { $escolhida = $sugerida.Nome }
+    elseif ($esc -match '^\[?(\d+)\]?$' -and [int]$Matches[1] -ge 1 -and [int]$Matches[1] -le $lista.Count) { $escolhida = $lista[[int]$Matches[1] - 1].Nome }
+    elseif ($esc) {
         $m = $todas | Where-Object { $_.Nome -ieq $esc } | Select-Object -First 1
         if ($m) { $escolhida = $m.Nome }
     }
-    if (-not $escolhida) { Write-Host "  Opcao invalida, digite o numero da lista." -ForegroundColor Red; Write-Host ""; continue }
+    if (-not $escolhida) { Write-Host "  Nao entendi. Digite so o NUMERO da lista (ex: 1) e aperte ENTER." -ForegroundColor Red; Write-Host ""; continue }
 
+    Write-Host ""
+    Write-Host "  Voce escolheu: $escolhida" -ForegroundColor Green
     Write-Host "Imprimindo cupom de teste em '$escolhida'..." -ForegroundColor Yellow
     $erro = Teste-Impressao $escolhida
     if ($erro -eq "PULAR") {
@@ -286,5 +298,6 @@ try {
     Sair "ERRO: nao consegui salvar $dir\config.json ($($_.Exception.Message))."
 }
 Write-Host ""
-Write-Host "Configuracao salva!" -ForegroundColor Green
+Write-Host "Configuracao salva! Impressora: $(if ($printerName) { $printerName } else { 'padrao do Windows' })" -ForegroundColor Green
+Write-Host "  Trocou de impressora depois? Escolha a nova no painel (Automacoes > Impressao), sem reinstalar." -ForegroundColor Gray
 exit 0

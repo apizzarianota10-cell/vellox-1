@@ -1,5 +1,5 @@
 @echo off
-set "INSTALADOR_VERSAO=v6"
+set "INSTALADOR_VERSAO=v7"
 title Vellox - Instalador de Impressao %INSTALADOR_VERSAO%
 color 0A
 echo.
@@ -78,14 +78,16 @@ timeout /t 8 /nobreak >nul
 powershell -NoProfile -Command ^
   "$vivo=@(Get-CimInstance Win32_Process -EA SilentlyContinue | Where-Object { $_.CommandLine -like '*servidor.ps1*' -and $_.ProcessId -ne $PID }).Count -gt 0;" ^
   "$log=if(Test-Path '%DIR%\log.txt'){ Get-Content '%DIR%\log.txt' -Tail 15 }else{ @() };" ^
-  "$erro=@($log | Where-Object { $_ -cmatch '^\s*ERRO|\[ERRO' });" ^
+  "$erro=@($log | Where-Object { $_ -cmatch '^\s*ERRO|\[ERRO' -and $_ -notmatch 'ERRO impressao' });" ^
+  "$erroImp=@($log | Where-Object { $_ -match 'ERRO impressao' });" ^
   "Write-Host '';" ^
   "if($vivo -and $erro.Count -eq 0){" ^
   "  Write-Host ' =========================================' -ForegroundColor Green;" ^
   "  Write-Host '   PRONTO! Servidor de impressao rodando.' -ForegroundColor Green;" ^
   "  Write-Host '   No painel (Automacoes > Impressao) o' -ForegroundColor Green;" ^
   "  Write-Host '   agente fica VERDE em ate 10 segundos.' -ForegroundColor Green;" ^
-  "  Write-Host ' =========================================' -ForegroundColor Green" ^
+  "  Write-Host ' =========================================' -ForegroundColor Green;" ^
+  "  if($erroImp.Count -gt 0){ Write-Host ' ATENCAO - problema com a impressora:' -ForegroundColor Yellow; $erroImp | ForEach-Object { Write-Host ('   '+$_.Trim()) -ForegroundColor Yellow }; Write-Host ' Escolha a impressora certa no painel (Automacoes > Impressao).' -ForegroundColor Yellow }" ^
   "} else {" ^
   "  Write-Host ' =========================================' -ForegroundColor Red;" ^
   "  Write-Host '   O servidor NAO ficou rodando.' -ForegroundColor Red;" ^

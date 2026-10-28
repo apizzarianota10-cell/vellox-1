@@ -28,6 +28,14 @@ try {
     if (-not (Test-Path $tmpFile) -or (Get-Item $tmpFile).Length -lt 1000) {
         throw "Arquivo baixado parece vazio ou incompleto."
     }
+    # Mesma checagem da auto-atualizacao do servidor.ps1: le como ANSI (igual o
+    # PowerShell 5.1 vai ler o arquivo sem BOM) e so segue se nao tiver erro de
+    # sintaxe - senao o agente que funciona seria trocado por um quebrado.
+    $txtNovo = [System.IO.File]::ReadAllText($tmpFile, [System.Text.Encoding]::Default)
+    $errsNovo = $null
+    [void][System.Management.Automation.Language.Parser]::ParseInput($txtNovo, [ref]$null, [ref]$errsNovo)
+    if ($errsNovo -and $errsNovo.Count -gt 0) { throw "Arquivo baixado com erro de sintaxe (linha $($errsNovo[0].Extent.StartLineNumber))." }
+    if ($txtNovo -match '(?m)^\$Versao = "(v\d+)"') { Write-Host "  Versao baixada: $($Matches[1])" -ForegroundColor Gray }
 } catch {
     Write-Host "ERRO: nao foi possivel baixar a atualizacao ($($_.Exception.Message)). O servidor atual continua rodando normalmente - tente de novo mais tarde." -ForegroundColor Red
     Read-Host "Pressione ENTER para sair"

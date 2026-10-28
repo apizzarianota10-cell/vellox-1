@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import type { ReactNode } from "react";
 import {
   Printer, Download, Play, CheckCircle, AlertCircle,
   ChevronLeft, Loader2, Zap, X, Copy, Eye, EyeOff, RefreshCw, KeyRound,
@@ -45,9 +46,63 @@ const FONTE_OPTS: { id: FonteOpt; label: string; sub: string }[] = [
 // fonte que o agente usa pra se auto-atualizar), então não precisa manter
 // número nenhum em sincronia à mão. A partir da v12 o agente se atualiza sozinho.
 const VERSAO_AUTO_UPDATE = 12;
+// A partir da v16 o agente manda a lista de impressoras do Windows e aceita a
+// troca de impressora pelo painel (schema_v77).
+const VERSAO_TROCA_IMPRESSORA = 16;
 function numVersao(v: string | null | undefined) {
   const m = v?.match(/v(\d+)/);
   return m ? Number(m[1]) : 0;
+}
+
+// Impressora como o agente reporta (servidor.ps1 v16, Get-ListaImpressoras).
+interface ImpressoraPC {
+  nome: string;
+  padrao?: boolean;
+  offline?: boolean;
+  status?: string;
+  porta?: string;
+  virtual?: boolean;
+}
+
+// Linha de configuracoes_print_agent lida com select("*"): as colunas da v77
+// podem não existir ainda (migração não rodada) — por isso tudo opcional.
+interface StatusImpressora {
+  temV77: boolean;
+  impressora_nome: string | null;
+  impressoras: ImpressoraPC[] | null;
+  impressoras_em: string | null;
+  impressora_escolhida: string | null;
+  ultimo_erro: string | null;
+  ultimo_erro_em: string | null;
+}
+
+function lerStatusImpressora(row: Record<string, unknown>): StatusImpressora {
+  const lista = Array.isArray(row.impressoras_disponiveis)
+    ? (row.impressoras_disponiveis as unknown[])
+        .filter((x): x is ImpressoraPC => !!x && typeof x === "object" && typeof (x as ImpressoraPC).nome === "string")
+    : null;
+  const txt = (v: unknown) => (typeof v === "string" && v.trim() ? v : null);
+  return {
+    temV77: "impressoras_disponiveis" in row,
+    impressora_nome: txt(row.impressora_nome),
+    impressoras: lista,
+    impressoras_em: txt(row.impressoras_em),
+    impressora_escolhida: txt(row.impressora_escolhida),
+    ultimo_erro: txt(row.ultimo_erro),
+    ultimo_erro_em: txt(row.ultimo_erro_em),
+  };
+}
+
+const mesmoNome = (a: string | null | undefined, b: string | null | undefined) =>
+  !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
+
+function horaCurta(iso: string | null) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const hoje = new Date().toDateString() === d.toDateString();
+  return hoje
+    ? d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+    : d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
 export default function ImpressaoClient({ empresa, initialConfig }: Props) {
@@ -86,6 +141,14 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
   });
   const [agora, setAgora] = useState(() => Date.now());
   const [versaoMaisNova, setVersaoMaisNova] = useState<string | null>(null);
+  // Cartão "Impressora do computador"
+  const [statusImp, setStatusImp] = useState<StatusImpressora | null>(null);
+  const [impSelecionada, setImpSelecionada] = useState("");
+  const [aplicando, setAplicando] = useState<{ nome: string; desde: number } | null>(null);
+  const [salvandoImp, setSalvandoImp] = useState(false);
+  const [erroImp, setErroImp] = useState("");
+  const [trocaConfirmada, setTrocaConfirmada] = useState<string | null>(null);
+  const [testeNoCartao, setTesteNoCartao] = useState(false);
 
   useEffect(() => {
     fetch("/print-server/servidor.ps1", { cache: "no-store" })
@@ -100,18 +163,70 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
     const sb = createClient();
     let ativo = true;
     async function atualizarStatus() {
+      // select("*"): funciona com e sem as colunas da schema_v77.
       const { data } = await sb
         .from("configuracoes_print_agent")
-        .select("agent_last_seen, agent_versao")
+        .select("*")
         .eq("empresa_id", empresa.id)
         .maybeSingle();
       if (!ativo) return;
-      if (data) setAgentStatus({ last_seen: data.agent_last_seen, versao: data.agent_versao });
+      if (data) {
+        const row = data as Record<string, unknown>;
+        setAgentStatus({ last_seen: (row.agent_last_seen as string | null) ?? null, versao: (row.agent_versao as string | null) ?? null });
+        setStatusImp(lerStatusImpressora(row));
+      }
       setAgora(Date.now());
     }
+    atualizarStatus();
     const t = setInterval(atualizarStatus, 10_000);
     return () => { ativo = false; clearInterval(t); };
   }, [empresa.id]);
+
+  // Troca pendente: confirma quando o heartbeat mostrar a impressora nova; se
+  // a página foi recarregada no meio da troca, retoma pelo valor do banco.
+  useEffect(() => {
+    if (!statusImp) return;
+    if (aplicando) {
+      if (mesmoNome(aplicando.nome, statusImp.impressora_nome)) {
+        setTrocaConfirmada(statusImp.impressora_nome);
+        setAplicando(null);
+      }
+    } else if (statusImp.impressora_escolhida && !mesmoNome(statusImp.impressora_escolhida, statusImp.impressora_nome)) {
+      setAplicando({ nome: statusImp.impressora_escolhida, desde: Date.now() });
+    }
+  }, [statusImp, aplicando]);
+
+  // Seleção inicial do seletor: a atual (se existe no PC); senão a padrão do
+  // Windows; senão a primeira da lista.
+  const listaImp = (statusImp?.impressoras ?? []).filter(p => !p.virtual || mesmoNome(p.nome, statusImp?.impressora_nome));
+  useEffect(() => {
+    if (!listaImp.length) return;
+    if (listaImp.some(p => p.nome === impSelecionada)) return;
+    const atual = listaImp.find(p => mesmoNome(p.nome, statusImp?.impressora_nome));
+    const padrao = listaImp.find(p => p.padrao);
+    setImpSelecionada((atual ?? padrao ?? listaImp[0]).nome);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusImp?.impressoras, statusImp?.impressora_nome]);
+
+  async function usarImpressora() {
+    const nome = impSelecionada;
+    if (!nome) return;
+    setSalvandoImp(true);
+    setErroImp("");
+    setTrocaConfirmada(null);
+    // O agente (servidor.ps1 v16+) lê esse valor a cada 60s, grava no
+    // config.json do computador e passa a imprimir nela.
+    const { error } = await supabase.from("configuracoes_print_agent")
+      .upsert({ empresa_id: empresa.id, impressora_escolhida: nome }, { onConflict: "empresa_id" });
+    setSalvandoImp(false);
+    if (error) {
+      setErroImp(/impressora_escolhida/.test(error.message)
+        ? "Essa função ainda não foi liberada no sistema. Fale com o suporte Vellox."
+        : "Não consegui salvar: " + error.message);
+      return;
+    }
+    setAplicando({ nome, desde: Date.now() });
+  }
 
   // O link precisa estar no DOM antes do .click() (em alguns navegadores,
   // um <a download> solto na memória não dispara o download de jeito
@@ -411,6 +526,158 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
         );
       })()}
 
+      {/* Impressora do computador — troca pelo painel (agente v16 + schema_v77) */}
+      {(() => {
+        const lastSeen = agentStatus.last_seen;
+        const agentOnline = !!lastSeen && agora - new Date(lastSeen).getTime() < 30_000;
+        const versaoNum = numVersao(agentStatus.versao);
+        if (!lastSeen) return null; // nunca instalado: o cartão de status acima já orienta
+        const s = statusImp;
+        const lista = s?.impressoras ?? null;
+        const nomeAtual = s?.impressora_nome ?? null;
+        const padraoWin = lista?.find(p => p.padrao) ?? null;
+        const atualNaLista = !!nomeAtual && !!lista?.some(p => mesmoNome(p.nome, nomeAtual));
+        const infoAtual = lista?.find(p => mesmoNome(p.nome, nomeAtual)) ?? null;
+        const agenteNovo = versaoNum >= VERSAO_TROCA_IMPRESSORA;
+        const exibido = nomeAtual || (padraoWin ? `${padraoWin.nome} (padrão do Windows)` : "impressora padrão do Windows");
+        const demorando = !!aplicando && agora - aplicando.desde > 3 * 60_000;
+
+        const caixa = (cor: "verde" | "vermelho" | "amarelo", titulo: ReactNode, detalhe?: ReactNode) => {
+          const c = cor === "verde" ? ["rgba(34,197,94,0.08)", "rgba(34,197,94,0.25)", "#22c55e", "#4ade80"]
+                  : cor === "vermelho" ? ["rgba(239,68,68,0.08)", "rgba(239,68,68,0.25)", "#ef4444", "#f87171"]
+                  : ["rgba(234,179,8,0.08)", "rgba(234,179,8,0.25)", "#eab308", "#facc15"];
+          return (
+            <div className="flex items-start gap-2 p-3 rounded-xl mb-3" style={{ background: c[0], border: `1px solid ${c[1]}` }}>
+              {cor === "verde"
+                ? <CheckCircle size={15} style={{ color: c[2], flexShrink: 0, marginTop: 1 }} />
+                : <AlertCircle size={15} style={{ color: c[2], flexShrink: 0, marginTop: 1 }} />}
+              <div className="min-w-0">
+                <p className="text-sm font-bold break-words" style={{ color: c[3] }}>{titulo}</p>
+                {detalhe && <p className="text-xs mt-1 break-words" style={{ color: "var(--text-3)" }}>{detalhe}</p>}
+              </div>
+            </div>
+          );
+        };
+
+        let estado: ReactNode;
+        if (!agentOnline) {
+          estado = caixa("amarelo", "O computador da impressora está desligado ou sem o app de impressão.",
+            "Ligue o computador da impressora. Se não resolver, rode o instalador de novo nele.");
+        } else if (!agenteNovo) {
+          estado = caixa("amarelo", "Atualizando o app de impressão…",
+            versaoNum >= VERSAO_AUTO_UPDATE
+              ? <>O app deste computador ({agentStatus.versao}) se atualiza sozinho em até 30 minutos — depois disso a lista de impressoras aparece aqui. Com pressa? Baixe o instalador abaixo, abra no computador da impressora e, quando aparecer a lista, <strong>digite o NÚMERO</strong> da impressora certa (a marcada como <strong>PADRÃO DO WINDOWS</strong> é a que o navegador usa).</>
+              : <>Este computador está com uma versão antiga ({agentStatus.versao ?? "?"}) que não se atualiza sozinha. Baixe o atualizador abaixo e abra no computador da impressora — ou rode o instalador e <strong>digite o NÚMERO</strong> da impressora certa.</>);
+        } else if (s && !s.temV77) {
+          estado = caixa("amarelo", `Imprimindo em: ${exibido}`, "A troca de impressora pelo painel ainda não foi liberada no sistema.");
+        } else if (lista && nomeAtual && !atualNaLista) {
+          estado = caixa("vermelho", `A impressora "${nomeAtual}" não foi encontrada no computador. Escolha a nova abaixo.`,
+            s?.ultimo_erro && /saiu na impressora padrao/i.test(s.ultimo_erro) && padraoWin
+              ? `Enquanto isso, os pedidos estão saindo na impressora padrão do Windows ("${padraoWin.nome}").`
+              : "Enquanto isso, os pedidos podem não estar saindo no papel.");
+        } else if (s?.ultimo_erro) {
+          estado = caixa("vermelho", `A última impressão falhou${s.ultimo_erro_em ? ` (${horaCurta(s.ultimo_erro_em)})` : ""}.`,
+            <>Confira se a impressora está ligada, com papel e com o cabo conectado — ou escolha outra abaixo. <span style={{ opacity: 0.8 }}>Detalhe: {s.ultimo_erro}</span></>);
+        } else if (infoAtual?.offline) {
+          estado = caixa("amarelo", `Imprimindo em: ${exibido}`, "O Windows diz que essa impressora está desligada ou desconectada. Confira o cabo e se ela está ligada.");
+        } else {
+          estado = caixa("verde", `Imprimindo em: ${exibido}`);
+        }
+
+        const podeTrocar = agentOnline && agenteNovo && !!s?.temV77 && listaImp.length > 0;
+        const selecionadaEhAtual = mesmoNome(impSelecionada, nomeAtual);
+
+        return (
+          <div className="rounded-2xl p-4" style={{ background: "var(--bg-2)", border: "1px solid var(--border-1)" }}>
+            <div className="flex items-center gap-2 mb-3">
+              <Printer size={15} style={{ color: "#E4002B" }} />
+              <p className="text-sm font-bold" style={{ color: "var(--text-1)" }}>Impressora do computador</p>
+            </div>
+
+            {estado}
+
+            {aplicando && (
+              <div className="flex items-start gap-2 p-3 rounded-xl mb-3" style={{ background: "var(--overlay-sm)", border: "1px solid var(--border-1)" }}>
+                <Loader2 size={14} className="animate-spin" style={{ color: "var(--text-2)", flexShrink: 0, marginTop: 1 }} />
+                <p className="text-xs" style={{ color: "var(--text-2)" }}>
+                  {demorando
+                    ? <>O computador ainda não trocou para &quot;{aplicando.nome}&quot;. Confira se ele está ligado e com internet.{s?.ultimo_erro ? <> Aviso do computador: {s.ultimo_erro}</> : null}</>
+                    : <>Aplicando &quot;{aplicando.nome}&quot;… o computador troca em até 1 minuto.</>}
+                </p>
+              </div>
+            )}
+            {trocaConfirmada && !aplicando && (
+              <p className="text-xs font-semibold mb-3" style={{ color: "#4ade80" }}>
+                Pronto! O computador já está usando &quot;{trocaConfirmada}&quot;. Faça um teste pra conferir.
+              </p>
+            )}
+
+            {podeTrocar && (
+              <>
+                <label className="text-xs font-semibold block mb-1.5" style={{ color: "#64748b" }}>
+                  Impressoras instaladas neste computador
+                </label>
+                <select
+                  value={impSelecionada}
+                  onChange={e => setImpSelecionada(e.target.value)}
+                  className="w-full rounded-xl outline-none mb-2"
+                  style={{ background: "var(--bg-input)", border: "1px solid var(--border-1)", color: "var(--text-1)", padding: "10px 12px", fontSize: 13 }}
+                >
+                  {listaImp.map(p => (
+                    <option key={p.nome} value={p.nome}>
+                      {`${p.nome}${p.padrao ? " — padrão do Windows" : ""}${p.offline ? " (desligada)" : ""}${mesmoNome(p.nome, nomeAtual) ? " (em uso)" : ""}`}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs mb-3" style={{ color: "var(--text-4)" }}>
+                  Na dúvida, escolha a <strong>padrão do Windows</strong> — é nela que a reimpressão pelo navegador sai.
+                  {s?.impressoras_em ? <> Lista lida às {horaCurta(s.impressoras_em)}.</> : null}
+                </p>
+                <button
+                  onClick={usarImpressora}
+                  disabled={salvandoImp || !impSelecionada || selecionadaEhAtual || mesmoNome(aplicando?.nome, impSelecionada)}
+                  className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-bold mb-2"
+                  style={{
+                    background: selecionadaEhAtual ? "var(--overlay-sm)" : "#E4002B",
+                    color: selecionadaEhAtual ? "var(--text-3)" : "#fff",
+                    border: "1px solid var(--border-1)",
+                    opacity: salvandoImp ? 0.6 : 1,
+                  }}
+                >
+                  {salvandoImp ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
+                  {salvandoImp ? "Salvando…" : selecionadaEhAtual ? "Essa já é a impressora em uso" : "Usar esta impressora"}
+                </button>
+                {erroImp && <p className="text-xs mb-2" style={{ color: "#ef4444" }}>{erroImp}</p>}
+              </>
+            )}
+
+            {agentOnline && agenteNovo && s?.temV77 && lista && listaImp.length === 0 && (
+              <p className="text-xs mb-3" style={{ color: "#f87171" }}>
+                O computador não tem nenhuma impressora de cupom instalada. Ligue a impressora no USB e instale o driver dela.
+              </p>
+            )}
+
+            {testeNoCartao && testResult && (
+              <div className="flex items-start gap-2 p-3 rounded-xl mb-2" style={{ background: testResult.ok ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)", border: `1px solid ${testResult.ok ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}` }}>
+                {testResult.ok
+                  ? <CheckCircle size={14} style={{ color: "#22c55e", flexShrink: 0, marginTop: 1 }} />
+                  : <AlertCircle size={14} style={{ color: "#ef4444", flexShrink: 0, marginTop: 1 }} />}
+                <p className="text-xs" style={{ color: testResult.ok ? "#4ade80" : "#f87171" }}>{testResult.msg}</p>
+              </div>
+            )}
+            <button
+              onClick={() => { setTesteNoCartao(true); handleTest(); }}
+              disabled={testing}
+              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-bold"
+              style={{ background: "var(--overlay-sm)", border: "1px solid var(--border-1)", color: "var(--text-1)" }}
+            >
+              {testing ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+              {testing ? "Imprimindo..." : "Imprimir teste"}
+            </button>
+          </div>
+        );
+      })()}
+
       {/* Credenciais do servidor de impressão (PowerShell, sem instalar programa) */}
       <div className="rounded-2xl p-4" style={{ background: "var(--bg-2)", border: "1px solid var(--border-1)" }}>
         <div className="flex items-center gap-2 mb-1">
@@ -667,7 +934,7 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
 
         {/* Teste de impressão */}
         <div className="rounded-2xl p-4" style={{ background: "var(--bg-2)", border: "1px solid var(--border-1)" }}>
-          {testResult && (
+          {testResult && !testeNoCartao && (
             <div className="flex items-start gap-2 p-3 rounded-xl mb-3" style={{ background: testResult.ok ? "rgba(34,197,94,0.08)" : "rgba(239,68,68,0.08)", border: `1px solid ${testResult.ok ? "rgba(34,197,94,0.2)" : "rgba(239,68,68,0.2)"}` }}>
               {testResult.ok
                 ? <CheckCircle size={14} style={{ color: "#22c55e", flexShrink: 0, marginTop: 1 }} />
@@ -676,7 +943,7 @@ export default function ImpressaoClient({ empresa, initialConfig }: Props) {
             </div>
           )}
           <button
-            onClick={handleTest}
+            onClick={() => { setTesteNoCartao(false); handleTest(); }}
             disabled={testing}
             className="flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-bold"
             style={{ background: "linear-gradient(135deg,#22c55e,#16a34a)", color: "#fff" }}

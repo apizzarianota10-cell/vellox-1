@@ -1,5 +1,10 @@
 # Vellox Print Server - PowerShell (sem Node.js)
-$Versao = "v15"
+$Versao = "v16"
+# v16: impressora escolhida pelo painel (sem reinstalar), lista de impressoras
+# e ultimo erro no heartbeat, cai pra impressora padrao do Windows se a
+# configurada sumiu, e pedido que falhou tenta de novo por ate 10 min.
+# REGRA: este arquivo e baixado sem BOM e lido como cp1252 - fora de
+# comentario, so ASCII (strings, regex, Write-Host).
 
 # Impressora termica usa a propria codepage (normalmente CP850/CP860), que
 # NAO bate com os bytes que [int][char] produz pra acentos - "O" (211)
@@ -41,8 +46,8 @@ $supabaseUrl = $cfg.supabase_url
 $supabaseKey = $cfg.supabase_anon_key
 $empresaId   = if ($cfg.empresa_id)   { $cfg.empresa_id.ToString().Trim() }   else { $null }
 $empresaNome = if ($cfg.empresa_nome) { $cfg.empresa_nome.ToString().Trim() } else { "" }
-$printerName = $cfg.printer_name
-$agentToken  = if ($cfg.agent_token)  { $cfg.agent_token.ToString().Trim() }  else { $null }
+$printerName = if ($cfg.printer_name) { $cfg.printer_name.ToString().Trim() } else { "" }
+$agentToken = if ($cfg.agent_token)  { $cfg.agent_token.ToString().Trim() }  else { $null }
 $tamanhoPapel = if ($cfg.tamanho_papel) { $cfg.tamanho_papel.ToString().Trim() } else { "80mm" }
 # Layout do cupom (classico/moderno/compacto) — ao contrário do resto do
 # config.json, este valor NÃO vem do arquivo local: é buscado do banco (ver
@@ -480,15 +485,186 @@ function Build-EscPos($p) {
 # QUALQUER lugar. Agora cada etapa lanca excecao se falhar, o loop principal
 # ja captura isso (Write-Host "[ERRO impressao] ...") e, por lancar ANTES do
 # mark_pedido_printed, o pedido continua elegivel pra tentar de novo.
-function Print-Raw { param([byte[]]$bytes)
-    $pn = if ($printerName -and $printerName.Trim()) { $printerName } else {
-        (Get-WmiObject Win32_Printer | Where-Object { $_.Default -eq $true } | Select-Object -First 1).Name
+#
+# v16: o envio em si ficou em Send-Raw. Ele devolve $false SO quando o
+# OpenPrinter falha (impressora removida/renomeada - nada foi enviado, entao
+# e seguro tentar outra) e lanca excecao em qualquer outra falha. Print-Raw
+# decide: tenta a configurada; se o OpenPrinter dela falhar, tenta a padrao
+# do Windows NAQUELA tentativa (sem trocar o config.json) e registra o aviso
+# pro painel. Se tudo falhar, lanca - e o loop nao marca o pedido.
+
+# --- Lista de impressoras do Windows / ultimo erro (reportados no heartbeat) ---
+$script:VirtualRe = '(?i)pdf|xps|onenote|fax|anydesk|send to|enviar para|document writer|redirect|remot'
+$script:Lista         = $null   # ultima lista lida (array) - $null = nao deu pra ler
+$script:ListaPendente = $false  # tem lista nova pra mandar no proximo ping
+$script:ErroAtual     = $null   # texto do ultimo erro/aviso ($null = tudo certo)
+$script:ErroTipo      = ""      # faltando | escolha | impressao
+$script:ErroPendente  = $false  # mudou e ainda nao chegou no banco
+$script:ErroSync      = $false  # ja mandou o estado do erro alguma vez nesta execucao
+$script:OpenErr       = ""
+
+function Get-ListaImpressoras {
+    $itens = $null
+    # Timeout: spooler travado nao pode congelar o loop de impressao.
+    try { $itens = @(Get-CimInstance Win32_Printer -OperationTimeoutSec 15 -ErrorAction Stop) } catch {}
+    if ($null -eq $itens) { try { $itens = @(Get-WmiObject Win32_Printer -ErrorAction Stop) } catch {} }
+    if ($null -eq $itens) { return $null }
+    $res = @()
+    foreach ($p in $itens) {
+        if (-not $p.Name) { continue }
+        $st = [int]$p.PrinterStatus
+        $off = ([bool]$p.WorkOffline) -or ($st -eq 7)
+        $stTxt = if ($off) { "offline" } elseif ($st -eq 4) { "imprimindo" } elseif ($st -eq 6) { "parada" } elseif ($st -eq 3) { "pronta" } else { "desconhecido" }
+        $porta = [string]$p.PortName
+        if ($porta.Length -gt 60) { $porta = $porta.Substring(0, 60) }
+        $res += [PSCustomObject]@{
+            nome    = [string]$p.Name
+            padrao  = [bool]$p.Default
+            offline = $off
+            status  = $stTxt
+            porta   = $porta
+            virtual = ([string]$p.Name -match $script:VirtualRe)
+        }
     }
-    if (-not $pn) { throw "Nenhuma impressora encontrada (nome configurado vazio e sem impressora padrao no Windows)." }
-    Write-Host "  Imprimindo em: $pn" -ForegroundColor Gray
+    return ,$res
+}
+
+function Atualiza-Lista {
+    $l = Get-ListaImpressoras
+    if ($null -ne $l) { $script:Lista = $l; $script:ListaPendente = $true }
+}
+
+function Get-PadraoWindows {
+    $l = Get-ListaImpressoras
+    if ($null -eq $l) { return $null }
+    $script:Lista = $l; $script:ListaPendente = $true
+    $p = $l | Where-Object { $_.padrao } | Select-Object -First 1
+    if ($p) { return $p.nome }
+    return $null
+}
+
+function Set-ErroImpressao([string]$msg, [string]$tipo = "impressao") {
+    if ($msg.Length -gt 480) { $msg = $msg.Substring(0, 480) }
+    Write-Host "  [ERRO impressao] $msg" -ForegroundColor Red
+    if ($script:ErroAtual -ne $msg) { $script:ErroAtual = $msg; $script:ErroPendente = $true }
+    $script:ErroTipo = $tipo
+}
+
+function Limpa-Erro {
+    if ($script:ErroAtual -or -not $script:ErroSync) { $script:ErroPendente = $true }
+    $script:ErroAtual = $null; $script:ErroTipo = ""
+}
+
+# Confere a impressora configurada contra a lista do Windows (na partida e a
+# cada 60s). Assim o painel fica vermelho na hora em que a impressora some,
+# sem esperar o proximo pedido falhar.
+function Checa-Configurada {
+    if ($null -eq $script:Lista) { return }
+    if (-not $script:printerName) {
+        $p = $script:Lista | Where-Object { $_.padrao } | Select-Object -First 1
+        if (-not $p) { Set-ErroImpressao "Nenhuma impressora escolhida e o Windows nao tem impressora padrao." "faltando" }
+        elseif ($script:ErroTipo -eq "faltando") { Limpa-Erro }
+        return
+    }
+    $achou = $script:Lista | Where-Object { $_.nome -ieq $script:printerName } | Select-Object -First 1
+    if (-not $achou) {
+        if ($script:ErroTipo -ne "faltando") {
+            Set-ErroImpressao "A impressora '$($script:printerName)' nao foi encontrada neste computador (removida ou renomeada)." "faltando"
+        }
+    } elseif ($script:ErroTipo -eq "faltando" -or -not $script:ErroSync) {
+        # Existe: limpa o "nao encontrada" (e, na partida, um erro velho que
+        # ficou no banco de antes de reiniciar).
+        Limpa-Erro
+    }
+}
+
+function Salva-Impressora([string]$nome) {
+    try {
+        $c = Get-Content $cfgPath -Raw -ErrorAction Stop | ConvertFrom-Json
+        if ($c.PSObject.Properties['printer_name']) { $c.printer_name = $nome }
+        else { $c | Add-Member -NotePropertyName printer_name -NotePropertyValue $nome }
+        Copy-Item $cfgPath (Join-Path (Split-Path $cfgPath -Parent) "config.anterior.json") -Force -ErrorAction SilentlyContinue
+        $tmp = "$cfgPath.tmp"
+        $c | ConvertTo-Json | Out-File -Encoding utf8 $tmp -ErrorAction Stop
+        Move-Item $tmp $cfgPath -Force -ErrorAction Stop
+        Write-Host "  config.json atualizado (printer_name = '$nome')." -ForegroundColor Green
+    } catch {
+        Write-Host "  [AVISO] Nao consegui gravar o config.json ($($_.Exception.Message)). A troca vale ate o agente reiniciar." -ForegroundColor Yellow
+    }
+}
+
+# Impressora escolhida no painel (get_print_agent_prefs.impressora, schema_v77).
+$script:EscolhaRecusada = ""
+function Aplica-Escolha([string]$nome) {
+    if (-not $nome) { return }
+    $nome = $nome.Trim()
+    if (-not $nome -or $nome -ieq $script:printerName) { return }
+    if ($null -ne $script:Lista) {
+        $m = $script:Lista | Where-Object { $_.nome -ieq $nome } | Select-Object -First 1
+        if (-not $m) {
+            if ($script:EscolhaRecusada -ne $nome) {
+                $script:EscolhaRecusada = $nome
+                Set-ErroImpressao "A impressora escolhida no painel ('$nome') nao existe neste computador. Continuo usando '$($script:printerName)'." "escolha"
+            }
+            return
+        }
+        $nome = $m.nome
+    }
+    $script:EscolhaRecusada = ""
+    $antiga = if ($script:printerName) { $script:printerName } else { "padrao do Windows" }
+    Write-Host "[IMPRESSORA] Trocada de '$antiga' para '$nome' (escolhida no painel)." -ForegroundColor Cyan
+    $script:printerName = $nome
+    Salva-Impressora $nome
+    Limpa-Erro
+    Checa-Configurada
+}
+
+function Print-Raw { param([byte[]]$bytes)
+    $cfgNome = if ($script:printerName) { $script:printerName } else { "" }
+    if (-not $cfgNome) {
+        $pad = Get-PadraoWindows
+        if (-not $pad) {
+            $msg = "Nenhuma impressora escolhida e o Windows nao tem impressora padrao."
+            Set-ErroImpressao $msg "faltando"; throw $msg
+        }
+        Write-Host "  Imprimindo em: $pad (padrao do Windows)" -ForegroundColor Gray
+        try { $ok = Send-Raw $pad $bytes } catch { Set-ErroImpressao "Falha ao imprimir em '$pad': $($_.Exception.Message)"; throw }
+        if (-not $ok) { $msg = "Nao consegui abrir a impressora padrao '$pad'. $($script:OpenErr)"; Set-ErroImpressao $msg "faltando"; throw $msg }
+        Limpa-Erro
+        return
+    }
+
+    Write-Host "  Imprimindo em: $cfgNome" -ForegroundColor Gray
+    try { $ok = Send-Raw $cfgNome $bytes } catch { Set-ErroImpressao "Falha ao imprimir em '$cfgNome': $($_.Exception.Message)"; throw }
+    if ($ok) { Limpa-Erro; return }
+
+    $erroCfg = $script:OpenErr
+    Write-Host "  [AVISO] $erroCfg Tentando a impressora padrao do Windows..." -ForegroundColor Yellow
+    $pad = Get-PadraoWindows
+    if (-not $pad -or $pad -ieq $cfgNome) {
+        $msg = "A impressora '$cfgNome' nao foi encontrada neste computador e nao ha outra impressora padrao no Windows."
+        Set-ErroImpressao $msg "faltando"; throw $msg
+    }
+    if ($pad -match $script:VirtualRe) {
+        $msg = "A impressora '$cfgNome' nao foi encontrada neste computador. A padrao do Windows ('$pad') nao imprime cupom, entao nao foi usada."
+        Set-ErroImpressao $msg "faltando"; throw $msg
+    }
+    Write-Host "  Imprimindo em: $pad (padrao do Windows, no lugar de '$cfgNome')" -ForegroundColor Gray
+    try { $ok2 = Send-Raw $pad $bytes } catch {
+        Set-ErroImpressao "A impressora '$cfgNome' nao foi encontrada e a padrao do Windows ('$pad') tambem falhou: $($_.Exception.Message)" "faltando"; throw
+    }
+    if (-not $ok2) {
+        $msg = "A impressora '$cfgNome' nao foi encontrada e nao consegui abrir a padrao do Windows ('$pad')."
+        Set-ErroImpressao $msg "faltando"; throw $msg
+    }
+    Set-ErroImpressao "A impressora '$cfgNome' nao foi encontrada neste computador. O cupom saiu na impressora padrao do Windows ('$pad'). Escolha a impressora certa no painel." "faltando"
+}
+
+function Send-Raw { param([string]$pn, [byte[]]$bytes)
     $h = [IntPtr]::Zero
     if (-not [WinPrint]::OpenPrinter($pn, [ref]$h, [IntPtr]::Zero)) {
-        throw "OpenPrinter falhou para '$pn' (Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error())) - confira se o nome bate exatamente com o das Impressoras do Windows."
+        $script:OpenErr = "OpenPrinter falhou para '$pn' (Win32 error $([Runtime.InteropServices.Marshal]::GetLastWin32Error()))."
+        return $false
     }
     try {
         $di = New-Object WinPrint+DI; $di.n = "Vellox"; $di.t = "RAW"
@@ -520,6 +696,7 @@ function Print-Raw { param([byte[]]$bytes)
         [WinPrint]::ClosePrinter($h) | Out-Null
     }
     Write-Host "  [OK] $w bytes enviados a impressora!" -ForegroundColor Green
+    return $true
 }
 
 # Mini servidor HTTP na porta 7532 — o mesmo endereco que o app Electron
@@ -669,8 +846,70 @@ Write-Host ""
 # devolver qualquer coisa, sem precisar deixar a tabela de pedidos aberta.
 $headers = @{ "apikey" = $supabaseKey; "Authorization" = "Bearer $supabaseKey"; "Content-Type" = "application/json" }
 $printed = @{}
-$lastCheck = (Get-Date).AddSeconds(-30).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+# Ate a v15 o p_desde andava a cada ciclo ($lastCheck = $now), entao um pedido
+# cuja impressao falhou NUNCA voltava na consulta seguinte (created_at ficava
+# pra tras do p_desde) - "continua elegivel" era so no papel. Agora a janela e
+# fixa: ultimos 10 min (mas nunca antes de 30s antes desta partida, pra nao
+# reimprimir nada antigo ao reiniciar). Quem ja saiu e filtrado pelo $printed
+# e pelo auto_printed=true no banco; quem falhou tenta de novo a cada 15s.
+$inicioAgente = (Get-Date).ToUniversalTime().AddSeconds(-30)
+$proxTentativa = @{}
+$tentativas = @{}
 $layoutRefreshAt = Get-Date # busca o layout já na primeira volta do loop
+
+# Heartbeat v16 (schema_v77): manda tambem a lista de impressoras e o ultimo
+# erro. Banco sem a v77 responde 404/400 pros parametros novos - ai volta pro
+# formato da v15 (senao o painel mostraria o agente offline) e tenta o novo de
+# novo a cada 10 min.
+$script:PingNovo = $true
+$script:PingNovoRetryAt = Get-Date
+$hdrsJson = @{ "apikey" = $supabaseKey; "Authorization" = "Bearer $supabaseKey" }
+function Post-Rpc([string]$nome, [hashtable]$campos) {
+    $json = $campos | ConvertTo-Json -Depth 5 -Compress
+    $bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+    return Invoke-RestMethod -Uri "$supabaseUrl/rest/v1/rpc/$nome" -Headers $hdrsJson -Method POST -ContentType "application/json; charset=utf-8" -Body $bytes -TimeoutSec 15 -ErrorAction Stop
+}
+function Status-Http($err) {
+    try { if ($err.Exception.Response) { return [int]$err.Exception.Response.StatusCode } } catch {}
+    return 0
+}
+function Envia-Ping {
+    $base = @{ p_empresa_id = $empresaId; p_impressora = $script:printerName; p_tamanho_papel = $tamanhoPapel; p_agent_token = $agentToken; p_agent_versao = $Versao }
+    if (-not $script:PingNovo -and (Get-Date) -ge $script:PingNovoRetryAt) { $script:PingNovo = $true }
+    if ($script:PingNovo) {
+        $campos = $base.Clone()
+        $mandouLista = $false; $mandouErro = $false
+        if ($script:ListaPendente -and $null -ne $script:Lista) { $campos.p_impressoras = @($script:Lista); $mandouLista = $true }
+        if ($script:ErroPendente) { $campos.p_ultimo_erro = $(if ($script:ErroAtual) { [string]$script:ErroAtual } else { "" }); $mandouErro = $true }
+        try {
+            Post-Rpc "ping_print_agent" $campos | Out-Null
+            if ($mandouLista) { $script:ListaPendente = $false }
+            if ($mandouErro) { $script:ErroPendente = $false; $script:ErroSync = $true }
+            return
+        } catch {
+            $st = Status-Http $_
+            if ($st -ne 400 -and $st -ne 404) { return }  # rede/timeout: tenta no proximo ciclo
+            $script:PingNovo = $false
+            $script:PingNovoRetryAt = (Get-Date).AddMinutes(10)
+            Write-Host "  [AVISO] Banco sem a atualizacao schema_v77 (HTTP $st) - heartbeat no formato antigo; a troca de impressora pelo painel fica indisponivel." -ForegroundColor Yellow
+        }
+    }
+    try { Post-Rpc "ping_print_agent" $base | Out-Null } catch {}
+}
+
+# Na partida: le as impressoras do Windows e confere a configurada.
+Atualiza-Lista
+if ($null -ne $script:Lista) {
+    Write-Host "Impressoras no Windows:" -ForegroundColor Gray
+    foreach ($i in $script:Lista) {
+        $tags = @(); if ($i.padrao) { $tags += "PADRAO" }; if ($i.offline) { $tags += "offline" }
+        Write-Host ("  - {0}{1}" -f $i.nome, $(if ($tags.Count) { "  (" + ($tags -join ", ") + ")" } else { "" })) -ForegroundColor Gray
+    }
+} else {
+    Write-Host "  [AVISO] Nao consegui ler a lista de impressoras do Windows." -ForegroundColor Yellow
+}
+Checa-Configurada
+Write-Host ""
 
 # -- Auto-atualizacao --------------------------------------------------------
 # A versao oficial e o proprio servidor.ps1 publicado no site (fonte unica,
@@ -750,15 +989,9 @@ Write-Host ""
 
 try {
 while ($true) {
-    $now = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-
     # Heartbeat: avisa o painel web que este servidor está online (aparece
     # no lugar do aviso amarelo "voce esta sem o app de impressao")
-    try {
-        $pingUri  = "$supabaseUrl/rest/v1/rpc/ping_print_agent"
-        $pingBody = @{ p_empresa_id = $empresaId; p_impressora = $printerName; p_tamanho_papel = $tamanhoPapel; p_agent_token = $agentToken; p_agent_versao = $Versao } | ConvertTo-Json
-        Invoke-RestMethod -Uri $pingUri -Headers $headers -Method POST -Body $pingBody -TimeoutSec 15 -ErrorAction SilentlyContinue | Out-Null
-    } catch {}
+    try { Envia-Ping } catch {}
 
     # Cupom de teste do painel: usa o layout/tamanho escolhidos na tela (os
     # mesmos ja salvos no banco) so pra este cupom.
@@ -782,6 +1015,9 @@ while ($true) {
     # dobrar o tráfego à toa) — assim, trocar o layout nas Configurações do
     # painel reflete aqui sem precisar reiniciar o agente.
     if ((Get-Date) -ge $layoutRefreshAt) {
+        # Lista de impressoras do Windows: no maximo a cada 60s (vai no
+        # proximo ping) + confere se a configurada ainda existe.
+        try { Atualiza-Lista; Checa-Configurada } catch {}
         try {
             $prefsUri  = "$supabaseUrl/rest/v1/rpc/get_print_agent_prefs"
             $prefsBody = @{ p_empresa_id = $empresaId; p_agent_token = $agentToken } | ConvertTo-Json
@@ -797,6 +1033,11 @@ while ($true) {
                 # banco realmente devolveu algo (campo so existe a partir da
                 # migracao schema_v64 — RPC antiga simplesmente nao manda).
                 if ($prefs[0].empresa_nome) { $empresaNome  = $prefs[0].empresa_nome }
+                # Impressora escolhida no painel (schema_v77; banco antigo nao
+                # manda o campo e nada muda).
+                if ($prefs[0].PSObject.Properties['impressora'] -and $prefs[0].impressora) {
+                    try { Aplica-Escolha ([string]$prefs[0].impressora) } catch { Write-Host "  [AVISO] Falha ao trocar de impressora: $_" -ForegroundColor Yellow }
+                }
             } else {
                 # Resposta vazia = token/empresa_id nao validou no servidor (ver
                 # get_print_agent_prefs) — fica nisso silenciosamente era o motivo
@@ -821,39 +1062,48 @@ while ($true) {
 
     try {
         $rpcUri = "$supabaseUrl/rest/v1/rpc/get_pedidos_pendentes_agent"
-        $body = @{ p_empresa_id = $empresaId; p_agent_token = $agentToken; p_desde = $lastCheck } | ConvertTo-Json
+        $desdeDt = (Get-Date).ToUniversalTime().AddMinutes(-10)
+        if ($desdeDt -lt $inicioAgente) { $desdeDt = $inicioAgente }
+        $desde = $desdeDt.ToString("yyyy-MM-ddTHH:mm:ssZ")
+        $body = @{ p_empresa_id = $empresaId; p_agent_token = $agentToken; p_desde = $desde } | ConvertTo-Json
         $orders = Invoke-RestMethod -Uri $rpcUri -Headers $headers -Method POST -Body $body -TimeoutSec 15 -ErrorAction Stop
         foreach ($pedido in $orders) {
-            if (-not $printed.ContainsKey($pedido.id)) {
-                $t = (Get-Date).ToString("HH:mm:ss")
-                Write-Host "[$t] Novo pedido: #$($pedido.id.Substring(0,8).ToUpper()) - $($pedido.cliente_nome)" -ForegroundColor Yellow
+            if (-not $pedido -or -not $pedido.id) { continue }
+            if ($printed.ContainsKey($pedido.id)) { continue }
+            if ($proxTentativa.ContainsKey($pedido.id) -and (Get-Date) -lt $proxTentativa[$pedido.id]) { continue }
+            $t = (Get-Date).ToString("HH:mm:ss")
+            $n = if ($tentativas.ContainsKey($pedido.id)) { $tentativas[$pedido.id] + 1 } else { 1 }
+            $tentativas[$pedido.id] = $n
+            $sufixo = if ($n -gt 1) { " (tentativa $n)" } else { "" }
+            Write-Host "[$t] Novo pedido: #$($pedido.id.Substring(0,8).ToUpper()) - $($pedido.cliente_nome)$sufixo" -ForegroundColor Yellow
+            try {
+                $bytes = Build-EscPos $pedido
+                Print-Raw $bytes
+                # So marca como "ja visto" DEPOIS de imprimir com sucesso — se
+                # Print-Raw lancar erro, nao marca aqui, e o pedido continua
+                # elegivel (auto_printed ainda false no banco) e volta na
+                # consulta seguinte (janela de 10 min, ver $inicioAgente),
+                # com nova tentativa a cada 15s.
+                $printed[$pedido.id] = $true
+                $proxTentativa.Remove($pedido.id); $tentativas.Remove($pedido.id)
+                # Marca no banco que este pedido ja foi impresso (auto_printed=true).
+                # Isso faz o painel web (PrintListener) pular o fallback via
+                # navegador para este pedido caso ele ainda nao tenha rodado,
+                # evitando imprimir o mesmo pedido duas vezes.
                 try {
-                    $bytes = Build-EscPos $pedido
-                    Print-Raw $bytes
-                    # So marca como "ja visto" DEPOIS de imprimir com sucesso — se
-                    # Print-Raw lancar erro, nao marca aqui, e o pedido continua
-                    # elegivel (auto_printed ainda false no banco) pra tentar de
-                    # novo no proximo ciclo de 5s, em vez de ficar "esquecido" so
-                    # porque essa tentativa falhou.
-                    $printed[$pedido.id] = $true
-                    # Marca no banco que este pedido ja foi impresso (auto_printed=true).
-                    # Isso faz o painel web (PrintListener) pular o fallback via
-                    # navegador para este pedido caso ele ainda nao tenha rodado,
-                    # evitando imprimir o mesmo pedido duas vezes.
-                    try {
-                        $markUri  = "$supabaseUrl/rest/v1/rpc/mark_pedido_printed"
-                        $markBody = @{ p_pedido_id = $pedido.id; p_empresa_id = $empresaId; p_auto = $true } | ConvertTo-Json
-                        Invoke-RestMethod -Uri $markUri -Headers $headers -Method POST -Body $markBody -TimeoutSec 15 -ErrorAction SilentlyContinue | Out-Null
-                    } catch {}
-                } catch {
-                    Write-Host "  [ERRO impressao] $_" -ForegroundColor Red
-                }
+                    $markUri  = "$supabaseUrl/rest/v1/rpc/mark_pedido_printed"
+                    $markBody = @{ p_pedido_id = $pedido.id; p_empresa_id = $empresaId; p_auto = $true } | ConvertTo-Json
+                    Invoke-RestMethod -Uri $markUri -Headers $headers -Method POST -Body $markBody -TimeoutSec 15 -ErrorAction SilentlyContinue | Out-Null
+                } catch {}
+            } catch {
+                # Print-Raw ja registrou o erro pro painel (Set-ErroImpressao).
+                $proxTentativa[$pedido.id] = (Get-Date).AddSeconds(15)
+                Write-Host "  [ERRO impressao] $_ - pedido NAO marcado como impresso; tento de novo em 15s (por ate 10 min)." -ForegroundColor Red
             }
         }
     } catch {
         Write-Host "[ERRO conexao $($(Get-Date).ToString('HH:mm:ss'))] $_" -ForegroundColor Red
     }
-    $lastCheck = $now
     Start-Sleep -Seconds 5
 }
 } finally {
